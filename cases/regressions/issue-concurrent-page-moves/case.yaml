@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-concurrent-page-moves
+feature: layout.collab.coedit
+intent: >-
+  Adding, moving or removing a page re-lays the spreads out and gave every spread a new id, so the
+  replica replaced all of them: two people adding a page each at once ended with every page twice
+  (10 pages instead of 6). A spread now keeps the id of the spread its pages were on, and
+  concurrent page edits keep every page and object once, on single and facing pages.
+layer: gate
+source:
+  kind: probe
+  from: kition-convergence reorder scenario on kition-layout-kit (bindings/wasm/tests/convergence.rs)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-layout-kdm
+      test: replicas
+      filter: concurrent_page
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-17"

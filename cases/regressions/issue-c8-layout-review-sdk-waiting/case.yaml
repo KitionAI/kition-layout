@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-sdk-waiting
+feature: layout.agent.premises
+intent: Pin current SDK defects without relaxing kit premises; nested JSON member limits and nonempty tree deletion remain waiting for the maintainers' joint SDK repin.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-kit, test: sdk_waiting}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

@@ -1,0 +1,17 @@
+{
+  "steps": [
+    {
+      "command": "frame.create",
+      "params": {
+        "content": "text",
+        "rect": [
+          72,
+          300,
+          540,
+          360
+        ],
+        "text": "Saturday 8 pm"
+      }
+    }
+  ]
+}

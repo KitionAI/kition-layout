@@ -1,0 +1,96 @@
+{
+  "id": "quote",
+  "name": "Quote",
+  "width": 1080,
+  "height": 1440,
+  "swatches": {
+    "Surface": "#d9f3e1",
+    "Accent": "#2a9d99",
+    "Text": "#1a1a1a"
+  },
+  "background": "Surface",
+  "paragraphStyles": {
+    "Quotation Mark": {
+      "font": "Lora",
+      "fontStyle": "Bold",
+      "size": 320,
+      "leading": 332.8,
+      "fill": "Accent"
+    },
+    "Headline": {
+      "font": "Lora",
+      "fontStyle": "Bold",
+      "size": 100,
+      "leading": 104.0,
+      "fill": "Text"
+    },
+    "Body": {
+      "font": "Inter",
+      "fontStyle": "Bold",
+      "size": 32,
+      "leading": 33.28,
+      "fill": "Text"
+    },
+    "Label": {
+      "font": "Inter",
+      "fontStyle": "Bold",
+      "size": 24,
+      "leading": 24.96,
+      "fill": "Text"
+    }
+  },
+  "items": [
+    {
+      "type": "text",
+      "name": "Quotation mark",
+      "rect": [
+        70,
+        140,
+        900,
+        1280
+      ],
+      "style": "Quotation Mark",
+      "text": "“"
+    },
+    {
+      "type": "text",
+      "name": "Headline",
+      "rect": [
+        110,
+        420,
+        860,
+        400
+      ],
+      "style": "Headline",
+      "text": "Small steps. Remarkable places."
+    },
+    {
+      "type": "text",
+      "name": "Body",
+      "rect": [
+        110,
+        1170,
+        880,
+        128
+      ],
+      "style": "Body",
+      "text": "A thought for today.",
+      "constraints": {
+        "horizontal": "left",
+        "vertical": "bottom"
+      }
+    },
+    {
+      "type": "text",
+      "name": "Label",
+      "rect": [
+        110,
+        100,
+        880,
+        96
+      ],
+      "style": "Label",
+      "text": "A MOMENT TO REFLECT"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-root-settings
+feature: layout.agent.premises
+intent: Global-light replacement and the primary-story toggle hold the root settings they replace or read; an independent file writer's unrelated item rename still applies.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: independent_root_settings}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

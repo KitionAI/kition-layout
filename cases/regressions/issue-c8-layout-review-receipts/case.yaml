@@ -1,0 +1,12 @@
+format: 1
+id: regressions/issue-c8-layout-review-receipts
+feature: layout.agent.premises
+intent: Two hundred fractional offsets are fully stated by SDK footprints without truncation.
+layer: gate
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review_receipt}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

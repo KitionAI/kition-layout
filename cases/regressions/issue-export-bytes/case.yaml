@@ -1,0 +1,28 @@
+format: 1
+id: regressions/issue-export-bytes
+feature: layout.file.export
+intent: >-
+  `file.exportBytes` answers the layout as PDF, PNG, JPEG, HTML, IDML or EPUB in base64 without
+  writing a file: the IDML and EPUB are ZIP packages whose first entry is their stored mimetype
+  (EPUB's with no extra field, OCF), and the IDML opens again. kit.json declares exactly those
+  formats (`exports`, with their MIME types) and `agent.export`, so Kition writes them and the
+  headless kit answers every one to the agent's `layout_export`.
+layer: gate
+source:
+  kind: probe
+  from: crates/engine/engine/src/cmd/export_bytes.rs, bindings/headless/tests/export.rs
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-layout-engine
+      filter: cmd::export_bytes
+  - cargo-test:
+      package: kition-layout
+      test: export
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 300
+since: "2026-11-17"

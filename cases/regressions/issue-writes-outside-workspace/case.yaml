@@ -1,0 +1,34 @@
+format: 1
+id: regressions/issue-writes-outside-workspace
+feature: layout.security.workspace
+intent: >-
+  The headless kit reads and writes only inside its workspace, through its host, and starts no
+  program (KHP A29, A37, A42, A45, section 10.6): whatever an agent runs, directly, inside
+  model.batch (as a script, as the agent, as a person it claims to be) or inside script.run, and
+  whatever its documents link to, nothing appears in the process's current, home or temporary
+  folder, nothing outside the workspace is listed, read into an answer, a picture or an export,
+  changed or deleted, no program starts, and no home font folder is read. A picture in the
+  workspace is placed and shown; links outside it are reported as layout.missing-link. An audit
+  started lpstat and lpr (file.printers, file.print), wrote files outside the workspace through
+  script.run and model.batch, and read a text file outside it back through file.place and
+  file.serialize.
+layer: gate
+tags: [headless, security]
+source:
+  kind: probe
+  from: workspace-escape audit (layout section)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-layout
+      test: workspace_only
+  - cargo-test:
+      package: kition-layout-kit
+      filter: the_manifest_excludes_what_the_kit_refuses_agents
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 300
+since: "2026-11-17"

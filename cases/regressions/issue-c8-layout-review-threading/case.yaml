@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-threading
+feature: layout.agent.premises
+intent: Threading and unthreading hold the stories owned by both frame endpoints, without refusing unrelated object property changes.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review_sources_threading}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

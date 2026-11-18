@@ -1,0 +1,17 @@
+format: 1
+id: layout.type.styles/save-reopen
+feature: layout.type.styles
+intent: >-
+  A paragraph style, a character style on a run and a numbered list made with commands are applied where selected and survive saving and reopening the .klayout file unchanged (id-blind), on the web and the desktop save paths.
+layer: gate
+source:
+  kind: synthetic
+  from: "crates/engine/engine/src/tests_roundtrip.rs"
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: "kition-layout-engine", filter: "tests_roundtrip::paragraph_and_character_styles_survive_save_and_reopen" }
+expected:
+  - actual: out:exit
+    compare: exit
+since: "2026-11-17"

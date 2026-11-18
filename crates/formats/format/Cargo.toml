@@ -1,0 +1,17 @@
+[package]
+name = "kition-layout-format"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Kition Layout files: the .klayout container (snapshot, change log, blobs) and the engine's own document snapshot"
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-layout-doc = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+zip = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }

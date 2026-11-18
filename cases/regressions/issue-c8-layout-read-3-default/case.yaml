@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-3-default
+feature: layout.agent.premises
+intent: Creating a text frame holds the creation defaults it takes (binding direction, default paragraph and text-frame styles) that an independent writer changes, and still applies after an unrelated item rename.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read-3, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: read3_new_text_frame_holds_creation_defaults}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

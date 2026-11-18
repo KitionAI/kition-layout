@@ -1,0 +1,96 @@
+{
+  "id": "event",
+  "name": "Event",
+  "width": 1080,
+  "height": 1440,
+  "swatches": {
+    "Surface": "#e6e0f5",
+    "Primary": "#5645d4",
+    "Text": "#1a1a1a"
+  },
+  "background": "Surface",
+  "paragraphStyles": {
+    "Label": {
+      "font": "Inter",
+      "fontStyle": "Bold",
+      "size": 24,
+      "leading": 24.96,
+      "fill": "Text"
+    },
+    "Headline": {
+      "font": "Inter",
+      "fontStyle": "Bold",
+      "size": 140,
+      "leading": 145.6,
+      "fill": "Text"
+    },
+    "Body": {
+      "font": "Inter",
+      "fontStyle": "Bold",
+      "size": 34,
+      "leading": 35.36,
+      "fill": "Text"
+    }
+  },
+  "items": [
+    {
+      "type": "ellipse",
+      "name": "Orb",
+      "rect": [
+        420,
+        -120,
+        920,
+        920
+      ],
+      "fill": "Primary",
+      "constraints": {
+        "horizontal": "right",
+        "vertical": "top"
+      }
+    },
+    {
+      "type": "text",
+      "name": "Label",
+      "rect": [
+        80,
+        85,
+        880,
+        96
+      ],
+      "style": "Label",
+      "text": "CREATIVE MEETUP"
+    },
+    {
+      "type": "text",
+      "name": "Headline",
+      "rect": [
+        80,
+        630,
+        880,
+        560
+      ],
+      "style": "Headline",
+      "text": "MAKE SOMETHING MATTER",
+      "constraints": {
+        "horizontal": "left",
+        "vertical": "bottom"
+      }
+    },
+    {
+      "type": "text",
+      "name": "Body",
+      "rect": [
+        80,
+        1170,
+        880,
+        136
+      ],
+      "style": "Body",
+      "text": "An evening of ideas, art & conversation.",
+      "constraints": {
+        "horizontal": "left",
+        "vertical": "bottom"
+      }
+    }
+  ]
+}

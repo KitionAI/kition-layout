@@ -1,0 +1,149 @@
+{
+ "file.recovery.list": {
+  "params": {
+   "dir": "$tmp/recovery"
+  }
+ },
+ "snippet.export": {
+  "setup": [
+   [
+    "selection.set",
+    {
+     "ids": [
+      9
+     ]
+    }
+   ]
+  ],
+  "params": {}
+ },
+ "place.styles": {
+  "skip": "needs a second layout file to read styles from"
+ },
+ "transform.info": {
+  "params": {
+   "ids": [
+    9
+   ]
+  }
+ },
+ "book.list": {
+  "setup": [
+   [
+    "book.new",
+    {
+     "path": "$tmp/b.dcbook"
+    }
+   ]
+  ],
+  "params": {}
+ },
+ "color.convert": {
+  "params": {
+   "color": {
+    "model": "rgb",
+    "r": 255,
+    "g": 0,
+    "b": 0
+   },
+   "to": "cmyk"
+  }
+ },
+ "library.list": {
+  "setup": [
+   [
+    "library.new",
+    {}
+   ]
+  ],
+  "params": {}
+ },
+ "library.json": {
+  "setup": [
+   [
+    "library.new",
+    {}
+   ]
+  ],
+  "params": {}
+ },
+ "math.svg": {
+  "params": {
+   "latex": "a^2+b^2=c^2"
+  }
+ },
+ "media.get": {
+  "skip": "needs a placed media file"
+ },
+ "object.pdfLayers": {
+  "skip": "needs a placed PDF"
+ },
+ "xml.validate": {
+  "setup": [
+   [
+    "xml.loadDtd",
+    {
+     "text": "<!ELEMENT Root (#PCDATA)>"
+    }
+   ]
+  ],
+  "params": {}
+ },
+ "states.list": {
+  "setup": [
+   [
+    "states.create",
+    {
+     "ids": [
+      7,
+      9
+     ]
+    }
+   ]
+  ],
+  "params": {}
+ },
+ "story.get": {
+  "params": {
+   "story": 8
+  }
+ },
+ "table.get": {
+  "skip": "needs a text insertion point in a table"
+ },
+ "find.find": {
+  "params": {
+   "find": "a"
+  }
+ },
+ "toc.entries": {
+  "params": {
+   "styles": [
+    "[Basic Paragraph]"
+   ]
+  }
+ },
+ "data.preview": {
+  "skip": "needs a data merge source file"
+ },
+ "type.selectionAttrs": {
+  "setup": [
+   [
+    "text.placeCaret",
+    {
+     "frame": 7,
+     "point": [
+      80,
+      80
+     ]
+    }
+   ]
+  ],
+  "params": {}
+ },
+ "file.exportBytes": {
+  "params": {
+   "format": "epub"
+  }
+ }
+}

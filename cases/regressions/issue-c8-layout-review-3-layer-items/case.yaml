@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-3-layer-items
+feature: layout.agent.premises
+intent: Deleting a layer refuses after another writer (in the file or on the same server) moved or created an item on that layer, and applies after an item was moved onto or created on another layer.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review 3, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review3_layer}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-named-settings
+feature: layout.agent.premises
+intent: Named cross-reference and composite-font settings, the global ink option, and color-group removal or rename refuse relevant independent file rewrites while applying after changes to other records or preserved members.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: independent_settings_}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

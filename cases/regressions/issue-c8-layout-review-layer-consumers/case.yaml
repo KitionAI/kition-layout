@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-layer-consumers
+feature: layout.agent.premises
+intent: Layer deletion holds the items it deletes and the layer's item set (derived layerItems from the engine's own resolver); an outside change to an item on the layer, or an item moved onto it, refuses the stale deletion, while an unrelated change applies. Assigning items to a layer is not refused by another writer's items arriving on it.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review_layer_}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

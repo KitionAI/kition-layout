@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-3
+feature: layout.text.frames
+intent: >-
+  CMYK swatch components are percentages from 0 to 100 as the catalogue says (c: 1 is 1 percent,
+  values outside are refused); text.insertSpecial inserts the current, next and previous page
+  number markers, the section marker, breaks and the indent characters at the caret; Step and
+  Repeat offsets only along the axes it is given (12 pt each way only when neither dx nor dy is
+  given). Before, components up to 1 were read as fractions, the page-number marker could only be
+  typed as U+E000, and a copy given only dx still moved down 12 pt.
+layer: gate
+source:
+  kind: issue
+  from: Kition Layout regression suite
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, test: swatches_markers_steps }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-17"

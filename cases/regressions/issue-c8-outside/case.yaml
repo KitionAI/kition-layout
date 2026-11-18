@@ -1,0 +1,17 @@
+format: 1
+id: regressions/issue-c8-outside
+feature: layout.agent.premises
+intent: A separate writer really rewrites the native file between observation and write. Fixed necessary rules classify stale writes and pin the known SDK delete-before-gap defect until a maintainer repins.
+layer: gate
+dimension: data-safety
+source:
+  kind: synthetic
+  from: C8-land-13-layout
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout, test: outside }
+expected:
+  - { actual: exit, compare: exit, value: 0 }
+since: "2026-11-17"
+timeout_s: 60

@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-4
+feature: layout.agent.observe
+intent: >-
+  inspect names items as the Layers panel does and shows their text wrap: a two-anchor path with
+  curved segments is a <path>, not a <line>; type on a path is a <text path>, not a <text frame>;
+  an item with a text wrap reports its mode, offsets, invert and side.
+layer: gate
+source:
+  kind: issue
+  from: Kition Layout regression suite
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, test: inspect_items }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-17"

@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-focus-rulers-escape
+feature: layout.editor.display-modes
+intent: >-
+  Focus shows the canvas alone: the rulers and their tracks are left out, and come back on leaving. Escape in Focus
+  cancels first (it ends a pen path, or clears the selection) and stays in Focus; only an Escape with nothing to
+  cancel leaves it. Before, the rulers were still drawn in Focus, and an Escape with a
+  selection left Focus instead of clearing it.
+layer: gate
+source:
+  kind: probe
+  from: kit display modes work (DM-layout, X2 and X3)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/focus.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 60
+since: "2026-11-17"

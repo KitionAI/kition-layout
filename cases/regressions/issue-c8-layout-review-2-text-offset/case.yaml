@@ -1,0 +1,14 @@
+format: 1
+id: regressions/issue-c8-layout-review-2-text-offset
+feature: layout.agent.premises
+intent: A write by byte offsets refuses after another writer's edit before or inside its range, by an outside rewrite or another agent on the same server, and applies after an edit later in the story; a change whose place cannot be told refuses.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review 2, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review2_text_offset}
+  - cargo-test: {package: kition-layout, test: outside, filter: review2_other_offset}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

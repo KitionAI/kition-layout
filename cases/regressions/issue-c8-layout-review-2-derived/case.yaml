@@ -1,0 +1,14 @@
+format: 1
+id: regressions/issue-c8-layout-review-2-derived
+feature: layout.agent.premises
+intent: Page deletion, layer deletion and text fitting refuse after another agent on the same server puts an item on the page or layer or moves, removes or deletes a wrapping object, and apply after an unrelated change.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review 2, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review2_same_server_derived}
+  - cargo-test: {package: kition-layout, test: outside, filter: review2_derived_composition}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

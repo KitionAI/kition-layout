@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-3-value
+feature: layout.agent.premises
+intent: Inserting a text variable holds the variable list its stored index counts in, so an independent writer's deletion of an earlier variable refuses, and an unrelated item rename applies.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read-3, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: read3_variable_insertion_holds_the_variable_list}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

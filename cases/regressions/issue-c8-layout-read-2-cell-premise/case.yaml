@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-2-cell-premise
+feature: layout.agent.premises
+intent: Creating a style from an explicit source cell refuses an outside writer's changed source fill and accepts unrelated cell formatting, source text and item renames. Selection established by an earlier step is a separate SDK limitation.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read-2, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: read2_cell_style_source_holds_the_resolved_cell}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

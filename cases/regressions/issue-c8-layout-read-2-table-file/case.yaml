@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-2-table-file
+feature: layout.agent.premises
+intent: The image path that table.placeGraphic accepts is declared as a host file and follows the kit's file capability and agent-gate rules.
+layer: gate
+dimension: security
+source: {kind: synthetic, from: C8-layout-read-2, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-kit, filter: files::tests::every_file_parameter_is_declared}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

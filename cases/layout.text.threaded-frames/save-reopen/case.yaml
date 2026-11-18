@@ -1,0 +1,17 @@
+format: 1
+id: layout.text.threaded-frames/save-reopen
+feature: layout.text.threaded-frames
+intent: >-
+  A story typed into one frame and threaded into a second, with two columns in the first frame, is one story in two frames, and the whole document is unchanged (id-blind) after saving the .klayout file and opening it again, both through file.serialize/file.openBytes and file.saveAs/file.open.
+layer: gate
+source:
+  kind: synthetic
+  from: "crates/engine/engine/src/tests_roundtrip.rs"
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: "kition-layout-engine", filter: "tests_roundtrip::threaded_text_frames_survive_save_and_reopen" }
+expected:
+  - actual: out:exit
+    compare: exit
+since: "2026-11-17"

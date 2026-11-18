@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-locked-move
+feature: layout.agent.premises
+intent: Moving a locked item to another spread preserves its ownership and transform, just as a locked move within its current spread does.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read handler reading, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-engine, test: independent_read, filter: locked_items_do_not_relocate_between_spreads}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

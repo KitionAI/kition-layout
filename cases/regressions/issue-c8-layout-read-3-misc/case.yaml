@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-3-misc
+feature: layout.agent.premises
+intent: A new unnamed article holds the article names its default name avoids, so an independent writer's new article refuses, and an unrelated item rename applies.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read-3, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: read3_new_article_holds_the_article_names}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

@@ -1,0 +1,5 @@
+{
+  "maxChannelDelta": 2,
+  "maxDifferentPixels": 1500,
+  "note": "The engine's own renderer draws the preview (the spread on its pasteboard); glyph edges may differ by a step between platforms."
+}

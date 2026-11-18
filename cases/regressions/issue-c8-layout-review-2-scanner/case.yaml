@@ -1,0 +1,14 @@
+format: 1
+id: regressions/issue-c8-layout-review-2-scanner
+feature: layout.agent.premises
+intent: Every integer-accepting command parameter, at any depth, is classified as an id, a declared positional place or a plain quantity; a button's target page and a creation's spread hold their counted prefix across an outside rewrite and permit an unrelated edit.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review 2, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-kit, test: integer_params}
+  - cargo-test: {package: kition-layout, test: outside, filter: review2_scanner}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

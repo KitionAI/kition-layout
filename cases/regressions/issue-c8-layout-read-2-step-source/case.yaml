@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-2-step-source
+feature: layout.agent.premises
+intent: Pin SDK 34dff06's missed source premise when a preceding run step selects the source cell; both the changed-source and unrelated outside writes currently apply. The needed-change path must refuse after the SDK supports preceding steps' editor contexts.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read-2, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: waiting_for_sdk_read2_selection_step_source_premises}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

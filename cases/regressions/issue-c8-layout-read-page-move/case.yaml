@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-page-move
+feature: layout.agent.premises
+intent: Moving a page while a non-shuffling multi-page spread exists returns an unsupported error without mutating the document, rather than indexing spreads by an absolute page number and panicking.
+layer: gate
+dimension: robustness
+source: {kind: synthetic, from: C8-layout-read, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-doc, test: independent_read}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

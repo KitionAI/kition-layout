@@ -1,0 +1,35 @@
+format: 1
+id: layout.agent.recover/overset-note
+feature: layout.agent.recover
+intent: >-
+  The agent runs the kit's check, finds the overset programme note, and makes it fit (fit the text, enlarge or thread the frame) without cutting a single character of it (KHP Verify).
+layer: eval
+source:
+  kind: synthetic
+  from: repo:conformance/check-overset.klayout
+  license: Apache-2.0
+  note: "A copy of the conformance fixture for layout.overset: the basic page plus a small text frame whose 1,140-character programme note does not fit."
+input: [input/programme.klayout]
+steps:
+  - task:
+      prompt: >-
+        Run the kit's check on programme.klayout and fix every error it reports. Do not shorten
+        or rewrite any text.
+      max_turns: 20
+  - check: { path: programme.klayout, as: diagnostics }
+  - inspect: { path: programme.klayout, as: after }
+expected:
+  - actual: out:diagnostics
+    compare: diagnostics
+    value: { absent: [layout.overset], max_errors: 0 }
+  - actual: out:after
+    compare: values
+    collateral: true
+    value:
+      details.stories: { any: { length: 1140, overset: false } }
+      details.stories.0.preview: Spring concert
+solution:
+  - tool: layout_run
+    args: { path: programme.klayout, steps: [{ command: frame.fitText, params: { ids: [10] } }] }
+since: "2026-11-17"
+timeout_s: 600

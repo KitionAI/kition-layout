@@ -1,0 +1,475 @@
+format: 1
+kit: layout
+updated: "2026-11-17"
+gate_budget_s: 600
+protected: []
+features:
+  - id: layout.agent.premises
+    title: An agent's edit holds the facts it observed across an outside file rewrite
+    dimension: [data-safety, ai]
+    priority: P0
+    status: partial
+    requirements: [AX13]
+    paths: [bindings/wasm/src/addresses.rs, bindings/wasm/src/place.rs, bindings/wasm/src/place/**, bindings/wasm/tests/declarations_independent.rs, bindings/wasm/tests/independent/**, bindings/wasm/tests/pin_reread.rs, bindings/headless/tests/outside.rs, bindings/headless/tests/outside/**]
+    cases:
+      - regressions/issue-c8-outside
+      - regressions/issue-c8-layout-pin-reread
+      - regressions/issue-c8-replica-identity
+      - regressions/issue-c8-layout-review-places
+      - regressions/issue-c8-layout-review-sources
+      - regressions/issue-c8-layout-review-settings
+      - regressions/issue-c8-layout-review-names
+      - regressions/issue-c8-layout-review-tables
+      - regressions/issue-c8-layout-review-receipts
+      - regressions/issue-c8-layout-review-reflow
+      - regressions/issue-c8-layout-review-find
+      - regressions/issue-c8-layout-review-descendants
+      - regressions/issue-c8-layout-review-table-structure
+      - regressions/issue-c8-layout-review-consumers
+      - regressions/issue-c8-layout-review-threading
+      - regressions/issue-c8-layout-review-gradient
+      - regressions/issue-c8-layout-review-nested
+      - regressions/issue-c8-layout-review-delegates
+      - regressions/issue-c8-layout-review-page-consumers
+      - regressions/issue-c8-layout-review-settings-writes
+      - regressions/issue-c8-layout-review-wrap
+      - regressions/issue-c8-layout-review-joined
+      - regressions/issue-c8-layout-review-sdk-waiting
+      - regressions/issue-c8-layout-review-page-arrivals
+      - regressions/issue-c8-layout-review-layer-consumers
+      - regressions/issue-c8-layout-review-guides
+      - regressions/issue-c8-layout-review-2-text-offset
+      - regressions/issue-c8-layout-review-2-derived
+      - regressions/issue-c8-layout-review-2-scanner
+      - regressions/issue-c8-layout-review-2-same-spelling
+      - regressions/issue-c8-layout-review-2-align
+      - regressions/issue-c8-layout-review-3-xml-tag
+      - regressions/issue-c8-layout-review-3-ancestors
+      - regressions/issue-c8-layout-review-3-toc-names
+      - regressions/issue-c8-layout-review-3-form-names
+      - regressions/issue-c8-layout-review-3-alternates
+      - regressions/issue-c8-layout-review-3-page-rule-all
+      - regressions/issue-c8-layout-review-3-data-source
+      - regressions/issue-c8-layout-review-3-parent-guides
+      - regressions/issue-c8-layout-review-3-long-text
+      - regressions/issue-c8-layout-review-3-layer-items
+      - regressions/issue-c8-layout-read-inventory
+      - regressions/issue-c8-layout-read-2-table-image
+      - regressions/issue-c8-layout-read-2-cell-source
+      - regressions/issue-c8-layout-read-2-cell-premise
+      - regressions/issue-c8-layout-read-2-step-source
+      - regressions/issue-c8-layout-read-3-read
+      - regressions/issue-c8-layout-read-3-default
+      - regressions/issue-c8-layout-read-3-two-paths
+      - regressions/issue-c8-layout-read-3-value
+      - regressions/issue-c8-layout-read-3-engine
+      - regressions/issue-c8-layout-read-3-misc
+      - regressions/issue-c8-layout-read-3-more
+      - regressions/issue-c8-layout-read-2-table-file
+      - regressions/issue-c8-layout-read-root-settings
+      - regressions/issue-c8-layout-read-page-move
+      - regressions/issue-c8-layout-read-section
+      - regressions/issue-c8-layout-read-editor
+      - regressions/issue-c8-layout-read-locked-move
+      - regressions/issue-c8-layout-read-layers
+      - regressions/issue-c8-layout-read-named-settings
+    gap: "All 395 journaled commands have blind projections (C8-layout-read-3). Over all 395: 165 commands differ, 1 holding less (file.importXml, agent-blocked: a list-field premise holds its members at SDK 34dff06) and 165 more (79 hold probed-free fields, 120 declare an editor axis, mostly mode, that the reading does not name). Selections made by an earlier step of the same run are held as of the call start (waiting_for_sdk pin; kition-doc-style step tracking not adopted). Conditional paths and translation review remain; the SDK pin still misses a list insertion after deletion before its gap."
+    since: "2026-11-17"
+  - id: layout.agent.observe
+    title: An agent reads the layout and reuses what it found
+    dimension: [ai]
+    priority: P0
+    status: has
+    requirements: [AX13]
+    cases: [layout.agent.observe/headline-details, regressions/issue-4, regressions/issue-stable-ids]
+    since: "2026-11-17"
+  - id: layout.agent.act
+    title: An agent edits text in its frame
+    dimension: [ai]
+    priority: P0
+    status: has
+    requirements: [AX13]
+    cases: [layout.agent.act/retitle, regressions/issue-deterministic-save, regressions/issue-c8-object-params, regressions/issue-c8-context, regressions/issue-c8-places, regressions/issue-c8-saved, regressions/issue-c8-env-schema, regressions/issue-c8-layout-review-content, regressions/issue-c8-layout-review-saved]
+    since: "2026-11-17"
+  - id: layout.agent.recover
+    title: An agent fixes what the check reports
+    dimension: [ai]
+    priority: P0
+    status: has
+    requirements: [AX13]
+    cases: [layout.agent.recover/overset-note, regressions/issue-unknown-params, regressions/issue-overflow-tag]
+    since: "2026-11-17"
+  - id: layout.agent.draft
+    title: An agent works in a draft of the layout, opened from its replica with its images
+    dimension: [ai]
+    priority: P1
+    status: has
+    paths: [bindings/wasm/src/collab.rs, bindings/headless/tests/replica.rs]
+    requirements: [AX13]
+    cases: [regressions/issue-draft-replica-blobs]
+    since: "2026-11-17"
+  - id: layout.agent.render
+    title: An agent previews the layout, a page, a spread or an object
+    dimension: [ai]
+    priority: P1
+    status: has
+    paths: [bindings/wasm/src/render.rs, bindings/wasm/tests/render.rs, bindings/headless/tests/render.rs]
+    requirements: [AX13]
+    cases: [layout.agent.render/targets, layout.agent.render/headless]
+    since: "2026-11-17"
+  - id: layout.agent.converse
+    title: An agent follows up on its own edit over a conversation
+    dimension: [ai]
+    priority: P1
+    status: has
+    requirements: [AX13]
+    cases: [layout.agent.converse/follow-up]
+    since: "2026-11-17"
+  - id: layout.security.workspace
+    title: The kit reaches files only in its workspace, through its host, and starts no program
+    dimension: [security]
+    priority: P0
+    status: has
+    paths: [crates/engine/engine/src/disk.rs, crates/engine/engine/src/tests_hosted.rs, crates/formats/images/src/lib.rs, bindings/wasm/src/files.rs, bindings/headless/src/lib.rs, bindings/headless/tests/workspace_only.rs]
+    requirements: [AX11, E4]
+    cases: [regressions/issue-host-files-only, regressions/issue-writes-outside-workspace]
+    since: "2026-11-17"
+  - id: layout.collab.coedit
+    title: "Real-time co-editing: editors converge, viewers cannot write, an offline page catches up"
+    dimension: [collab]
+    priority: P1
+    status: has
+    paths: [web/src/main.tsx, web/src/panels, bindings/wasm/src/collab.rs, crates/engine/doc/src/build.rs, bindings/wasm/tests/coediting.rs, bindings/wasm/tests/convergence.rs, web/tests/collab.mjs]
+    cases: [layout.collab.coedit/engine-replicas, layout.collab.coedit/convergence-suite, layout.collab.coedit/kition-server, regressions/issue-concurrent-page-moves, regressions/issue-frame-create-text, regressions/issue-concurrent-ids]
+    since: "2026-11-17"
+  - id: layout.file.recovery
+    title: "Recovery data"
+    dimension: [data-safety, function]
+    priority: P1
+    status: partial
+    commands: [file.recovery.list, file.recovery.save, file.recovery.open]
+    paths: [bindings/wasm/src/files.rs, crates/engine/engine/src/cmd/file.rs, crates/engine/engine/src/recovery.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.file.documents
+    title: "Create, open, save, save as, save a copy, revert and close documents; templates and document setup history"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [file.new, file.newSample, file.presets, file.open, file.openBytes, file.save, file.saveAs, file.saveACopy, file.revert, file.serialize, file.close, file.activate, template.list, document.applyTemplate, document.preferences, document.inspect, document.list, document.history]
+    paths: [crates/engine/engine/src/cmd/file.rs, bindings/wasm/src/files.rs, crates/engine/engine/src/cmd/package.rs, crates/engine/engine/src/cmd/templates.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.file.export
+    title: "Export PDF, EPUB, HTML, text, images, XML and IDML; open IDML; print, booklets and package"
+    dimension: [conversion, function]
+    priority: P1
+    status: partial
+    commands: [file.exportBytes, file.exportIdml, file.openIdml, file.exportPdf, file.exportEpub, file.exportFixedEpub, file.printBooklet, file.exportHtml, file.exportText, file.exportImage, file.exportXml, file.importXml, file.package, file.printers, file.print]
+    paths: [bindings/wasm/src/files.rs, crates/engine/engine/src/cmd/export.rs, crates/engine/engine/src/cmd/export_bytes.rs, crates/engine/engine/src/cmd/interchange.rs, crates/engine/engine/src/cmd/media.rs, web/src/dialogs/Export.tsx, web/src/exporting.ts, web/tests/export.mjs]
+    target: "InDesign 2026 (21.6)"
+    gap: "File › Export writes PDF, PNG, JPEG, HTML, IDML and EPUB through the host (cases below); print, booklets, text, XML and package have no case in the editor yet."
+    cases: [regressions/issue-export-through-host, regressions/issue-export-bytes]
+    since: "2026-11-17"
+  - id: layout.file.place
+    title: "Place files and styles, links, snippets, libraries and the content conveyor"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [snippet.export, place.styles, snippet.place, place.load, place.drop, file.place, library.new, library.open, library.list, library.json, library.add, library.place, library.remove, conveyor.collect, conveyor.place, conveyor.list, conveyor.clear, library.close, links.copyTo, links.list, links.relink, links.relinkFolder, links.update, links.embed, links.goTo]
+    paths: [crates/engine/engine/src/cmd/library.rs, crates/engine/engine/src/cmd/links.rs, crates/engine/engine/src/cmd/file.rs, bindings/wasm/src/files.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.book.manage
+    title: "Books: add documents, synchronize styles, paginate and export"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [book.new, book.open, book.close, book.add, book.remove, book.styleSource, book.list, book.paginate, book.syncStyles, book.exportPdf]
+    paths: [crates/engine/engine/src/cmd/book.rs, bindings/wasm/src/files.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.edit.history
+    title: "Undo, redo, select, cut, copy, paste, duplicate and step and repeat"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [edit.undo, edit.redo, edit.selectAll, edit.deselectAll, edit.clear, edit.copy, edit.cut, edit.pasteWithoutFormatting, edit.paste, edit.pasteInto, edit.pasteInPlace, edit.duplicate, edit.stepAndRepeat, edit.transparencyBlendSpace]
+    paths: [crates/engine/engine/src/cmd/edit.rs, crates/engine/engine/src/cmd/table.rs, crates/engine/engine/src/cmd/fit_text.rs, crates/engine/engine/src/cmd/liquid.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.object.effects
+    title: "Fill, stroke, opacity, gradients and transparency effects"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [object.fill, object.stroke, object.opacity, object.dropShadow, object.innerShadow, object.outerGlow, object.innerGlow, object.bevel, object.satin, object.directionalFeather, object.feather, object.globalLight, object.transparencyGroup, object.gradientFeather, object.gradient, object.color]
+    paths: [web/src/commandIcons.ts, crates/engine/engine/src/cmd/style.rs, crates/engine/engine/src/cmd/export.rs, crates/engine/engine/src/cmd/paths.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.object.arrange
+    title: "Arrange, group, lock, hide, align and distribute objects"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [object.arrange, object.bringToFront, object.bringForward, object.sendBackward, object.sendToBack, object.group, object.ungroup, object.lock, object.unlockAll, object.hide, object.showAll, object.align, object.distribute, object.setLayer]
+    paths: [web/src/HomeTab.tsx, crates/engine/engine/src/cmd/file.rs, crates/engine/engine/src/cmd/select.rs, crates/engine/engine/src/cmd/states.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.object.paths
+    title: "Paths, lines, compound paths, Pathfinder, convert shape, corners, clipping paths and stroke styles"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [line.create, object.cornerOptions, path.create, path.appendAnchor, path.close, path.moveAnchors, object.clippingPath, path.addAnchor, path.deleteAnchor, path.convertAnchor, path.erase, path.smooth, object.makeCompoundPath, object.releaseCompoundPath, object.pathfinder, path.split, strokeStyle.list, strokeStyle.new, strokeStyle.delete, object.convertShape]
+    paths: [crates/engine/engine/src/cmd/anchors.rs, crates/engine/engine/src/cmd/paths.rs, crates/engine/tools/src/anchors.rs, crates/engine/engine/src/cmd/strokes.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.object.options
+    title: "Fitting, text wrap, frame options, labels, alt text, captions, QR codes and export options"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [object.matchAttributes, object.setFlags, object.exportOptions, object.content, object.textFrameOptions, object.textWrap, object.fit, object.fittingOptions, object.rename, object.primaryTextFrame, object.attributes, object.label, object.altText, object.findByLabel, object.caption, object.pdfLayers, object.layerOptions, object.qrCode]
+    paths: [web/src/commandIcons.ts, crates/engine/engine/src/cmd/captions.rs, crates/engine/engine/src/cmd/export.rs, crates/engine/engine/src/cmd/layout.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.transform.objects
+    title: "Move, scale, rotate, shear, flip and transform again"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [transform.move, transform.resize, transform.rotate, transform.scale, transform.again, transform.clear, transform.shear, transform.flip, transform.set, transform.info]
+    paths: [crates/engine/engine/src/lib.rs, crates/engine/tools/src/select.rs, crates/engine/tools/src/xform.rs, crates/engine/engine/src/cmd/edit.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.select.tools
+    title: "Selection and tools"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [selection.set, selection.toggle, tool.polygonSettings, select.firstAbove, select.nextAbove, select.nextBelow, select.lastBelow, select.container, select.content, select.nextInGroup, select.previousInGroup, tool.select, tool.list]
+    paths: [crates/engine/engine/src/cmd/select.rs, web/src/commandIcons.ts, crates/engine/engine/src/cmd/edit.rs, crates/engine/engine/src/cmd/inspect.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.layer.manage
+    title: "Layers"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [layer.move, layer.selectItems, layer.new, layer.set, layer.delete, layer.merge, layer.deleteUnused, layer.others, layer.activate]
+    paths: [crates/engine/engine/src/cmd/layout.rs, crates/engine/engine/src/cmd/guides.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.layout.pages
+    title: "Pages, spreads, parents, sections, margins and columns, alternate layouts, guides and liquid layout"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [gap.move, page.background, liquid.pageRule, liquid.object, guide.liquid, layout.createAlternate, layout.deleteAlternate, layout.list, page.transition, page.transitions, layout.pages.insert, layout.rotateSpreadView, layout.pages.delete, layout.pages.move, layout.pages.duplicateSpread, layout.pages.applyParent, layout.parents.new, layout.parents.edit, layout.marginsAndColumns, layout.documentSetup, layout.pages.toSpread, layout.spreadShuffle, layout.pageSize, layout.section, layout.overrideParentItems, layout.removeOverrides, layout.detachAll, guide.add, guide.move, guide.delete, guide.deleteAll, guide.list, layout.createGuides]
+    paths: [crates/engine/engine/src/cmd/layout.rs, crates/engine/engine/src/cmd/liquid.rs, crates/engine/engine/src/cmd/guides.rs, crates/engine/engine/src/cmd/templates.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.text.frames
+    title: "Text frames, threading, stories, text editing, anchored objects and math"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [frame.create, frame.grid, frame.thread, frame.unthread, frame.loadText, frame.fitText, story.placeAndLink, story.links, story.updateLink, story.unlink, math.insert, math.svg, text.placeCaret, text.release, text.extendTo, text.selectWord, text.select, text.insert, text.insertSpecial, text.delete, text.move, text.exitToFrame, story.setDirection, story.setText, story.replaceRange, story.get, anchored.insert, anchored.options, anchored.release, anchored.list]
+    paths: [crates/engine/engine/src/cmd/text.rs, crates/engine/tools/src/text.rs, crates/engine/engine/src/cmd/anchored.rs, crates/engine/engine/src/cmd/linked.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    cases: [regressions/issue-3, regressions/issue-2]
+    since: "2026-11-17"
+  - id: layout.type.format
+    title: "Character and paragraph formats, fonts, composite fonts, CJK and hyphenation"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [type.createOutlines, type.onPath, type.pathOptions, type.fillWithPlaceholder, type.char, type.para, type.align, type.alignLeft, type.alignCenter, type.alignRight, type.justify, type.bold, type.italic, type.underline, type.allCaps, type.tateChuYoko, type.ruby, type.kenten, type.warichu, type.storyDirection, type.sizeUp, type.sizeDown, type.changeCase, type.openType, type.selectionAttrs, style.compositeFont.list, style.compositeFont.set, font.families, font.list, font.replace, hyphenation.addException, hyphenation.removeException, hyphenation.list]
+    paths: [crates/engine/engine/src/cmd/text.rs, crates/engine/engine/src/cmd/fonts.rs, crates/engine/engine/src/cmd/spelling.rs, crates/engine/engine/src/cmd/style.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    cases: [regressions/issue-1]
+    since: "2026-11-17"
+  - id: layout.table.edit
+    title: "Tables, cells, table and cell styles"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [style.cell.create, style.cell.apply, style.cell.edit, style.table.create, style.table.apply, style.table.edit, table.insert, table.convertFromText, table.convertToText, table.insertRow, table.insertRowAbove, table.insertRowBelow, table.insertColumn, table.insertColumnLeft, table.insertColumnRight, table.deleteRow, table.deleteColumn, table.delete, table.merge, table.dropCells, table.placeGraphic, table.textCell, table.moveRow, table.moveColumn, table.sortRows, table.unmerge, table.splitHorizontally, table.splitVertically, table.setCell, table.setRowHeight, table.setColumnWidth, table.distributeColumns, table.distributeRows, table.options, table.select, table.selectTable, table.selectRow, table.selectColumn, table.nextCell, table.prevCell, table.get]
+    paths: [crates/engine/engine/src/cmd/table.rs, crates/engine/tools/src/text.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.style.text
+    title: "Paragraph, character and object styles"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [style.breakLink, style.exportTag, style.paragraph.apply, style.character.apply, style.paragraph.create, style.paragraph.edit, style.paragraph.delete, style.character.delete, style.character.create, style.character.edit, style.list, style.object.apply, style.object.create, style.group]
+    paths: [crates/engine/engine/src/cmd/style.rs, crates/engine/engine/src/cmd/text.rs, crates/engine/engine/src/cmd/table.rs, crates/engine/engine/src/cmd/templates.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.color.swatches
+    title: "Swatches, colour settings and inks"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [color.settings, color.loadProfile, color.convert, swatch.create, swatch.load, swatch.save, swatch.addToSwatches, swatch.addUnnamed, swatch.delete, ink.list, ink.options, swatch.newColorGroup, swatch.moveToGroup, swatch.ungroupColorGroup, swatch.renameColorGroup]
+    paths: [crates/engine/engine/src/cmd/style.rs, crates/engine/engine/src/cmd/colorsettings.rs, bindings/wasm/src/files.rs, bindings/wasm/src/conformance.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.notes.footnotes
+    title: "Footnotes and endnotes"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [endnote.insert, endnote.edit, endnote.delete, endnote.list, endnote.options, footnote.insert, footnote.options, footnote.list, footnote.setText, footnote.delete, footnote.goToReference]
+    paths: [crates/engine/engine/src/cmd/notes.rs, crates/engine/engine/src/cmd/endnotes.rs, crates/engine/engine/src/cmd/edit.rs, crates/engine/engine/src/cmd/style.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.reference.navigation
+    title: "Index, table of contents, cross-references, lists, anchors, bookmarks and hyperlinks"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [list.define, list.delete, toc.generate, toc.update, toc.entries, xref.insert, anchor.create, xref.list, anchor.list, xref.formats, xref.defineFormat, xref.setFormat, index.addReference, index.list, index.generate, index.update, hyperlink.create, hyperlink.delete, hyperlink.list, hyperlink.edit, hyperlink.goToSource, bookmark.rename, bookmark.add, bookmark.delete, bookmark.list]
+    paths: [crates/engine/engine/src/cmd/interactive.rs, crates/engine/engine/src/cmd/xref.rs, crates/engine/engine/src/cmd/index.rs, crates/engine/engine/src/cmd/toc.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.interactive.elements
+    title: "Buttons, forms, object states, media and articles"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [article.list, article.new, article.add, article.remove, article.options, article.delete, button.set, button.clear, form.set, form.clear, form.list, button.list, media.options, media.get, states.create, states.list, states.show, states.rename, states.release]
+    paths: [crates/engine/engine/src/cmd/articles.rs, crates/engine/engine/src/cmd/buttons.rs, crates/engine/engine/src/cmd/states.rs, crates/engine/engine/src/cmd/media.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.xml.structure
+    title: "XML tags, structure and DTDs"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [xml.tags, xml.newTag, xml.deleteTag, xml.tagText, xml.tag, xml.mapStyle, xml.structure, xml.loadDtd, xml.deleteDtd, xml.validate]
+    paths: [crates/engine/engine/src/cmd/xml.rs, web/src/commandIcons.ts]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.data.merge
+    title: "Data merge and text variables"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [variables.list, variables.define, variables.delete, variables.insert, data.source.select, data.source.update, data.source.remove, data.fields, data.placeholder.add, data.placeholder.remove, data.options, data.preview, data.preview.stop, data.merge]
+    paths: [crates/engine/engine/src/cmd/datamerge/mod.rs, crates/engine/engine/src/cmd/variables.rs, crates/engine/engine/src/lib.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.review.text
+    title: "Track changes, notes, conditional text, spelling and find and change"
+    dimension: [function]
+    priority: P1
+    status: partial
+    commands: [note.new, note.edit, note.delete, note.convertToText, note.list, changes.track, changes.list, changes.accept, changes.reject, changes.acceptAll, changes.rejectAll, condition.list, condition.new, condition.options, condition.delete, condition.apply, find.objects, find.changeObjects, find.find, find.change, find.next, spelling.check, spelling.setWords, spelling.words, spelling.addWord, spelling.change]
+    paths: [crates/engine/engine/src/cmd/changes.rs, crates/engine/engine/src/cmd/conditions.rs, crates/engine/engine/src/cmd/editorial.rs, crates/engine/engine/src/cmd/find.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.app.preferences
+    title: "Preferences, scripts, preflight and view"
+    dimension: [function]
+    priority: P2
+    status: partial
+    commands: [view.showTextThreads, script.run, prefs.set, preflight.run]
+    paths: [crates/engine/engine/src/cmd/fonts.rs, crates/engine/engine/src/cmd/layout.rs, crates/engine/engine/src/cmd/package.rs, crates/engine/engine/src/cmd/place_text.rs]
+    target: "InDesign 2026 (21.6)"
+    gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
+    since: "2026-11-17"
+  - id: layout.text.threaded-frames
+    title: "Thread a story through text frames with frame columns"
+    dimension: [function, conversion]
+    priority: P0
+    status: has
+    commands: [frame.create, text.insert, frame.thread, object.textFrameOptions, story.get]
+    paths: [crates/engine/engine/src/cmd/text.rs, crates/kdm/kdm-model/src/**]
+    target: "InDesign 2026 (21.6)"
+    cases: [layout.text.threaded-frames/save-reopen]
+    since: "2026-11-17"
+  - id: layout.type.styles
+    title: "Paragraph and character styles and numbered lists"
+    dimension: [function, conversion]
+    priority: P0
+    status: has
+    commands: [style.paragraph.create, style.paragraph.apply, style.character.create, style.character.apply, text.select, type.para]
+    paths: [crates/engine/engine/src/cmd/style.rs, crates/kdm/kdm-model/src/marks.rs]
+    target: "InDesign 2026 (21.6)"
+    cases: [layout.type.styles/save-reopen]
+    since: "2026-11-17"
+  - id: layout.object.fill-stroke
+    title: "Paths with fills, strokes, swatches, opacity, drop shadow and gradients"
+    dimension: [function, conversion]
+    priority: P0
+    status: has
+    commands: [swatch.create, path.create, object.fill, object.stroke, object.opacity, object.dropShadow, object.gradient]
+    paths: [crates/engine/engine/src/cmd/object.rs, crates/kdm/kdm-model/src/**]
+    target: "InDesign 2026 (21.6)"
+    cases: [layout.object.fill-stroke/save-reopen]
+    since: "2026-11-17"
+  - id: layout.object.layers-groups
+    title: "Layers, groups, stacking order and transforms"
+    dimension: [function, conversion]
+    priority: P0
+    status: has
+    commands: [layer.new, layer.set, object.group, object.arrange, transform.rotate, transform.move, selection.set]
+    paths: [crates/engine/engine/src/cmd/layout.rs, crates/engine/engine/src/cmd/object.rs]
+    target: "InDesign 2026 (21.6)"
+    cases: [layout.object.layers-groups/save-reopen]
+    since: "2026-11-17"
+  - id: layout.layout.pages-guides
+    title: "Insert pages, ruler guides, guide grids and page backgrounds"
+    dimension: [function, conversion]
+    priority: P0
+    status: has
+    commands: [layout.pages.insert, guide.add, layout.createGuides, page.background]
+    paths: [crates/engine/engine/src/cmd/layout.rs, crates/engine/engine/src/cmd/background.rs]
+    target: "InDesign 2026 (21.6)"
+    cases: [layout.layout.pages-guides/save-reopen]
+    since: "2026-11-17"
+  - id: layout.table.cells
+    title: "Insert tables, type in cells and merge cells"
+    dimension: [function, conversion]
+    priority: P0
+    status: has
+    commands: [table.insert, table.setCell, table.merge]
+    paths: [crates/engine/engine/src/cmd/table.rs, crates/kdm/kdm-model/src/cells.rs]
+    target: "InDesign 2026 (21.6)"
+    cases: [layout.table.cells/save-reopen]
+    since: "2026-11-17"
+  - id: layout.editor.display-modes
+    title: "The editor in each display mode: Classic gives way before stepping down, Single line does not repeat the rail's tools, Focus shows the canvas without rulers, and Escape cancels first in Focus"
+    dimension: [function]
+    priority: P1
+    status: has
+    paths: [web/src/App.tsx, web/src/HomeTab.tsx, web/tests/modes.mjs, web/tests/focus.mjs]
+    cases: [layout.editor.display-modes/mode-smoke, regressions/issue-focus-rulers-escape]
+    since: "2026-11-17"

@@ -1,0 +1,51 @@
+[
+  {
+    "code": "layout.overset",
+    "fixture": "check-overset.klayout",
+    "overflow": "text",
+    "severity": "error",
+    "summary": "A story has more text than its frames hold, so the rest does not print."
+  },
+  {
+    "code": "layout.missing-font",
+    "fixture": "check-missing-font.klayout",
+    "severity": "error",
+    "summary": "Text uses a font that is not available here, so it is drawn with a substitute."
+  },
+  {
+    "code": "layout.missing-glyphs",
+    "fixture": "check-missing-glyphs.klayout",
+    "severity": "error",
+    "summary": "Characters are drawn as their font's missing glyph because the font lacks them."
+  },
+  {
+    "code": "layout.missing-link",
+    "fixture": "check-missing-link.klayout",
+    "severity": "error",
+    "summary": "A placed graphic's file is missing, so it prints as an empty frame."
+  },
+  {
+    "code": "layout.unsupported-typography",
+    "fixture": "check-unsupported-typography.klayout",
+    "severity": "warning",
+    "summary": "Text uses a typography feature this build does not compose yet, so it may differ from the original."
+  },
+  {
+    "code": "layout.low-resolution",
+    "fixture": "check-low-resolution.klayout",
+    "severity": "warning",
+    "summary": "A placed image in a print document has fewer pixels per inch than print needs at its placed size."
+  },
+  {
+    "code": "layout.empty-frame",
+    "fixture": "check-empty-frame.klayout",
+    "severity": "warning",
+    "summary": "A text frame holds no text; removing it changes nothing on the page."
+  },
+  {
+    "code": "layout.rgb-in-print",
+    "fixture": "check-rgb-in-print.klayout",
+    "severity": "warning",
+    "summary": "A print document uses an RGB swatch, which a printer converts unpredictably."
+  }
+]

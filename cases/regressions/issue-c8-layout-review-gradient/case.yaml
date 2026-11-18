@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-gradient
+feature: layout.agent.premises
+intent: Gradient editing holds the current gradient definition; applying a style by name across all five families holds its identity but permits definition and unrelated grouped-name changes.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: names::review_names}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

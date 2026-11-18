@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-3-xml-tag
+feature: layout.agent.premises
+intent: Deleting an XML tag holds the set of items tagged with it, refusing after another writer tagged another item or created a tagged one and applying after a tag of another name or an unrelated change.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review 3, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review3_xml_delete_tag}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

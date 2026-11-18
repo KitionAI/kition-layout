@@ -1,0 +1,12 @@
+format: 1
+id: regressions/issue-c8-layout-review-tables
+feature: layout.agent.premises
+intent: Cell writes hold owned cell content, merged ownership and row/column prefixes while allowing unrelated cell edits.
+layer: gate
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review_tables}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

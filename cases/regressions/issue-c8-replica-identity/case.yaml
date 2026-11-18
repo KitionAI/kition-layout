@@ -1,0 +1,16 @@
+format: 1
+id: regressions/issue-c8-replica-identity
+feature: layout.agent.premises
+intent: A successful engine edit preserves the replica identity; a later sync must not mask an earlier failed model write by creating another document.
+layer: gate
+dimension: data-safety
+source:
+  kind: synthetic
+  from: C8-land-13-layout
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, test: replica_integrity }
+expected:
+  - { actual: exit, compare: exit, value: 0 }
+since: "2026-11-17"

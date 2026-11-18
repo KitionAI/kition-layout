@@ -1,0 +1,14 @@
+format: 1
+id: regressions/issue-c8-layout-read-editor
+feature: layout.agent.premises
+intent: Every journaled command independently read as using selection or the active layer declares that editor dependency.
+layer: gate
+dimension: robustness
+source: {kind: synthetic, from: C8-layout-read blind handler readings, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-kit, test: declarations_independent, filter: blind_selection_and_active_reads_are_declared}
+  - cargo-test: {package: kition-layout, test: outside, filter: independent_editor_selection_context}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

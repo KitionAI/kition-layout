@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-2-align
+feature: layout.agent.premises
+intent: Aligning to the margins holds the page under the objects, refusing after another writer changed that page's margins and applying after a change of another page's margins.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review 2, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review2_align}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

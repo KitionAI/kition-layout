@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-page-arrivals
+feature: layout.agent.premises
+intent: Page deletion holds the set of items the engine would delete with the page (derived pageItems from the engine's own resolver), so an item another writer created on or moved onto the page refuses the stale deletion; an item created on a later spread applies, and a page-size write is not refused by items arriving on its page.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review_page_}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

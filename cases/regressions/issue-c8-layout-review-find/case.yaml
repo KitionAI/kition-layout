@@ -1,0 +1,15 @@
+format: 1
+id: regressions/issue-c8-layout-review-find
+feature: layout.agent.premises
+intent: Object queries resolve typed layer references and stale Find/Change holds matched objects and query membership; parent application holds prefix identity.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-kit, test: find_addresses}
+  - cargo-test: {package: kition-layout, test: outside, filter: review_find_change}
+  - cargo-test: {package: kition-layout, test: outside, filter: review_parent_application}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

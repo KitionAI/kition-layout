@@ -1,0 +1,29 @@
+format: 1
+id: regressions/issue-export-through-host
+feature: layout.file.export
+intent: >-
+  File › Export writes IDML and EPUB (and PDF, PNG, JPEG, HTML) as a new file beside the document
+  through the host (Kit UI protocol `host/write` mode `export`), which, like Kition, writes a new
+  file only in a format some kit.json `exports` declares; the editor says it exported, naming the
+  file the host wrote, only when the host answers, and shows the host's error otherwise. Before,
+  layout declared no exports and Kition refused every .idml and .epub export: nothing was written.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/export.mjs, web/src/exporting.test.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, --test, src/exporting.test.mjs]
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/export.mjs, chromium]
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/export.mjs, webkit]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+requires: [chromium, webkit]
+timeout_s: 180
+since: "2026-11-17"

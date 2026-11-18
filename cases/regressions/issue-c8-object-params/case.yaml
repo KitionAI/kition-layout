@@ -1,0 +1,16 @@
+format: 1
+id: regressions/issue-c8-object-params
+feature: layout.agent.act
+intent: Every object reference parameter is declared and typed for the premise guard; unrelated numbers are not object ids.
+layer: gate
+dimension: data-safety
+source:
+  kind: synthetic
+  from: C8-land-13-layout
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, test: object_params }
+expected:
+  - { actual: exit, compare: exit, value: 0 }
+since: "2026-11-17"

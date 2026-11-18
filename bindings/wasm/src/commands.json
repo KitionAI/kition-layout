@@ -1,0 +1,5470 @@
+{
+ "anchor.create": {
+  "description": "Creates a named text anchor (hyperlink destination) at the insertion point."
+ },
+ "anchor.list": {
+  "description": "Lists the text anchors with their ids, names, stories, positions and pages.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "anchored.insert": {
+  "description": "Anchors objects in a story at a text position, inline or above line, with offsets.",
+  "params": {
+   "pos": {
+    "description": "a text position",
+    "type": "integer"
+   },
+   "spaceAfter": {
+    "type": "number"
+   },
+   "spaceBefore": {
+    "type": "number"
+   },
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   },
+   "xOffset": {
+    "description": "points",
+    "type": "number"
+   },
+   "yOffset": {
+    "description": "points",
+    "type": "number"
+   }
+  }
+ },
+ "anchored.list": {
+  "description": "Lists anchored objects with their story, position and size.",
+  "output": {
+   "type": "array"
+  },
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "anchored.options": {
+  "description": "Changes an anchored object's position and offsets.",
+  "params": {
+   "spaceAfter": {
+    "type": "number"
+   },
+   "spaceBefore": {
+    "type": "number"
+   },
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   },
+   "xOffset": {
+    "description": "points",
+    "type": "number"
+   },
+   "yOffset": {
+    "description": "points",
+    "type": "number"
+   }
+  }
+ },
+ "anchored.release": {
+  "description": "Releases an anchored object back onto the page.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "article.add": {
+  "description": "Appends objects to an article in order."
+ },
+ "article.delete": {
+  "description": "Deletes an article; its objects stay."
+ },
+ "article.list": {
+  "description": "Lists the articles (export reading-order groups) with their items.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "article.new": {
+  "description": "Creates an article from objects (default: the selection); answers its name."
+ },
+ "article.options": {
+  "description": "Renames an article, sets whether it exports, or reorders its items.",
+  "params": {
+   "to": {
+    "description": "a new name",
+    "type": "string"
+   }
+  }
+ },
+ "article.remove": {
+  "description": "Removes objects from an article."
+ },
+ "book.add": {
+  "description": "Adds a document to the book, optionally at an index."
+ },
+ "book.close": {
+  "description": "Closes the open book file."
+ },
+ "book.exportPdf": {
+  "description": "Exports every document of the book in order as one PDF."
+ },
+ "book.list": {
+  "description": "Answers the book: its path, style source and documents with their page counts and first pages.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "documents": {
+     "type": "array"
+    },
+    "path": {
+     "type": "string"
+    },
+    "styleSource": {
+     "type": "number"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "book.new": {
+  "description": "Creates an empty book file (.dcbook) at a path."
+ },
+ "book.open": {
+  "description": "Opens a book file and answers its documents."
+ },
+ "book.paginate": {
+  "description": "Renumbers the book's documents so each starts where the previous one ended."
+ },
+ "book.remove": {
+  "description": "Removes the document at an index from the book."
+ },
+ "book.styleSource": {
+  "description": "Makes the document at an index the book's style source."
+ },
+ "book.syncStyles": {
+  "description": "Copies the style source's paragraph and character styles and swatches into every document of the book."
+ },
+ "bookmark.add": {
+  "description": "Adds a PDF bookmark for a page (1-based)."
+ },
+ "bookmark.delete": {
+  "description": "Deletes a PDF bookmark by index."
+ },
+ "bookmark.list": {
+  "description": "Lists the PDF bookmarks.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "bookmark.rename": {
+  "description": "Renames a PDF bookmark by index."
+ },
+ "button.clear": {
+  "description": "Turns buttons back into ordinary objects."
+ },
+ "button.list": {
+  "description": "Lists the buttons with their ids, names and actions.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "button.set": {
+  "description": "Turns objects into buttons that go to a page, the first, last, next or previous page, or a URL.",
+  "params": {
+   "action": {
+    "enum": [
+     "page",
+     "firstPage",
+     "lastPage",
+     "nextPage",
+     "previousPage",
+     "url",
+     "none"
+    ],
+    "type": "string"
+   }
+  }
+ },
+ "changes.accept": {
+  "description": "Accepts the tracked change at a story position.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "changes.acceptAll": {
+  "description": "Accepts every tracked change (in one story or all).",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "changes.list": {
+  "description": "Lists tracked changes with their story, position, kind (inserted or deleted) and text.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "changes.reject": {
+  "description": "Rejects the tracked change at a story position.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "changes.rejectAll": {
+  "description": "Rejects every tracked change (in one story or all).",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "changes.track": {
+  "description": "Turns Track Changes in stories on or off; without on it toggles."
+ },
+ "color.convert": {
+  "description": "Converts a colour between RGB, CMYK and gray with the working profiles; changes nothing.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "c": {
+     "type": "number"
+    },
+    "k": {
+     "type": "number"
+    },
+    "m": {
+     "type": "number"
+    },
+    "model": {
+     "type": "string"
+    },
+    "y": {
+     "type": "number"
+    }
+   },
+   "type": "object"
+  },
+  "params": {
+   "color": {
+    "additionalProperties": true,
+    "description": "{model: rgb, r, g, b} or {model: cmyk, c, m, y, k}",
+    "type": "object"
+   }
+  }
+ },
+ "color.loadProfile": {
+  "description": "Loads an ICC profile from a path for use as a working space or proof target."
+ },
+ "color.settings": {
+  "description": "Sets the working RGB and CMYK profiles and the rendering intent.",
+  "params": {
+   "cmyk": {
+    "type": "string"
+   },
+   "rgb": {
+    "type": "string"
+   }
+  }
+ },
+ "condition.apply": {
+  "description": "Applies a condition to the selected text, or removes it."
+ },
+ "condition.delete": {
+  "description": "Deletes a condition; the text it was applied to stays and shows."
+ },
+ "condition.list": {
+  "description": "Lists the conditional-text conditions with their colours and visibility.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "condition.new": {
+  "description": "Creates a condition with a colour and visibility; answers its name."
+ },
+ "condition.options": {
+  "description": "Renames a condition or changes its colour or visibility.",
+  "params": {
+   "to": {
+    "description": "a new name",
+    "type": "string"
+   }
+  }
+ },
+ "conveyor.clear": {
+  "description": "Removes every item from the conveyor."
+ },
+ "conveyor.collect": {
+  "description": "Puts objects (default: the selection) onto the Content Collector conveyor."
+ },
+ "conveyor.list": {
+  "description": "Lists the items on the conveyor.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "conveyor.place": {
+  "description": "Places an item from the conveyor on a spread, keeping it on the conveyor when asked.",
+  "params": {
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "data.fields": {
+  "description": "Answers data fields (name, kind, uses) from inline data or the linked source.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "data.merge": {
+  "description": "Creates a merged document from data and the template with the merge options.",
+  "params": {
+   "arrange": {
+    "type": "string"
+   },
+   "center": {
+    "type": "boolean"
+   },
+   "columnSpacing": {
+    "description": "points",
+    "type": "number"
+   },
+   "fitting": {
+    "type": "string"
+   },
+   "insets": {
+    "oneOf": [
+     {
+      "description": "points on every side",
+      "type": "number"
+     },
+     {
+      "description": "[top, left, bottom, right] points",
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    ]
+   },
+   "limit": {
+    "type": "integer"
+   },
+   "linkImages": {
+    "type": "boolean"
+   },
+   "one": {
+    "type": "integer"
+   },
+   "perPage": {
+    "type": "string"
+   },
+   "range": {
+    "type": "string"
+   },
+   "records": {
+    "type": "string"
+   },
+   "rowSpacing": {
+    "description": "points",
+    "type": "number"
+   }
+  }
+ },
+ "data.options": {
+  "description": "Sets data merge options: records, layout per page, spacing, insets and image fitting.",
+  "params": {
+   "arrange": {
+    "type": "string"
+   },
+   "center": {
+    "type": "boolean"
+   },
+   "columnSpacing": {
+    "description": "points",
+    "type": "number"
+   },
+   "fitting": {
+    "type": "string"
+   },
+   "insets": {
+    "oneOf": [
+     {
+      "description": "points on every side",
+      "type": "number"
+     },
+     {
+      "description": "[top, left, bottom, right] points",
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    ]
+   },
+   "limit": {
+    "type": "integer"
+   },
+   "linkImages": {
+    "type": "boolean"
+   },
+   "one": {
+    "type": "integer"
+   },
+   "perPage": {
+    "type": "string"
+   },
+   "range": {
+    "type": "string"
+   },
+   "records": {
+    "type": "string"
+   },
+   "rowSpacing": {
+    "description": "points",
+    "type": "number"
+   }
+  }
+ },
+ "data.placeholder.add": {
+  "description": "Inserts a data field placeholder (text, image, QR or hyperlink) in a story or on an item.",
+  "params": {
+   "at": {
+    "description": "[x, y] in points",
+    "items": {
+     "type": "number"
+    },
+    "type": "array"
+   },
+   "field": {
+    "type": "string"
+   },
+   "role": {
+    "enum": [
+     "text",
+     "image",
+     "qr",
+     "hyperlink"
+    ],
+    "type": "string"
+   },
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "data.placeholder.remove": {
+  "description": "Removes a data field placeholder."
+ },
+ "data.preview": {
+  "description": "Fills the template with one record for preview, for this session only.",
+  "output": {
+   "additionalProperties": true,
+   "description": "the record shown and the fields filled",
+   "type": "object"
+  }
+ },
+ "data.preview.stop": {
+  "description": "Restores the unfilled template after a preview."
+ },
+ "data.source.remove": {
+  "description": "Removes the data merge source; placeholders stay."
+ },
+ "data.source.select": {
+  "description": "Selects a data merge source (CSV or spreadsheet by path or bytes) and answers its fields and records.",
+  "params": {
+   "sheet": {
+    "type": "string"
+   }
+  }
+ },
+ "data.source.update": {
+  "description": "Re-reads the linked data merge source."
+ },
+ "document.applyTemplate": {
+  "description": "Replaces the document's pages, parents and styles with a starter template (editorial, event, sale, quote)."
+ },
+ "document.history": {
+  "description": "Answers the undo and redo history.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "redo": {
+     "type": "array"
+    },
+    "undo": {
+     "type": "array"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "document.inspect": {
+  "description": "Answers the document's structure: pages, spreads, items with ids, stories with overset, styles, swatches and the selection. Use story.get for text.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "activeLayer": {
+     "type": "number"
+    },
+    "canRedo": {
+     "type": "boolean"
+    },
+    "canUndo": {
+     "type": "boolean"
+    },
+    "characterStyles": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "dirty": {
+     "type": "boolean"
+    },
+    "layers": {
+     "items": {
+      "additionalProperties": true,
+      "properties": {
+       "color": {
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       "id": {
+        "type": "number"
+       },
+       "locked": {
+        "type": "boolean"
+       },
+       "name": {
+        "type": "string"
+       },
+       "printable": {
+        "type": "boolean"
+       },
+       "showGuides": {
+        "type": "boolean"
+       },
+       "suppressWrapWhenHidden": {
+        "type": "boolean"
+       },
+       "visible": {
+        "type": "boolean"
+       }
+      },
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "layouts": {
+     "items": {
+      "additionalProperties": true,
+      "properties": {
+       "firstPage": {
+        "type": "number"
+       },
+       "height": {
+        "type": "number"
+       },
+       "name": {
+        "type": "json"
+       },
+       "pages": {
+        "type": "number"
+       },
+       "width": {
+        "type": "number"
+       }
+      },
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "pageCount": {
+     "type": "number"
+    },
+    "paragraphStyles": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "parents": {
+     "items": {
+      "additionalProperties": true,
+      "properties": {
+       "id": {
+        "type": "number"
+       },
+       "items": {
+        "type": "number"
+       },
+       "label": {
+        "type": "string"
+       }
+      },
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "path": {
+     "type": "json"
+    },
+    "selection": {
+     "additionalProperties": true,
+     "properties": {
+      "content": {
+       "type": "boolean"
+      },
+      "items": {
+       "type": "array"
+      }
+     },
+     "type": "object"
+    },
+    "settings": {
+     "additionalProperties": true,
+     "properties": {
+      "facingPages": {
+       "type": "boolean"
+      },
+      "intent": {
+       "type": "string"
+      },
+      "pageHeight": {
+       "type": "number"
+      },
+      "pageWidth": {
+       "type": "number"
+      }
+     },
+     "type": "object"
+    },
+    "spreads": {
+     "items": {
+      "additionalProperties": true,
+      "properties": {
+       "index": {
+        "type": "number"
+       },
+       "items": {
+        "items": {
+         "additionalProperties": true,
+         "properties": {
+          "bounds": {
+           "items": {
+            "type": "number"
+           },
+           "type": "array"
+          },
+          "columnRule": {
+           "type": "boolean"
+          },
+          "columns": {
+           "type": "number"
+          },
+          "corner": {
+           "additionalProperties": true,
+           "properties": {
+            "shape": {
+             "type": "string"
+            },
+            "size": {
+             "type": "number"
+            }
+           },
+           "type": "object"
+          },
+          "fill": {
+           "type": "string"
+          },
+          "fillTint": {
+           "type": "number"
+          },
+          "hidden": {
+           "type": "boolean"
+          },
+          "id": {
+           "type": "number"
+          },
+          "kind": {
+           "type": "string"
+          },
+          "layer": {
+           "type": "number"
+          },
+          "locked": {
+           "type": "boolean"
+          },
+          "name": {
+           "type": "string"
+          },
+          "opacity": {
+           "type": "number"
+          },
+          "story": {
+           "type": "number"
+          },
+          "stroke": {
+           "additionalProperties": true,
+           "properties": {
+            "swatch": {
+             "type": "string"
+            },
+            "weight": {
+             "type": "number"
+            }
+           },
+           "type": "object"
+          }
+         },
+         "type": "object"
+        },
+        "type": "array"
+       },
+       "pages": {
+        "items": {
+         "additionalProperties": true,
+         "properties": {
+          "background": {
+           "type": "json"
+          },
+          "bounds": {
+           "items": {
+            "type": "number"
+           },
+           "type": "array"
+          },
+          "columns": {
+           "type": "number"
+          },
+          "index": {
+           "type": "number"
+          },
+          "margins": {
+           "additionalProperties": true,
+           "properties": {
+            "bottom": {
+             "type": "number"
+            },
+            "inside": {
+             "type": "number"
+            },
+            "outside": {
+             "type": "number"
+            },
+            "top": {
+             "type": "number"
+            }
+           },
+           "type": "object"
+          },
+          "name": {
+           "type": "string"
+          },
+          "parent": {
+           "type": "string"
+          },
+          "side": {
+           "type": "string"
+          }
+         },
+         "type": "object"
+        },
+        "type": "array"
+       }
+      },
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "stories": {
+     "items": {
+      "additionalProperties": true,
+      "properties": {
+       "frames": {
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       "id": {
+        "type": "number"
+       },
+       "length": {
+        "type": "number"
+       },
+       "lines": {
+        "type": "number"
+       },
+       "overset": {
+        "type": "boolean"
+       },
+       "paragraphs": {
+        "type": "number"
+       },
+       "preview": {
+        "type": "string"
+       }
+      },
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "swatchColors": {
+     "items": {
+      "additionalProperties": true,
+      "properties": {
+       "color": {
+        "type": "json"
+       },
+       "kind": {
+        "type": "string"
+       },
+       "locked": {
+        "type": "boolean"
+       },
+       "name": {
+        "type": "string"
+       }
+      },
+      "type": "object"
+     },
+     "type": "array"
+    },
+    "swatches": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "title": {
+     "type": "string"
+    },
+    "tool": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "document.list": {
+  "description": "Lists the open documents with their indexes.",
+  "output": {
+   "items": {
+    "additionalProperties": true,
+    "properties": {
+     "active": {
+      "type": "boolean"
+     },
+     "dirty": {
+      "type": "boolean"
+     },
+     "index": {
+      "type": "number"
+     },
+     "title": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "type": "array"
+  }
+ },
+ "document.preferences": {
+  "description": "Sets document preferences: units, keyboard increments, guide colours, glyph fallback and black overprint.",
+  "params": {
+   "bleedColor": {
+    "description": "a colour",
+    "type": "string"
+   },
+   "columnColor": {
+    "description": "a colour",
+    "type": "string"
+   },
+   "glyphFallback": {
+    "type": "boolean"
+   },
+   "horizontalUnits": {
+    "description": "points, millimetres, inches…",
+    "type": "string"
+   },
+   "keyboardIncrement": {
+    "description": "points",
+    "type": "number"
+   },
+   "marginColor": {
+    "description": "a colour",
+    "type": "string"
+   },
+   "overprintBlack": {
+    "type": "boolean"
+   },
+   "verticalUnits": {
+    "description": "points|picas|inches|millimeters|…",
+    "type": "string"
+   }
+  }
+ },
+ "edit.clear": {
+  "description": "Deletes the selected items (or the given ids), or the selected text."
+ },
+ "edit.copy": {
+  "description": "Copies the selection; for selected text it answers the text with its formatting."
+ },
+ "edit.cut": {
+  "description": "Cuts the selection to the clipboard."
+ },
+ "edit.deselectAll": {
+  "description": "Clears the selection; no object stays selected."
+ },
+ "edit.duplicate": {
+  "description": "Duplicates the selected objects, offset from the originals."
+ },
+ "edit.paste": {
+  "description": "Pastes the clipboard (or given text), optionally in place at the copied position.",
+  "params": {
+   "text": {
+    "description": "text to paste instead of the clipboard",
+    "type": "string"
+   }
+  }
+ },
+ "edit.pasteInPlace": {
+  "description": "Pastes the copied objects at their original positions."
+ },
+ "edit.pasteInto": {
+  "description": "Pastes the copied objects into the selected frame as its content, clipped by it."
+ },
+ "edit.pasteWithoutFormatting": {
+  "description": "Pastes plain text at the insertion point in the formatting there."
+ },
+ "edit.redo": {
+  "description": "Redoes the last undone step of the caller's own scope."
+ },
+ "edit.selectAll": {
+  "description": "Selects all items on the active spreads, or all text when editing a story."
+ },
+ "edit.stepAndRepeat": {
+  "description": "Makes copies of the selection a number of times at a dx, dy offset, or as a grid of rows and columns."
+ },
+ "edit.transparencyBlendSpace": {
+  "description": "Sets the colour space (CMYK or RGB) transparency is composited in for output."
+ },
+ "edit.undo": {
+  "description": "Undoes the last step of the caller's own scope (an agent undoes its own edits, not the person's)."
+ },
+ "endnote.delete": {
+  "description": "Deletes an endnote's reference and text, by its story and id.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "endnote.edit": {
+  "description": "Replaces an endnote's text, by its story and id.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "endnote.insert": {
+  "description": "Inserts an endnote reference at the insertion point with its text; the first one creates the endnote frame."
+ },
+ "endnote.list": {
+  "description": "Lists the endnotes in numbering order with their story, id, number and text.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "endnote.options": {
+  "description": "Sets endnote numbering style, start, prefix and suffix, heading and styles.",
+  "params": {
+   "heading": {
+    "type": "string"
+   },
+   "headingStyle": {
+    "description": "a paragraph style name",
+    "type": "string"
+   },
+   "paraStyle": {
+    "description": "a paragraph style name",
+    "type": "string"
+   },
+   "separator": {
+    "type": "string"
+   },
+   "startAt": {
+    "type": "integer"
+   }
+  }
+ },
+ "file.activate": {
+  "description": "Makes the open document at an index the active one."
+ },
+ "file.close": {
+  "description": "Closes the open document (or the one at an index)."
+ },
+ "file.exportBytes": {
+  "description": "Answers the document as a PDF, PNG, JPEG, HTML, IDML or EPUB file in base64 without writing it; the host writes it as a new file.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "format": {
+     "type": "string"
+    },
+    "data": {
+     "type": "string"
+    },
+    "bytes": {
+     "type": "number"
+    },
+    "files": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+       "page": {
+        "type": "number"
+       },
+       "data": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
+   "type": "object"
+  }
+ },
+ "file.exportEpub": {
+  "description": "Exports a reflowable EPUB with title, author, language and cover, to a path or as base64.",
+  "params": {
+   "author": {
+    "type": "string"
+   }
+  }
+ },
+ "file.exportFixedEpub": {
+  "description": "Exports a fixed-layout (pre-paginated) EPUB, to a path or as base64.",
+  "params": {
+   "author": {
+    "type": "string"
+   },
+   "language": {
+    "type": "string"
+   }
+  }
+ },
+ "file.exportHtml": {
+  "description": "Exports one self-contained HTML page with inline styles and embedded images.",
+  "params": {
+   "language": {
+    "type": "string"
+   }
+  }
+ },
+ "file.exportIdml": {
+  "description": "Writes the document as an IDML package to a path, or answers it as base64.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "base64": {
+     "type": "string"
+    },
+    "bytes": {
+     "type": "number"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "file.exportImage": {
+  "description": "Exports pages (default all) as PNG or JPEG images at a resolution, to a folder or as base64.",
+  "params": {
+   "pages": {
+    "oneOf": [
+     {
+      "description": "page ranges such as 1-3,5 (1-based)",
+      "type": "string"
+     },
+     {
+      "description": "pages counted from 1",
+      "items": {
+       "type": "integer"
+      },
+      "type": "array"
+     }
+    ]
+   }
+  }
+ },
+ "file.exportPdf": {
+  "description": "Exports pages (default all) to PDF with a preset, marks and bleed, to a path or as base64.",
+  "params": {
+   "author": {
+    "type": "string"
+   },
+   "marks": {
+    "oneOf": [
+     {
+      "type": "boolean"
+     },
+     {
+      "additionalProperties": true,
+      "description": "which printer's marks: crop, bleed, pageInfo, weight, offset",
+      "type": "object"
+     }
+    ]
+   },
+   "pages": {
+    "oneOf": [
+     {
+      "description": "page ranges such as 1-3,5 (1-based)",
+      "type": "string"
+     },
+     {
+      "description": "pages counted from 1",
+      "items": {
+       "type": "integer"
+      },
+      "type": "array"
+     }
+    ]
+   }
+  }
+ },
+ "file.exportText": {
+  "description": "Exports a story's text as plain text, RTF or Tagged Text.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "file.exportXml": {
+  "description": "Exports the tagged content as XML, to a path or as text."
+ },
+ "file.importXml": {
+  "description": "Imports XML, putting each element's content into the next frame with that tag."
+ },
+ "file.new": {
+  "description": "Replaces the open document with a new one from a page preset or size, with page count, facing pages, columns, gutter, margins and bleed.",
+  "params": {
+   "bleed": {
+    "description": "points",
+    "type": "number"
+   },
+   "facingPages": {
+    "type": "boolean"
+   },
+   "gutter": {
+    "description": "points",
+    "type": "number"
+   },
+   "margins": {
+    "oneOf": [
+     {
+      "description": "points on every side",
+      "type": "number"
+     },
+     {
+      "additionalProperties": false,
+      "properties": {
+       "bottom": {
+        "type": "number"
+       },
+       "inside": {
+        "type": "number"
+       },
+       "outside": {
+        "type": "number"
+       },
+       "top": {
+        "type": "number"
+       }
+      },
+      "type": "object"
+     }
+    ]
+   },
+   "preset": {
+    "description": "\"Letter\"|\"A4\"|…",
+    "type": "string"
+   }
+  }
+ },
+ "file.newSample": {
+  "description": "Replaces the open document with a multi-page magazine sample, useful for trying commands."
+ },
+ "file.open": {
+  "description": "Opens a .klayout or .idml file from a path; fonts in a Document Fonts folder beside it load too."
+ },
+ "file.openBytes": {
+  "description": "Opens a document from base64 bytes (Kition Layout JSON or an IDML package) under a name.",
+  "params": {
+   "base64": {
+    "type": "string"
+   }
+  }
+ },
+ "file.openIdml": {
+  "description": "Opens an IDML package (path or base64) as a new document."
+ },
+ "file.package": {
+  "description": "Packages the document into a new folder with its fonts, links, and optionally IDML, PDF and instructions."
+ },
+ "file.place": {
+  "description": "Places a graphic or text file (by path or base64) on a spread or into a frame, at a position and size, with the page of a PDF.",
+  "params": {
+   "spread": {
+    "description": "the spread (default spread 0); one that names no spread is refused",
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference {kind: doc|parent, index} (parent spreads counted from 0)",
+      "type": "object"
+     },
+     {
+      "description": "a parent spread's prefix or label, such as A or A-Parent",
+      "type": "string"
+     }
+    ]
+   }
+  }
+ },
+ "file.presets": {
+  "description": "Lists the document presets (page sizes and settings) that file.new accepts.",
+  "output": {
+   "items": {
+    "additionalProperties": true,
+    "properties": {
+     "height": {
+      "type": "number"
+     },
+     "intent": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "units": {
+      "type": "string"
+     },
+     "width": {
+      "type": "number"
+     }
+    },
+    "type": "object"
+   },
+   "type": "array"
+  }
+ },
+ "file.print": {
+  "description": "Prints pages or spreads to a printer with copies, marks and bleed; dryRun only answers what would print.",
+  "params": {
+   "bleed": {
+    "description": "points",
+    "type": "number"
+   },
+   "marks": {
+    "oneOf": [
+     {
+      "type": "boolean"
+     },
+     {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    ]
+   },
+   "printer": {
+    "type": "string"
+   },
+   "spreads": {
+    "type": "boolean"
+   }
+  }
+ },
+ "file.printBooklet": {
+  "description": "Exports printer spreads for a booklet (saddle stitch or two-up) as PDF.",
+  "params": {
+   "spaceBetween": {
+    "description": "points",
+    "type": "number"
+   }
+  }
+ },
+ "file.printers": {
+  "description": "Lists the printers and the default one.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "default": {
+     "type": "string"
+    },
+    "printers": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "file.recovery.list": {
+  "description": "Lists unsaved documents a crash left in the recovery folder, with their paths and titles.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "file.recovery.open": {
+  "description": "Reopens the documents left in the recovery folder, unsaved."
+ },
+ "file.recovery.save": {
+  "description": "Writes every unsaved document to the recovery folder."
+ },
+ "file.render": {
+  "description": "Renders a preview of the layout as a PNG, without changing it: the whole canvas, one page, one spread, or one object (a diagnostic's target); answers {png, width, height}.",
+  "output": {
+   "type": "object",
+   "properties": {
+    "png": {
+     "type": "string",
+     "description": "the PNG image, base64"
+    },
+    "width": {
+     "type": "integer",
+     "description": "the image's width in pixels"
+    },
+    "height": {
+     "type": "integer",
+     "description": "the image's height in pixels"
+    }
+   },
+   "additionalProperties": false
+  },
+  "params": {
+   "scale": {
+    "type": "number",
+    "exclusiveMinimum": 0,
+    "maximum": 2,
+    "description": "device pixels per point, at most 2 (default 1)"
+   },
+   "maxSize": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 4096,
+    "description": "at most this many pixels on the longer side"
+   },
+   "target": {
+    "type": "object",
+    "description": "the part to draw, as a diagnostic's target names it: an object ({path: \"item:<id>\"}, an id layout_inspect lists), a page ({page}, counted from 1) or a spread ({spread}, counted from 0); without it, the whole canvas",
+    "properties": {
+     "path": {
+      "type": "string",
+      "description": "item:<id>, the object to draw"
+     },
+     "page": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "a page counted from 1"
+     },
+     "spread": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "a spread counted from 0"
+     }
+    },
+    "additionalProperties": true
+   },
+   "slide": {
+    "type": "integer",
+    "minimum": 0,
+    "description": "a page counted from 0, when there is no target"
+   }
+  }
+ },
+ "file.revert": {
+  "description": "Throws away unsaved changes and reloads the last saved version; this cannot be undone."
+ },
+ "file.save": {
+  "description": "Saves the document to its path, or to the given path, as .klayout."
+ },
+ "file.saveACopy": {
+  "description": "Writes a copy of the document to a path without changing which file it is or its unsaved state."
+ },
+ "file.saveAs": {
+  "description": "Saves the document under a new path, which becomes its path."
+ },
+ "file.serialize": {
+  "description": "Answers the whole document as .klayout bytes in base64, without writing a file.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "base64": {
+     "type": "string"
+    },
+    "bytes": {
+     "type": "number"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "find.change": {
+  "description": "Replaces every match of text (or a GREP pattern) with new text, in a scope; answers how many changed.",
+  "params": {
+   "caseSensitive": {
+    "type": "boolean"
+   },
+   "change": {
+    "type": "string"
+   },
+   "find": {
+    "type": "string"
+   },
+   "grep": {
+    "type": "boolean"
+   },
+   "scope": {
+    "type": "string"
+   },
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   },
+   "wholeWord": {
+    "type": "boolean"
+   }
+  }
+ },
+ "find.changeObjects": {
+  "description": "Finds objects by criteria and changes their fill, stroke, weight or opacity; answers how many changed."
+ },
+ "find.find": {
+  "description": "Finds text (or a GREP pattern) in the document, a story or the selection and answers every match with its story and byte offsets; changes nothing.",
+  "output": {
+   "type": "array"
+  },
+  "params": {
+   "find": {
+    "type": "string"
+   },
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "find.next": {
+  "description": "Selects the next match of a text after the caret.",
+  "params": {
+   "find": {
+    "type": "string"
+   },
+   "grep": {
+    "type": "boolean"
+   }
+  }
+ },
+ "find.objects": {
+  "description": "Finds and selects objects by fill, stroke, weight, opacity and kind; answers their ids.",
+  "params": {
+   "fill": {
+    "type": "string"
+   },
+   "kind": {
+    "enum": [
+     "text",
+     "graphic",
+     "shape",
+     "line",
+     "group"
+    ],
+    "type": "string"
+   },
+   "stroke": {
+    "type": "string"
+   },
+   "strokeWeight": {
+    "type": "number"
+   }
+  }
+ },
+ "font.families": {
+  "description": "Lists the font families text can be set in, or one family's styles.",
+  "output": {
+   "items": {
+    "type": "string"
+   },
+   "type": "array"
+  }
+ },
+ "font.list": {
+  "description": "Lists the fonts used in the document with the characters set in them and whether any are missing.",
+  "output": {
+   "items": {
+    "additionalProperties": true,
+    "properties": {
+     "characters": {
+      "type": "number"
+     },
+     "family": {
+      "type": "string"
+     },
+     "missing": {
+      "type": "boolean"
+     },
+     "source": {
+      "type": "string"
+     },
+     "style": {
+      "type": "string"
+     },
+     "styleMissing": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "type": "array"
+  }
+ },
+ "font.replace": {
+  "description": "Replaces a font family and style in text (and styles, unless told not to) with another.",
+  "params": {
+   "toFamily": {
+    "type": "string"
+   },
+   "toStyle": {
+    "type": "string"
+   }
+  }
+ },
+ "footnote.delete": {
+  "description": "Deletes a footnote's reference and text.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "footnote.goToReference": {
+  "description": "Moves the caret from footnote text to just after its reference."
+ },
+ "footnote.insert": {
+  "description": "Inserts a footnote reference at the insertion point with its text; the caret moves into the footnote."
+ },
+ "footnote.list": {
+  "description": "Lists footnotes in story order with their story, id, anchor and text.",
+  "output": {
+   "type": "array"
+  },
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "footnote.options": {
+  "description": "Sets footnote numbering, styles, spacing and layout options.",
+  "params": {
+   "affixIn": {
+    "enum": [
+     "none",
+     "reference",
+     "text",
+     "both"
+    ],
+    "type": "string"
+   },
+   "firstBaseline": {
+    "type": "string"
+   },
+   "firstBaselineMin": {
+    "description": "points",
+    "type": "number"
+   },
+   "paraStyle": {
+    "description": "a paragraph style name",
+    "type": "string"
+   },
+   "refCharStyle": {
+    "description": "a character style name",
+    "type": "string"
+   },
+   "separator": {
+    "type": "string"
+   },
+   "spaceBefore": {
+    "type": "number"
+   },
+   "spaceBetween": {
+    "description": "points",
+    "type": "number"
+   },
+   "spanColumns": {
+    "type": "boolean"
+   },
+   "startAt": {
+    "type": "integer"
+   }
+  }
+ },
+ "footnote.setText": {
+  "description": "Replaces a footnote's text, by its story and id.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "form.clear": {
+  "description": "Turns form fields back into ordinary objects."
+ },
+ "form.list": {
+  "description": "Lists the form fields with their ids, kinds, names, values and options.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "form.set": {
+  "description": "Turns objects into form fields (text field, check box, combo box, list box, signature) with name, value and options.",
+  "params": {
+   "fontSize": {
+    "description": "points",
+    "type": "number"
+   },
+   "multiline": {
+    "type": "boolean"
+   },
+   "required": {
+    "type": "boolean"
+   },
+   "value": {
+    "type": "string"
+   }
+  }
+ },
+ "frame.create": {
+  "description": "Creates a frame on a spread from a rectangle [x0, y0, x1, y1] in spread coordinates, with a shape and content type (graphic, text, unassigned); answers its id.",
+  "params": {
+   "content": {
+    "enum": [
+     "graphic",
+     "text",
+     "unassigned"
+    ],
+    "type": "string"
+   },
+   "spread": {
+    "description": "the spread (default spread 0); one that names no spread is refused",
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference {kind: doc|parent, index} (parent spreads counted from 0)",
+      "type": "object"
+     },
+     {
+      "description": "a parent spread's prefix or label, such as A or A-Parent",
+      "type": "string"
+     }
+    ]
+   }
+  }
+ },
+ "frame.fitText": {
+  "description": "Shrinks the text of text frames until it fits without overset, down to a minimum size.",
+  "params": {
+   "ids": {
+    "description": "object ids; default: the selection",
+    "items": {
+     "type": "integer"
+    },
+    "type": "array"
+   }
+  }
+ },
+ "frame.grid": {
+  "description": "Creates a grid of frames filling a rectangle with columns, rows and a gutter.",
+  "params": {
+   "cols": {
+    "type": "integer"
+   },
+   "content": {
+    "description": "graphic, text or unassigned",
+    "type": "string"
+   },
+   "gutter": {
+    "description": "points",
+    "type": "number"
+   },
+   "rect": {
+    "description": "[x0, y0, x1, y1] in points",
+    "items": {
+     "type": "number"
+    },
+    "type": "array"
+   },
+   "shape": {
+    "description": "a frame shape such as rectangle or ellipse",
+    "type": "string"
+   },
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "frame.loadText": {
+  "description": "Loads the text cursor from a text frame's out port (or in port) to continue its story elsewhere.",
+  "params": {
+   "frame": {
+    "description": "an object id from document.inspect or object.list",
+    "type": "integer"
+   }
+  }
+ },
+ "frame.thread": {
+  "description": "Threads a text frame's story into another frame (or a new frame drawn on a spread).",
+  "params": {
+   "from": {
+    "description": "an object id from document.inspect or object.list",
+    "type": "integer"
+   },
+   "spread": {
+    "description": "the spread (default spread 0, for frame.thread the source frame's spread); one that names no spread is refused",
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference {kind: doc|parent, index} (parent spreads counted from 0)",
+      "type": "object"
+     },
+     {
+      "description": "a parent spread's prefix or label, such as A or A-Parent",
+      "type": "string"
+     }
+    ]
+   },
+   "to": {
+    "description": "an object id from document.inspect or object.list",
+    "type": "integer"
+   }
+  }
+ },
+ "frame.unthread": {
+  "description": "Breaks a text frame's thread after it (or before it); the following frames lose the story.",
+  "params": {
+   "frame": {
+    "description": "an object id from document.inspect or object.list",
+    "type": "integer"
+   }
+  }
+ },
+ "gap.move": {
+  "description": "Moves the gap between objects at a point (Gap tool), resizing the objects beside it.",
+  "params": {
+   "spread": {
+    "description": "the spread (default spread 0); one that names no spread is refused",
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference {kind: doc|parent, index} (parent spreads counted from 0)",
+      "type": "object"
+     },
+     {
+      "description": "a parent spread's prefix or label, such as A or A-Parent",
+      "type": "string"
+     }
+    ]
+   }
+  }
+ },
+ "guide.add": {
+  "description": "Adds a horizontal or vertical guide at a position on a spread or page.",
+  "params": {
+   "at": {
+    "description": "the other coordinate in points",
+    "type": "number"
+   },
+   "position": {
+    "description": "the guide's coordinate in points",
+    "type": "number"
+   },
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "guide.delete": {
+  "description": "Deletes a guide by page and index.",
+  "params": {
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "guide.deleteAll": {
+  "description": "Deletes every guide on a spread.",
+  "params": {
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "guide.liquid": {
+  "description": "Makes a guide a liquid guide, or not.",
+  "params": {
+   "spread": {
+    "description": "the spread (default spread 0); one that names no spread is refused",
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference {kind: doc|parent, index} (parent spreads counted from 0)",
+      "type": "object"
+     },
+     {
+      "description": "a parent spread's prefix or label, such as A or A-Parent",
+      "type": "string"
+     }
+    ]
+   }
+  }
+ },
+ "guide.list": {
+  "description": "Lists the guides on a spread with their orientation and position.",
+  "output": {
+   "type": "array"
+  },
+  "params": {
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "guide.move": {
+  "description": "Moves a guide to a new position.",
+  "params": {
+   "position": {
+    "description": "the guide's coordinate in points",
+    "type": "number"
+   },
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "hyperlink.create": {
+  "description": "Creates a hyperlink from the selected text or objects to a URL, email or page.",
+  "params": {
+   "email": {
+    "type": "string"
+   }
+  }
+ },
+ "hyperlink.delete": {
+  "description": "Deletes a hyperlink by id."
+ },
+ "hyperlink.edit": {
+  "description": "Changes a hyperlink's name or destination.",
+  "params": {
+   "email": {
+    "type": "string"
+   }
+  }
+ },
+ "hyperlink.goToSource": {
+  "description": "Selects a hyperlink's text or frame."
+ },
+ "hyperlink.list": {
+  "description": "Lists the hyperlinks with their ids, names and destinations.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "hyphenation.addException": {
+  "description": "Adds a hyphenation exception: breaks only at ~, or never for a word without ~.",
+  "params": {
+   "word": {
+    "type": "boolean"
+   }
+  }
+ },
+ "hyphenation.list": {
+  "description": "Lists the hyphenation exceptions.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "hyphenation.removeException": {
+  "description": "Removes a hyphenation exception.",
+  "params": {
+   "word": {
+    "type": "boolean"
+   }
+  }
+ },
+ "index.addReference": {
+  "description": "Adds an index page reference for topics (default: the selected text) or a see/see also reference.",
+  "params": {
+   "target": {
+    "type": "string"
+   },
+   "topics": {
+    "description": "topic levels 1 to 4",
+    "items": {
+     "type": "string"
+    },
+    "type": "array"
+   }
+  }
+ },
+ "index.generate": {
+  "description": "Generates an index with a title, section headings and run-in option in a new frame.",
+  "params": {
+   "page": {
+    "description": "a page counted from 1",
+    "type": "integer"
+   }
+  }
+ },
+ "index.list": {
+  "description": "Lists the index page references with their topics and pages.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "index.update": {
+  "description": "Regenerates the existing index."
+ },
+ "ink.list": {
+  "description": "Answers the inks: whether each spot ink prints as process, and its alias.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "allToProcess": {
+     "type": "boolean"
+    },
+    "inks": {
+     "type": "array"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "ink.options": {
+  "description": "Sets ink options: all to process, one ink to process, or an ink alias.",
+  "params": {
+   "alias": {
+    "oneOf": [
+     {
+      "description": "a spot swatch name",
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "ink": {
+    "type": "string"
+   }
+  }
+ },
+ "layer.activate": {
+  "description": "Makes a layer the active layer for new objects."
+ },
+ "layer.delete": {
+  "description": "Deletes a layer and its objects."
+ },
+ "layer.deleteUnused": {
+  "description": "Deletes layers without objects (one layer always stays)."
+ },
+ "layer.merge": {
+  "description": "Merges layers into one, moving their objects.",
+  "params": {
+   "into": {
+    "type": "integer"
+   }
+  }
+ },
+ "layer.move": {
+  "description": "Moves a layer to a position (0 is the top)."
+ },
+ "layer.new": {
+  "description": "Creates a layer; answers its id."
+ },
+ "layer.others": {
+  "description": "Hides or locks every layer but one, or shows or unlocks all."
+ },
+ "layer.selectItems": {
+  "description": "Selects every object on a layer."
+ },
+ "layer.set": {
+  "description": "Sets a layer's name, visibility, lock, printing and colour.",
+  "params": {
+   "printable": {
+    "type": "boolean"
+   }
+  }
+ },
+ "layout.createAlternate": {
+  "description": "Creates an alternate layout of the pages at a new size, with a page rule.",
+  "params": {
+   "rule": {
+    "description": "a page rule such as scale or reCenter",
+    "type": "string"
+   },
+   "source": {
+    "description": "a layout name",
+    "type": "string"
+   }
+  }
+ },
+ "layout.createGuides": {
+  "description": "Creates rows and columns of guides with gutters, fitted to the margins or the page.",
+  "params": {
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "layout.deleteAlternate": {
+  "description": "Deletes an alternate layout's pages and parents."
+ },
+ "layout.detachAll": {
+  "description": "Detaches a page's overridden copies from the parent, making them ordinary items."
+ },
+ "layout.documentSetup": {
+  "description": "Sets the document's page size, page count, start page, facing pages, binding, bleed and slug.",
+  "params": {
+   "bleed": {
+    "description": "points",
+    "type": "number"
+   },
+   "facingPages": {
+    "type": "boolean"
+   },
+   "slug": {
+    "oneOf": [
+     {
+      "description": "points on every side",
+      "type": "number"
+     },
+     {
+      "description": "[top, left, bottom, right] points",
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    ]
+   }
+  }
+ },
+ "layout.list": {
+  "description": "Lists the layouts with their first page, page count and size.",
+  "output": {
+   "items": {
+    "additionalProperties": true,
+    "properties": {
+     "firstPage": {
+      "type": "number"
+     },
+     "height": {
+      "type": "number"
+     },
+     "name": {
+      "type": "json"
+     },
+     "pages": {
+      "type": "number"
+     },
+     "width": {
+      "type": "number"
+     }
+    },
+    "type": "object"
+   },
+   "type": "array"
+  }
+ },
+ "layout.marginsAndColumns": {
+  "description": "Sets pages' margins and columns.",
+  "params": {
+   "gutter": {
+    "description": "points",
+    "type": "number"
+   },
+   "margins": {
+    "oneOf": [
+     {
+      "description": "points on every side",
+      "type": "number"
+     },
+     {
+      "additionalProperties": false,
+      "properties": {
+       "bottom": {
+        "type": "number"
+       },
+       "inside": {
+        "type": "number"
+       },
+       "outside": {
+        "type": "number"
+       },
+       "top": {
+        "type": "number"
+       }
+      },
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "layout.overrideParentItems": {
+  "description": "Overrides parent items on a page (0-based) so they can be edited there; answers the copies' ids.",
+  "params": {
+   "ids": {
+    "description": "object ids; default: the selection",
+    "items": {
+     "type": "integer"
+    },
+    "type": "array"
+   }
+  }
+ },
+ "layout.pageSize": {
+  "description": "Sets the size of chosen pages (1-based) from a preset or width and height.",
+  "params": {
+   "preset": {
+    "description": "\"A4\"|\"Letter\"|…",
+    "type": "string"
+   }
+  }
+ },
+ "layout.pages.applyParent": {
+  "description": "Applies a parent spread to pages, or none.",
+  "params": {
+   "parent": {
+    "enum": [
+     "A",
+     "null"
+    ],
+    "type": "string"
+   },
+   "pages": {
+    "description": "page numbers, counted from 1 as layout.section and frame.thread count them",
+    "items": {
+     "type": "integer",
+     "minimum": 1
+    },
+    "type": "array"
+   }
+  }
+ },
+ "layout.pages.delete": {
+  "description": "Deletes pages by index."
+ },
+ "layout.pages.duplicateSpread": {
+  "description": "Duplicates a spread with its items.",
+  "params": {
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "layout.pages.insert": {
+  "description": "Inserts pages after a page (default: the last) with a parent.",
+  "params": {
+   "after": {
+    "description": "a page counted from 0; default: the last",
+    "type": "integer"
+   },
+   "parent": {
+    "enum": [
+     "A",
+     "null"
+    ],
+    "type": "string"
+   }
+  }
+ },
+ "layout.pages.move": {
+  "description": "Moves a page from one index to another.",
+  "params": {
+   "from": {
+    "description": "a page counted from 0",
+    "type": "integer"
+   },
+   "to": {
+    "description": "a page counted from 0",
+    "type": "integer"
+   }
+  }
+ },
+ "layout.pages.toSpread": {
+  "description": "Adds a page (1-based) to a spread (0-based).",
+  "params": {
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "layout.parents.edit": {
+  "description": "Shows or hides parent spreads on the canvas for editing."
+ },
+ "layout.parents.new": {
+  "description": "Creates a parent spread with a prefix and name."
+ },
+ "layout.removeOverrides": {
+  "description": "Deletes a page's overridden parent copies so the parent items show again."
+ },
+ "layout.rotateSpreadView": {
+  "description": "Rotates the view of one spread by 90, -90 or 180 degrees, or clears it; output is unchanged."
+ },
+ "layout.section": {
+  "description": "Starts a section at a page (1-based) with a start number, numbering style and marker.",
+  "params": {
+   "marker": {
+    "type": "string"
+   },
+   "startNumber": {
+    "oneOf": [
+     {
+      "description": "the page number the section starts at; null continues",
+      "type": "integer"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  }
+ },
+ "layout.spreadShuffle": {
+  "description": "Allows or stops a spread's pages shuffling apart when pages are added or removed.",
+  "params": {
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "library.add": {
+  "description": "Adds the selection to the library as an item; answers its index.",
+  "params": {
+   "description": {
+    "type": "string"
+   }
+  }
+ },
+ "library.close": {
+  "description": "Closes the open object library."
+ },
+ "library.json": {
+  "description": "Answers the library as JSON text, to save where there is no file system.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "json": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "library.list": {
+  "description": "Lists the library's items with their indexes, names and descriptions.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "library.new": {
+  "description": "Creates an empty object library, saved to a path when given."
+ },
+ "library.open": {
+  "description": "Opens an object library from a path or JSON and answers its items."
+ },
+ "library.place": {
+  "description": "Places a library item on a spread at its original position or at x, y.",
+  "params": {
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "library.remove": {
+  "description": "Deletes a library item by index."
+ },
+ "line.create": {
+  "description": "Creates a straight line between two points on a spread; answers its id.",
+  "params": {
+   "spread": {
+    "description": "the spread (default spread 0); one that names no spread is refused",
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference {kind: doc|parent, index} (parent spreads counted from 0)",
+      "type": "object"
+     },
+     {
+      "description": "a parent spread's prefix or label, such as A or A-Parent",
+      "type": "string"
+     }
+    ]
+   }
+  }
+ },
+ "links.copyTo": {
+  "description": "Copies placed files to a folder and relinks the document to the copies."
+ },
+ "links.embed": {
+  "description": "Embeds a linked graphic in the document.",
+  "params": {
+   "asset": {
+    "type": "integer"
+   }
+  }
+ },
+ "links.goTo": {
+  "description": "Selects the frames showing a linked graphic.",
+  "params": {
+   "asset": {
+    "type": "integer"
+   }
+  }
+ },
+ "links.list": {
+  "description": "Lists placed graphics' links with their status (ok, modified, missing, embedded), size and uses.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "links.relink": {
+  "description": "Points every placement of a graphic at another file.",
+  "params": {
+   "asset": {
+    "type": "integer"
+   }
+  }
+ },
+ "links.relinkFolder": {
+  "description": "Relinks graphics to files of the same name in a folder, optionally with another extension.",
+  "params": {
+   "extension": {
+    "description": "a file extension such as tif",
+    "type": "string"
+   }
+  }
+ },
+ "links.update": {
+  "description": "Reloads modified links from their files (one or all).",
+  "params": {
+   "asset": {
+    "type": "integer"
+   }
+  }
+ },
+ "liquid.object": {
+  "description": "Sets objects' liquid layout constraints: resize and pin to edges.",
+  "params": {
+   "pinBottom": {
+    "type": "boolean"
+   },
+   "pinLeft": {
+    "type": "boolean"
+   },
+   "pinRight": {
+    "type": "boolean"
+   },
+   "pinTop": {
+    "type": "boolean"
+   },
+   "resizeHeight": {
+    "type": "boolean"
+   },
+   "resizeWidth": {
+    "type": "boolean"
+   }
+  }
+ },
+ "liquid.pageRule": {
+  "description": "Sets the liquid layout rule (scale, re-centre, guide or object based) for pages.",
+  "params": {
+   "rule": {
+    "enum": [
+     "off",
+     "scale",
+     "reCenter",
+     "guideBased",
+     "objectBased"
+    ],
+    "type": "string"
+   }
+  }
+ },
+ "list.define": {
+  "description": "Defines or renames a named list that numbered paragraphs can join across stories.",
+  "params": {
+   "rename": {
+    "type": "string"
+   }
+  }
+ },
+ "list.delete": {
+  "description": "Deletes a named list."
+ },
+ "math.insert": {
+  "description": "Inserts a math expression typeset from LaTeX at the text insertion point or at a position.",
+  "params": {
+   "latex": {
+    "description": "a LaTeX expression",
+    "type": "string"
+   },
+   "size": {
+    "type": "number"
+   },
+   "spread": {
+    "description": "the spread (default spread 0); one that names no spread is refused",
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference {kind: doc|parent, index} (parent spreads counted from 0)",
+      "type": "object"
+     },
+     {
+      "description": "a parent spread's prefix or label, such as A or A-Parent",
+      "type": "string"
+     }
+    ]
+   }
+  }
+ },
+ "math.svg": {
+  "description": "Typesets a LaTeX expression and answers its SVG and size without placing it.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "height": {
+     "type": "number"
+    },
+    "svg": {
+     "type": "string"
+    },
+    "width": {
+     "type": "number"
+    }
+   },
+   "type": "object"
+  },
+  "params": {
+   "latex": {
+    "description": "a LaTeX expression",
+    "type": "string"
+   }
+  }
+ },
+ "media.get": {
+  "description": "Answers a media object's kind, name and playback options.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "controls": {
+     "type": "boolean"
+    },
+    "kind": {
+     "type": "string"
+    },
+    "loop": {
+     "type": "boolean"
+    },
+    "name": {
+     "type": "string"
+    },
+    "playOnPageLoad": {
+     "type": "boolean"
+    },
+    "poster": {
+     "type": "json"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "media.options": {
+  "description": "Sets placed media options: play on page load, loop, controls and poster.",
+  "params": {
+   "controls": {
+    "type": "boolean"
+   },
+   "loop": {
+    "type": "boolean"
+   },
+   "playOnPageLoad": {
+    "type": "boolean"
+   },
+   "poster": {
+    "oneOf": [
+     {
+      "additionalProperties": true,
+      "description": "{path} or {base64, name}",
+      "type": "object"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  }
+ },
+ "note.convertToText": {
+  "description": "Turns a note into ordinary story text in place of its anchor.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "note.delete": {
+  "description": "Deletes an editorial note by its story and id.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "note.edit": {
+  "description": "Changes a note's text or author.",
+  "params": {
+   "author": {
+    "type": "string"
+   },
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "note.list": {
+  "description": "Lists the notes in story order with their position, author and text.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "note.new": {
+  "description": "Adds an editorial note (not printed) with text and author at the insertion point; answers its story and id.",
+  "params": {
+   "author": {
+    "type": "string"
+   }
+  }
+ },
+ "object.align": {
+  "description": "Aligns objects' edges or centres to each other, the key object, the margins, the page or the spread."
+ },
+ "object.altText": {
+  "description": "Sets the alternative text of objects for tagged PDF and EPUB."
+ },
+ "object.arrange": {
+  "description": "Moves objects to the front, forward, backward or to the back of the stacking order."
+ },
+ "object.attributes": {
+  "description": "Sets objects' print attributes: overprint fill, stroke and gap, and non-printing.",
+  "params": {
+   "overprintFill": {
+    "type": "boolean"
+   },
+   "overprintGap": {
+    "type": "boolean"
+   },
+   "overprintStroke": {
+    "type": "boolean"
+   }
+  }
+ },
+ "object.bevel": {
+  "description": "Turns bevel and emboss on or off with size, depth, angle, highlight and shadow.",
+  "params": {
+   "depth": {
+    "description": "percent",
+    "type": "number"
+   },
+   "highlight": {
+    "description": "a colour or swatch name",
+    "type": "string"
+   },
+   "highlightOpacity": {
+    "description": "percent",
+    "type": "number"
+   },
+   "shadow": {
+    "description": "a colour or swatch name",
+    "type": "string"
+   },
+   "shadowOpacity": {
+    "description": "percent",
+    "type": "number"
+   }
+  }
+ },
+ "object.bringForward": {
+  "description": "Brings the selection one step forward."
+ },
+ "object.bringToFront": {
+  "description": "Brings the selection to the front."
+ },
+ "object.caption": {
+  "description": "Generates a static caption below objects from a template with variables such as {name} and {altText}.",
+  "params": {
+   "style": {
+    "type": "string"
+   },
+   "text": {
+    "description": "a caption template such as {name}",
+    "type": "string"
+   }
+  }
+ },
+ "object.clippingPath": {
+  "description": "Makes a clipping path for a placed graphic from its alpha channel or detected edges, with a threshold.",
+  "params": {
+   "threshold": {
+    "type": "number"
+   }
+  }
+ },
+ "object.color": {
+  "description": "Applies a colour (hex, CMYK or RGB) to objects' fill or stroke without making a swatch.",
+  "params": {
+   "color": {
+    "description": "#rrggbb or a swatch name",
+    "type": "string"
+   }
+  }
+ },
+ "object.content": {
+  "description": "Sets what a frame holds: graphic, text or unassigned.",
+  "params": {
+   "type": {
+    "enum": [
+     "graphic",
+     "text",
+     "unassigned"
+    ],
+    "type": "string"
+   }
+  }
+ },
+ "object.convertShape": {
+  "description": "Converts objects to another shape (rectangle, rounded rectangle, ellipse, triangle, polygon, line…)."
+ },
+ "object.cornerOptions": {
+  "description": "Sets objects' corner shape (rounded, inverse rounded, inset, bevel, fancy) and size."
+ },
+ "object.directionalFeather": {
+  "description": "Turns a directional feather on or off with widths per side.",
+  "params": {
+   "widths": {
+    "oneOf": [
+     {
+      "description": "points on every side",
+      "type": "number"
+     },
+     {
+      "description": "[top, left, bottom, right] points",
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    ]
+   }
+  }
+ },
+ "object.distribute": {
+  "description": "Distributes objects horizontally or vertically by centres or by equal spacing.",
+  "params": {
+   "spacing": {
+    "description": "points",
+    "type": "number"
+   }
+  }
+ },
+ "object.dropShadow": {
+  "description": "Turns a drop shadow on or off and sets its distance, angle, opacity, size, spread and colour.",
+  "params": {
+   "distance": {
+    "description": "points",
+    "type": "number"
+   },
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "object.exportOptions": {
+  "description": "Sets objects' export options: tagged-PDF artifact, rasterising for EPUB and HTML, alignment.",
+  "params": {
+   "align": {
+    "enum": [
+     "left",
+     "center",
+     "right",
+     ""
+    ],
+    "type": "string"
+   }
+  }
+ },
+ "object.feather": {
+  "description": "Sets a basic feather width on objects (0 turns it off)."
+ },
+ "object.fill": {
+  "description": "Sets objects' fill to a swatch with a tint from 0 to 1.",
+  "params": {
+   "swatch": {
+    "description": "a swatch name",
+    "type": "string"
+   }
+  }
+ },
+ "object.findByLabel": {
+  "description": "Answers the ids of objects whose script label equals a text.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "ids": {
+     "items": {
+      "type": "number"
+     },
+     "type": "array"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "object.fit": {
+  "description": "Fits a frame's graphic: fill or fit proportionally, fit content to frame, centre, or frame to content."
+ },
+ "object.fittingOptions": {
+  "description": "Sets a frame's fitting options: auto-fit, fitting, alignment reference and crop amounts.",
+  "params": {
+   "crop": {
+    "oneOf": [
+     {
+      "description": "points on every side",
+      "type": "number"
+     },
+     {
+      "description": "[top, left, bottom, right] points",
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    ]
+   }
+  }
+ },
+ "object.globalLight": {
+  "description": "Sets the light angle shared by effects that use global light."
+ },
+ "object.gradient": {
+  "description": "Applies a linear or radial gradient with colour stops to objects' fill or stroke."
+ },
+ "object.gradientFeather": {
+  "description": "Turns a gradient feather on or off, linear or radial, with angle and start and end opacity.",
+  "params": {
+   "radial": {
+    "type": "boolean"
+   },
+   "start": {
+    "description": "opacity from 0 to 100",
+    "type": "number"
+   }
+  }
+ },
+ "object.group": {
+  "description": "Groups objects (default: the selection) into one group."
+ },
+ "object.hide": {
+  "description": "Hides objects; they stay in the document."
+ },
+ "object.innerGlow": {
+  "description": "Turns an inner glow on or off and sets its opacity, size, choke, source and colour.",
+  "params": {
+   "choke": {
+    "description": "percent",
+    "type": "number"
+   }
+  }
+ },
+ "object.innerShadow": {
+  "description": "Turns an inner shadow on or off and sets its distance, angle, opacity, size, choke and colour.",
+  "params": {
+   "choke": {
+    "description": "percent",
+    "type": "number"
+   },
+   "distance": {
+    "description": "points",
+    "type": "number"
+   }
+  }
+ },
+ "object.label": {
+  "description": "Sets a free-text script label on objects so scripts and agents can find them with object.findByLabel."
+ },
+ "object.layerOptions": {
+  "description": "Hides layers of placed PDFs by name."
+ },
+ "object.lock": {
+  "description": "Locks objects so they cannot be selected or changed on the canvas."
+ },
+ "object.makeCompoundPath": {
+  "description": "Joins the selected paths into one compound path with the backmost object's look."
+ },
+ "object.matchAttributes": {
+  "description": "Copies fill, stroke, corners, opacity, effects and wrap from one object to others, like the eyedropper."
+ },
+ "object.opacity": {
+  "description": "Sets objects' opacity from 0 to 1 and blend mode.",
+  "params": {
+   "blend": {
+    "description": "normal|multiply|…",
+    "type": "string"
+   }
+  }
+ },
+ "object.outerGlow": {
+  "description": "Turns an outer glow on or off and sets its opacity, size, spread and colour.",
+  "params": {
+   "spread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "object.pathfinder": {
+  "description": "Combines the selected shapes by add, subtract, intersect, exclude or minus back."
+ },
+ "object.pdfLayers": {
+  "description": "Lists the layers of the selected placed PDF with their visibility.",
+  "output": {
+   "items": {
+    "additionalProperties": true,
+    "properties": {
+     "default": {
+      "type": "boolean"
+     },
+     "name": {
+      "type": "string"
+     },
+     "visible": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "type": "array"
+  }
+ },
+ "object.primaryTextFrame": {
+  "description": "Makes the selected text frame's story the primary text frame, or turns that off."
+ },
+ "object.qrCode": {
+  "description": "Generates a QR code object for a URL, text, SMS, email or vCard.",
+  "params": {
+   "body": {
+    "type": "string"
+   },
+   "content": {
+    "description": "the URL or text",
+    "type": "string"
+   },
+   "email": {
+    "type": "string"
+   },
+   "message": {
+    "type": "string"
+   },
+   "number": {
+    "type": "string"
+   },
+   "org": {
+    "type": "string"
+   },
+   "phone": {
+    "type": "string"
+   },
+   "rect": {
+    "description": "[x0, y0, x1, y1] in points",
+    "items": {
+     "type": "number"
+    },
+    "type": "array"
+   },
+   "spread": {
+    "description": "the spread (default spread 0); one that names no spread is refused",
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference {kind: doc|parent, index} (parent spreads counted from 0)",
+      "type": "object"
+     },
+     {
+      "description": "a parent spread's prefix or label, such as A or A-Parent",
+      "type": "string"
+     }
+    ]
+   },
+   "subject": {
+    "type": "string"
+   },
+   "to": {
+    "description": "the recipient",
+    "type": "string"
+   },
+   "type": {
+    "type": "string"
+   }
+  }
+ },
+ "object.releaseCompoundPath": {
+  "description": "Splits a compound path so each subpath becomes its own object; answers their ids."
+ },
+ "object.rename": {
+  "description": "Renames an object by id."
+ },
+ "object.satin": {
+  "description": "Turns a satin effect on or off with opacity, angle, distance, size and colour.",
+  "params": {
+   "distance": {
+    "description": "points",
+    "type": "number"
+   }
+  }
+ },
+ "object.sendBackward": {
+  "description": "Sends the selection one step backward."
+ },
+ "object.sendToBack": {
+  "description": "Sends the selection to the back."
+ },
+ "object.setFlags": {
+  "description": "Sets objects' hidden and locked flags, as the Layers panel's eye and lock do."
+ },
+ "object.setLayer": {
+  "description": "Moves objects to a layer."
+ },
+ "object.showAll": {
+  "description": "Shows every hidden object on the spread."
+ },
+ "object.stroke": {
+  "description": "Sets objects' stroke: swatch, tint, weight, alignment, stroke type, caps and joins, gap colour.",
+  "params": {
+   "gapSwatch": {
+    "description": "a swatch name",
+    "type": "string"
+   },
+   "gapTint": {
+    "description": "percent",
+    "type": "number"
+   },
+   "miterLimit": {
+    "type": "number"
+   },
+   "swatch": {
+    "description": "a swatch name",
+    "type": "string"
+   },
+   "tint": {
+    "description": "percent from 0 to 100",
+    "type": "number"
+   }
+  }
+ },
+ "object.textFrameOptions": {
+  "description": "Sets text frames' columns, gutter, insets, vertical justification, first baseline, auto-size and column rules.",
+  "params": {
+   "autoSize": {
+    "type": "boolean"
+   },
+   "balanceColumns": {
+    "type": "boolean"
+   },
+   "columnRuleBottomInset": {
+    "description": "points",
+    "type": "number"
+   },
+   "columnRuleColor": {
+    "description": "#rrggbb or a swatch name",
+    "type": "string"
+   },
+   "columnRuleOffset": {
+    "description": "points",
+    "type": "number"
+   },
+   "columnRuleTint": {
+    "description": "0..1",
+    "type": "number"
+   },
+   "columnRuleTopInset": {
+    "description": "points",
+    "type": "number"
+   },
+   "columnRuleWeight": {
+    "description": "points",
+    "type": "number"
+   },
+   "firstBaseline": {
+    "type": "string"
+   },
+   "gutter": {
+    "description": "points",
+    "type": "number"
+   },
+   "ignoreWrap": {
+    "type": "boolean"
+   },
+   "inset": {
+    "oneOf": [
+     {
+      "description": "points on every side",
+      "type": "number"
+     },
+     {
+      "description": "[top, left, bottom, right] points",
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    ]
+   }
+  }
+ },
+ "object.textWrap": {
+  "description": "Sets how text wraps around objects (bounding box, contour, jump object, jump to next column) and the offset.",
+  "params": {
+   "offset": {
+    "oneOf": [
+     {
+      "description": "points on every side",
+      "type": "number"
+     },
+     {
+      "description": "[top, left, bottom, right] points",
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    ]
+   }
+  }
+ },
+ "object.transparencyGroup": {
+  "description": "Sets isolate blending and knockout group on groups."
+ },
+ "object.ungroup": {
+  "description": "Splits groups back into their objects."
+ },
+ "object.unlockAll": {
+  "description": "Unlocks every locked object on the spread."
+ },
+ "page.background": {
+  "description": "Sets the page background colour (hex or swatch), or none for transparent.",
+  "params": {
+   "color": {
+    "oneOf": [
+     {
+      "description": "#rrggbb or a swatch name",
+      "type": "string"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   }
+  }
+ },
+ "page.transition": {
+  "description": "Sets a page transition (blinds, box, dissolve…) for pages, a spread, or all.",
+  "params": {
+   "pages": {
+    "description": "pages counted from 1",
+    "items": {
+     "type": "integer"
+    },
+    "type": "array"
+   }
+  }
+ },
+ "page.transitions": {
+  "description": "Lists the page transitions by spread.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "path.addAnchor": {
+  "description": "Adds an anchor point on a path at the nearest point to a position."
+ },
+ "path.appendAnchor": {
+  "description": "Adds an anchor point with handles at the end of a path."
+ },
+ "path.close": {
+  "description": "Closes an open path."
+ },
+ "path.convertAnchor": {
+  "description": "Converts an anchor point between corner and smooth, or drags out symmetric handles to a point.",
+  "params": {
+   "anchor": {
+    "type": "integer"
+   },
+   "subpath": {
+    "description": "a subpath counted from 0",
+    "type": "integer"
+   }
+  }
+ },
+ "path.create": {
+  "description": "Creates a path from anchor points with optional handles, open or closed; answers its id.",
+  "params": {
+   "spread": {
+    "description": "the spread (default spread 0); one that names no spread is refused",
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference {kind: doc|parent, index} (parent spreads counted from 0)",
+      "type": "object"
+     },
+     {
+      "description": "a parent spread's prefix or label, such as A or A-Parent",
+      "type": "string"
+     }
+    ]
+   }
+  }
+ },
+ "path.deleteAnchor": {
+  "description": "Deletes an anchor point of a path by subpath and anchor index (0-based); the object goes when no path is left.",
+  "params": {
+   "anchor": {
+    "type": "integer"
+   },
+   "subpath": {
+    "description": "a subpath counted from 0",
+    "type": "integer"
+   }
+  }
+ },
+ "path.erase": {
+  "description": "Erases the part of a path the drag points cross, as the Erase tool does."
+ },
+ "path.moveAnchors": {
+  "description": "Moves anchor points (or their handles) of a path by dx, dy."
+ },
+ "path.smooth": {
+  "description": "Smooths a path along the drag points, re-fitting fewer anchors."
+ },
+ "path.split": {
+  "description": "Cuts a path at the nearest point to a position (Scissors), opening it or splitting it in two."
+ },
+ "place.drop": {
+  "description": "Places the loaded graphic at a point, into a rectangle, or into a frame.",
+  "params": {
+   "spread": {
+    "description": "the spread (default spread 0); one that names no spread is refused",
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference {kind: doc|parent, index} (parent spreads counted from 0)",
+      "type": "object"
+     },
+     {
+      "description": "a parent spread's prefix or label, such as A or A-Parent",
+      "type": "string"
+     }
+    ]
+   }
+  }
+ },
+ "place.load": {
+  "description": "Loads a graphic into the place cursor so place.drop puts it on the page."
+ },
+ "place.styles": {
+  "description": "Reads a document's paragraph and character styles before importing them, listing the names and conflicts; changes nothing.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "character": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "conflicts": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "paragraph": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "preflight.run": {
+  "description": "Checks the document for output problems (missing fonts and links, low-resolution images, overset text…) and answers the issues.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "errors": {
+     "type": "number"
+    },
+    "issues": {
+     "type": "array"
+    },
+    "warnings": {
+     "type": "number"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "prefs.set": {
+  "description": "Sets application preferences: hidden characters, typographer's quotes, polygon sides, stroke scaling and more.",
+  "params": {
+   "absolutePageNumbers": {
+    "type": "boolean"
+   },
+   "dimensionsIncludeStroke": {
+    "type": "boolean"
+   },
+   "highlightCustomTracking": {
+    "type": "boolean"
+   },
+   "highlightHj": {
+    "type": "boolean"
+   },
+   "highlightKeeps": {
+    "type": "boolean"
+   },
+   "highlightSubstitutedFonts": {
+    "type": "boolean"
+   },
+   "polygonSides": {
+    "type": "integer"
+   },
+   "richBlackOutput": {
+    "type": "boolean"
+   },
+   "scaleStrokes": {
+    "type": "boolean"
+   },
+   "starInset": {
+    "type": "number"
+   },
+   "transformationsAreTotals": {
+    "type": "boolean"
+   },
+   "typographersQuotes": {
+    "type": "boolean"
+   }
+  }
+ },
+ "script.run": {
+  "description": "Runs a command script (lines of command ids with JSON parameters, or a JSON array) as one undo step."
+ },
+ "select.container": {
+  "description": "Selects the group or frame that holds the selection."
+ },
+ "select.content": {
+  "description": "Selects the graphic inside a frame, or the first object in a group."
+ },
+ "select.firstAbove": {
+  "description": "Selects the frontmost object on the spread."
+ },
+ "select.lastBelow": {
+  "description": "Selects the backmost object on the spread."
+ },
+ "select.nextAbove": {
+  "description": "Selects the next object above the selection in the stacking order."
+ },
+ "select.nextBelow": {
+  "description": "Selects the next object below the selection in the stacking order."
+ },
+ "select.nextInGroup": {
+  "description": "Selects the next object in the selection's group."
+ },
+ "select.previousInGroup": {
+  "description": "Selects the previous object in the selection's group."
+ },
+ "selection.set": {
+  "description": "Selects objects by id, adding to the selection or selecting their content when asked."
+ },
+ "selection.toggle": {
+  "description": "Adds an object to the selection, or removes it if it is selected."
+ },
+ "snippet.export": {
+  "description": "Exports the selected items with their stories, styles and images as a .klayout snippet, to a path or as base64.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "base64": {
+     "type": "string"
+    },
+    "bytes": {
+     "type": "number"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "snippet.place": {
+  "description": "Places a snippet's items on a spread, at their own positions unless x and y are given.",
+  "params": {
+   "spread": {
+    "description": "the spread (default spread 0); one that names no spread is refused",
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference {kind: doc|parent, index} (parent spreads counted from 0)",
+      "type": "object"
+     },
+     {
+      "description": "a parent spread's prefix or label, such as A or A-Parent",
+      "type": "string"
+     }
+    ]
+   }
+  }
+ },
+ "spelling.addWord": {
+  "description": "Adds a word to the document's user dictionary.",
+  "params": {
+   "word": {
+    "type": "boolean"
+   }
+  }
+ },
+ "spelling.change": {
+  "description": "Replaces a misspelled word at a story range.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   },
+   "to": {
+    "description": "the replacement word",
+    "type": "string"
+   }
+  }
+ },
+ "spelling.check": {
+  "description": "Checks spelling in a story or the document and answers misspelled words with positions and suggestions.",
+  "output": {
+   "type": "array"
+  },
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "spelling.setWords": {
+  "description": "Replaces the document's user dictionary with a word list."
+ },
+ "spelling.words": {
+  "description": "Lists the words in the document's user dictionary.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "states.create": {
+  "description": "Turns objects (or one group's objects) into a multi-state object."
+ },
+ "states.list": {
+  "description": "Lists a multi-state object's states and the active one.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "active": {
+     "type": "number"
+    },
+    "states": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "states.release": {
+  "description": "Releases a multi-state object back to a plain group."
+ },
+ "states.rename": {
+  "description": "Renames a state of a multi-state object."
+ },
+ "states.show": {
+  "description": "Shows one state of a multi-state object by index or name."
+ },
+ "story.get": {
+  "description": "Answers a story's text, frames, paragraphs, direction and whether it is overset; the way to read text.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "direction": {
+     "type": "string"
+    },
+    "frames": {
+     "items": {
+      "type": "number"
+     },
+     "type": "array"
+    },
+    "id": {
+     "type": "number"
+    },
+    "length": {
+     "type": "number"
+    },
+    "lines": {
+     "type": "number"
+    },
+    "overset": {
+     "type": "json"
+    },
+    "paragraphs": {
+     "type": "number"
+    },
+    "text": {
+     "type": "string"
+    },
+    "vertical": {
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "story.links": {
+  "description": "Lists linked stories with their parents and whether they are out of date.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "story.placeAndLink": {
+  "description": "Places a linked copy of a story in a new frame; the copy follows the parent when updated.",
+  "params": {
+   "rect": {
+    "description": "[x0, y0, x1, y1] in points",
+    "items": {
+     "type": "number"
+    },
+    "type": "array"
+   },
+   "spread": {
+    "description": "the spread (default spread 0); one that names no spread is refused",
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference {kind: doc|parent, index} (parent spreads counted from 0)",
+      "type": "object"
+     },
+     {
+      "description": "a parent spread's prefix or label, such as A or A-Parent",
+      "type": "string"
+     }
+    ]
+   },
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "story.replaceRange": {
+  "description": "Replaces a byte range of a story's text, keeping the surrounding formatting.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "story.setDirection": {
+  "description": "Sets a story's column progression to left to right or right to left.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "story.setText": {
+  "description": "Replaces a story's whole text; the story is found by its id from document.inspect.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "story.unlink": {
+  "description": "Unlinks a story from its parent.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "story.updateLink": {
+  "description": "Updates linked stories (default: every out-of-date one) from their parents.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "strokeStyle.delete": {
+  "description": "Deletes a stroke style; strokes using it become solid."
+ },
+ "strokeStyle.list": {
+  "description": "Lists the stroke styles with their kinds.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "strokeStyle.new": {
+  "description": "Creates a stroke style of stripes, dashes or dots."
+ },
+ "style.breakLink": {
+  "description": "Keeps the selected text's look as local formatting and detaches it from its paragraph or character style."
+ },
+ "style.cell.apply": {
+  "description": "Applies a cell style to the target cells, or the whole table.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   },
+   "table": {
+    "type": "integer"
+   }
+  }
+ },
+ "style.cell.create": {
+  "description": "Creates a table cell style with fill, tint, insets and paragraph style, or from the target cell.",
+  "params": {
+   "fill": {
+    "type": "string"
+   },
+   "insets": {
+    "oneOf": [
+     {
+      "description": "points on every side",
+      "type": "number"
+     },
+     {
+      "description": "[top, left, bottom, right] points",
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    ]
+   },
+   "paragraphStyle": {
+    "type": "string"
+   },
+   "tint": {
+    "description": "percent from 0 to 100",
+    "type": "number"
+   }
+  }
+ },
+ "style.cell.edit": {
+  "description": "Changes a cell style; cells using it follow."
+ },
+ "style.character.apply": {
+  "description": "Applies a character style to the selected text."
+ },
+ "style.character.create": {
+  "description": "Creates a character style based on another, setting only the given attributes.",
+  "params": {
+   "basedOn": {
+    "description": "a style name",
+    "type": "string"
+   }
+  }
+ },
+ "style.character.delete": {
+  "description": "Deletes a character style, replacing it in text with another (default [None]).",
+  "params": {
+   "replaceWith": {
+    "description": "a style name",
+    "type": "string"
+   }
+  }
+ },
+ "style.character.edit": {
+  "description": "Changes a character style's name, base style and attributes; null removes an attribute.",
+  "params": {
+   "basedOn": {
+    "description": "a style name",
+    "type": "string"
+   },
+   "rename": {
+    "type": "string"
+   }
+  }
+ },
+ "style.compositeFont.list": {
+  "description": "Lists the composite font definitions.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "style.compositeFont.set": {
+  "description": "Creates or replaces a composite font: per character set, a family, style, relative size and scale."
+ },
+ "style.exportTag": {
+  "description": "Sets the HTML or EPUB tag and class a style exports as.",
+  "params": {
+   "class": {
+    "type": "string"
+   },
+   "tag": {
+    "type": "string"
+   }
+  }
+ },
+ "style.group": {
+  "description": "Moves paragraph or character styles into a style group."
+ },
+ "style.list": {
+  "description": "Lists the paragraph and character style names.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "cell": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "character": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "object": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "paragraph": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "table": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "style.object.apply": {
+  "description": "Applies an object style to objects."
+ },
+ "style.object.create": {
+  "description": "Creates an object style from the selection or with a fill and paragraph style.",
+  "params": {
+   "fill": {
+    "type": "string"
+   },
+   "paragraphStyle": {
+    "type": "string"
+   }
+  }
+ },
+ "style.paragraph.apply": {
+  "description": "Applies a paragraph style to the selected paragraphs, clearing local overrides when asked."
+ },
+ "style.paragraph.create": {
+  "description": "Creates a paragraph style based on another, with paragraph and character attributes or from the selection.",
+  "params": {
+   "basedOn": {
+    "description": "a style name",
+    "type": "string"
+   },
+   "nextStyle": {
+    "description": "a style name",
+    "type": "string"
+   }
+  }
+ },
+ "style.paragraph.delete": {
+  "description": "Deletes a paragraph style, replacing it in text with another.",
+  "params": {
+   "replaceWith": {
+    "description": "a style name",
+    "type": "string"
+   }
+  }
+ },
+ "style.paragraph.edit": {
+  "description": "Changes a paragraph style's name, base style, next style and attributes; text using it follows.",
+  "params": {
+   "basedOn": {
+    "description": "a style name",
+    "type": "string"
+   },
+   "nextStyle": {
+    "description": "a style name",
+    "type": "string"
+   },
+   "rename": {
+    "type": "string"
+   }
+  }
+ },
+ "style.table.apply": {
+  "description": "Applies a table style to a table.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   },
+   "table": {
+    "type": "integer"
+   }
+  }
+ },
+ "style.table.create": {
+  "description": "Creates a table style with cell styles for header, body, footer and columns, and borders.",
+  "params": {
+   "body": {
+    "type": "string"
+   },
+   "footer": {
+    "description": "a cell style name",
+    "type": "string"
+   },
+   "header": {
+    "description": "a cell style name",
+    "type": "string"
+   },
+   "leftColumn": {
+    "description": "a cell style name",
+    "type": "string"
+   },
+   "rightColumn": {
+    "description": "a cell style name",
+    "type": "string"
+   },
+   "spaceAfter": {
+    "type": "number"
+   },
+   "spaceBefore": {
+    "type": "number"
+   }
+  }
+ },
+ "style.table.edit": {
+  "description": "Changes a table style; tables using it follow."
+ },
+ "swatch.addToSwatches": {
+  "description": "Adds a colour (default: the selection's fill) to the swatches under a new name.",
+  "params": {
+   "name": {
+    "description": "a new swatch name",
+    "type": "string"
+   }
+  }
+ },
+ "swatch.addUnnamed": {
+  "description": "Turns every unnamed colour in use into a swatch."
+ },
+ "swatch.create": {
+  "description": "Creates a colour swatch from hex, CMYK (0 to 100) or RGB, process or spot.",
+  "params": {
+   "color": {
+    "description": "#rrggbb or a swatch name",
+    "type": "string"
+   }
+  }
+ },
+ "swatch.delete": {
+  "description": "Deletes a swatch by name."
+ },
+ "swatch.load": {
+  "description": "Loads colour swatches from an .ase file, replacing the existing ones when asked."
+ },
+ "swatch.moveToGroup": {
+  "description": "Moves swatches into a colour group, or to the top level with null.",
+  "params": {
+   "group": {
+    "type": "string"
+   }
+  }
+ },
+ "swatch.newColorGroup": {
+  "description": "Creates a colour group in the Swatches panel and moves swatches into it."
+ },
+ "swatch.renameColorGroup": {
+  "description": "Renames a colour group.",
+  "params": {
+   "to": {
+    "description": "a new name",
+    "type": "string"
+   }
+  }
+ },
+ "swatch.save": {
+  "description": "Saves colour swatches to an .ase file or as base64."
+ },
+ "swatch.ungroupColorGroup": {
+  "description": "Removes a colour group, moving its swatches to the top level."
+ },
+ "table.convertFromText": {
+  "description": "Converts the selected paragraphs into a table, splitting columns at tabs or commas."
+ },
+ "table.convertToText": {
+  "description": "Converts the table at the caret into tab-separated paragraphs."
+ },
+ "table.delete": {
+  "description": "Deletes the table at the caret."
+ },
+ "table.deleteColumn": {
+  "description": "Deletes the columns of the target cells."
+ },
+ "table.deleteRow": {
+  "description": "Deletes the rows of the target cells."
+ },
+ "table.distributeColumns": {
+  "description": "Gives the selected columns equal widths."
+ },
+ "table.distributeRows": {
+  "description": "Gives rows equal fixed heights.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   },
+   "table": {
+    "type": "integer"
+   }
+  }
+ },
+ "table.dropCells": {
+  "description": "Moves selected whole rows or columns by dragging them from one point to another."
+ },
+ "table.get": {
+  "description": "Answers a table's rows, columns and cells (text, spans, fill) and options.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "cells": {
+     "type": "array"
+    },
+    "columns": {
+     "type": "number"
+    },
+    "options": {
+     "additionalProperties": true,
+     "type": "object"
+    },
+    "rows": {
+     "type": "number"
+    }
+   },
+   "type": "object"
+  },
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   },
+   "table": {
+    "type": "integer"
+   }
+  }
+ },
+ "table.insert": {
+  "description": "Creates a table at the text insertion point with body rows, columns, header and footer rows and width.",
+  "params": {
+   "cols": {
+    "type": "integer"
+   },
+   "footerRows": {
+    "type": "integer"
+   },
+   "headerRows": {
+    "type": "integer"
+   },
+   "rows": {
+    "type": "integer"
+   }
+  }
+ },
+ "table.insertColumn": {
+  "description": "Inserts columns left or right of the target cell's column, with a width."
+ },
+ "table.insertColumnLeft": {
+  "description": "Inserts columns to the left of the target cell's column."
+ },
+ "table.insertColumnRight": {
+  "description": "Inserts columns to the right of the target cell's column."
+ },
+ "table.insertRow": {
+  "description": "Inserts rows above or below the target cell's row."
+ },
+ "table.insertRowAbove": {
+  "description": "Inserts rows above the target cell's row."
+ },
+ "table.insertRowBelow": {
+  "description": "Inserts rows below the target cell's row."
+ },
+ "table.merge": {
+  "description": "Merges the target cell range into one cell."
+ },
+ "table.moveColumn": {
+  "description": "Moves a column (0-based; default the target column) to another position.",
+  "params": {
+   "from": {
+    "description": "a column counted from 0",
+    "type": "integer"
+   },
+   "to": {
+    "description": "a column counted from 0",
+    "type": "integer"
+   }
+  }
+ },
+ "table.moveRow": {
+  "description": "Moves a row (0-based; default the target row) to another position.",
+  "params": {
+   "from": {
+    "description": "a row counted from 0",
+    "type": "integer"
+   },
+   "to": {
+    "description": "a row counted from 0",
+    "type": "integer"
+   }
+  }
+ },
+ "table.nextCell": {
+  "description": "Moves to the next table cell."
+ },
+ "table.options": {
+  "description": "Sets table options: direction, border, spacing before and after, header and footer rows and repeats, alternating fills.",
+  "params": {
+   "altCols": {
+    "oneOf": [
+     {
+      "additionalProperties": true,
+      "type": "object"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "altRows": {
+    "oneOf": [
+     {
+      "additionalProperties": true,
+      "type": "object"
+     },
+     {
+      "type": "null"
+     }
+    ]
+   },
+   "footerRows": {
+    "type": "integer"
+   },
+   "headerRows": {
+    "type": "integer"
+   },
+   "repeatFooter": {
+    "type": "boolean"
+   },
+   "repeatHeader": {
+    "type": "boolean"
+   },
+   "spaceAfter": {
+    "type": "number"
+   },
+   "spaceBefore": {
+    "type": "number"
+   }
+  }
+ },
+ "table.placeGraphic": {
+  "description": "Turns the target cell into a graphic cell holding an image, fitted proportionally or to fill."
+ },
+ "table.prevCell": {
+  "description": "Moves to the previous table cell."
+ },
+ "table.select": {
+  "description": "Selects cells, rows, columns or a whole table by story, table and row and column ranges.",
+  "params": {
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   },
+   "table": {
+    "type": "integer"
+   }
+  }
+ },
+ "table.selectColumn": {
+  "description": "Selects the column at the caret."
+ },
+ "table.selectRow": {
+  "description": "Selects the row at the caret."
+ },
+ "table.selectTable": {
+  "description": "Selects the whole table at the caret."
+ },
+ "table.setCell": {
+  "description": "Sets the target cells' fill, tint, insets, vertical justification and text.",
+  "params": {
+   "fill": {
+    "type": "string"
+   },
+   "insets": {
+    "oneOf": [
+     {
+      "description": "points on every side",
+      "type": "number"
+     },
+     {
+      "description": "[top, left, bottom, right] points",
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    ]
+   },
+   "tint": {
+    "description": "percent from 0 to 100",
+    "type": "number"
+   }
+  }
+ },
+ "table.setColumnWidth": {
+  "description": "Sets the target columns' width in points."
+ },
+ "table.setRowHeight": {
+  "description": "Sets the target rows' height in points, at least or exactly."
+ },
+ "table.sortRows": {
+  "description": "Sorts the body rows by a column (0-based; default the target cell's), ascending or descending.",
+  "params": {
+   "column": {
+    "type": "integer"
+   }
+  }
+ },
+ "table.splitHorizontally": {
+  "description": "Splits the target cell into two, one above the other."
+ },
+ "table.splitVertically": {
+  "description": "Splits the target cell into two, side by side."
+ },
+ "table.textCell": {
+  "description": "Turns graphic cells back into text cells."
+ },
+ "table.unmerge": {
+  "description": "Unmerges the target merged cell."
+ },
+ "template.list": {
+  "description": "Lists the starter layouts document.applyTemplate accepts, with their sizes.",
+  "output": {
+   "items": {
+    "additionalProperties": true,
+    "properties": {
+     "height": {
+      "type": "number"
+     },
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "width": {
+      "type": "number"
+     }
+    },
+    "type": "object"
+   },
+   "type": "array"
+  }
+ },
+ "text.delete": {
+  "description": "Deletes the selected text, or a character (or word) before or after the caret."
+ },
+ "text.exitToFrame": {
+  "description": "Leaves text editing and selects the frame instead."
+ },
+ "text.extendTo": {
+  "description": "Extends the text selection to a point in a frame.",
+  "params": {
+   "point": {
+    "description": "[x, y] in points",
+    "items": {
+     "type": "number"
+    },
+    "type": "array"
+   }
+  }
+ },
+ "text.insert": {
+  "description": "Types text at the caret, replacing the selected text, with typographer's quotes unless raw."
+ },
+ "text.insertSpecial": {
+  "description": "Inserts a special character at the caret, replacing the selected text: a marker the text shows in place (the number of the page it sits on, the next or previous page's, the section marker) or a break (column, frame, page, odd or even page, forced line) or Indent to Here or Right Indent Tab."
+ },
+ "text.move": {
+  "description": "Moves the text caret left, right, up, down, or to the line or story start or end, optionally by words or extending the selection.",
+  "params": {
+   "extend": {
+    "type": "boolean"
+   },
+   "word": {
+    "type": "boolean"
+   }
+  }
+ },
+ "text.placeCaret": {
+  "description": "Puts the text caret in a frame at a point, turning an empty frame into a text frame."
+ },
+ "text.release": {
+  "description": "Ends a press in text at a point: a drag moves or copies the selected text there.",
+  "params": {
+   "point": {
+    "description": "[x, y] in points",
+    "items": {
+     "type": "number"
+    },
+    "type": "array"
+   }
+  }
+ },
+ "text.select": {
+  "description": "Selects text in a story between two byte offsets, as find.find reports them.",
+  "params": {
+   "anchor": {
+    "description": "a text position",
+    "type": "integer"
+   },
+   "focus": {
+    "description": "a text position",
+    "type": "integer"
+   },
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ },
+ "text.selectWord": {
+  "description": "Selects the word at a point in a frame.",
+  "params": {
+   "point": {
+    "description": "[x, y] in points",
+    "items": {
+     "type": "number"
+    },
+    "type": "array"
+   }
+  }
+ },
+ "toc.entries": {
+  "description": "Answers the table-of-contents entries for styles (level, text, page) without changing the document.",
+  "output": {
+   "items": {
+    "additionalProperties": true,
+    "properties": {
+     "level": {
+      "type": "number"
+     },
+     "page": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "type": "array"
+  }
+ },
+ "toc.generate": {
+  "description": "Generates a table of contents from paragraph styles with levels, a title and page numbers, in a new frame.",
+  "params": {
+   "entries": {
+    "items": {
+     "additionalProperties": true,
+     "description": "{style, level?}",
+     "type": "object"
+    },
+    "type": "array"
+   },
+   "page": {
+    "description": "a page counted from 1",
+    "type": "integer"
+   }
+  }
+ },
+ "toc.update": {
+  "description": "Regenerates the existing table of contents."
+ },
+ "tool.list": {
+  "description": "Lists the editor tools.",
+  "output": {
+   "items": {
+    "items": {
+     "additionalProperties": true,
+     "properties": {
+      "icon": {
+       "type": "string"
+      },
+      "id": {
+       "type": "string"
+      },
+      "label": {
+       "type": "string"
+      },
+      "shortcut": {
+       "type": "json"
+      }
+     },
+     "type": "object"
+    },
+    "type": "array"
+   },
+   "type": "array"
+  }
+ },
+ "tool.polygonSettings": {
+  "description": "Sets the number of sides and star inset new polygons use, and answers the settings.",
+  "params": {
+   "sides": {
+    "description": "3–100",
+    "type": "number"
+   },
+   "starInset": {
+    "description": "0–100 (%)",
+    "type": "number"
+   }
+  }
+ },
+ "tool.select": {
+  "description": "Selects an editor tool (selection, direct selection, type, frame…).",
+  "params": {
+   "tool": {
+    "description": "selection|directSelection|type|rectangleFrame|…",
+    "type": "string"
+   }
+  }
+ },
+ "transform.again": {
+  "description": "Repeats the last transform (or sequence of transforms) on the selection."
+ },
+ "transform.clear": {
+  "description": "Removes rotation, shear and scaling from objects, keeping their centre."
+ },
+ "transform.flip": {
+  "description": "Flips objects horizontally or vertically."
+ },
+ "transform.info": {
+  "description": "Answers objects' scale, rotation and shear (and those of placed content).",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "height": {
+     "type": "number"
+    },
+    "rotation": {
+     "type": "number"
+    },
+    "scaleX": {
+     "type": "number"
+    },
+    "scaleY": {
+     "type": "number"
+    },
+    "shear": {
+     "type": "number"
+    },
+    "width": {
+     "type": "number"
+    },
+    "x": {
+     "type": "number"
+    },
+    "y": {
+     "type": "number"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "transform.move": {
+  "description": "Moves objects (default: the selection) by dx and dy points, optionally as a copy or to another spread.",
+  "params": {
+   "toSpread": {
+    "oneOf": [
+     {
+      "description": "a spread counted from 0",
+      "type": "integer"
+     },
+     {
+      "additionalProperties": true,
+      "description": "a spread reference such as {kind: doc, index: 0}",
+      "type": "object"
+     }
+    ]
+   }
+  }
+ },
+ "transform.resize": {
+  "description": "Resizes objects from one rectangle to another, scaling content when asked.",
+  "params": {
+   "from": {
+    "description": "[x0, y0, x1, y1] in points",
+    "items": {
+     "type": "number"
+    },
+    "type": "array"
+   },
+   "to": {
+    "description": "[x0, y0, x1, y1] in points",
+    "items": {
+     "type": "number"
+    },
+    "type": "array"
+   }
+  }
+ },
+ "transform.rotate": {
+  "description": "Rotates objects by an angle in degrees, counter-clockwise, about their centre."
+ },
+ "transform.scale": {
+  "description": "Scales objects by sx and sy about the selection centre.",
+  "params": {
+   "sx": {
+    "description": "horizontal scale factor",
+    "type": "number"
+   },
+   "sy": {
+    "description": "vertical scale factor",
+    "type": "number"
+   }
+  }
+ },
+ "transform.set": {
+  "description": "Sets objects' position, size, scale, rotation and shear exactly, as the Transform panel does.",
+  "params": {
+   "scaleX": {
+    "description": "percent",
+    "type": "number"
+   },
+   "scaleY": {
+    "description": "percent",
+    "type": "number"
+   },
+   "shear": {
+    "description": "degrees",
+    "type": "number"
+   }
+  }
+ },
+ "transform.shear": {
+  "description": "Shears objects by an angle in degrees."
+ },
+ "type.align": {
+  "description": "Sets the alignment of the selected paragraphs by name.",
+  "params": {
+   "align": {
+    "description": "left|center|right|leftJustified|…",
+    "type": "string"
+   }
+  }
+ },
+ "type.alignCenter": {
+  "description": "Centres the selected paragraphs."
+ },
+ "type.alignLeft": {
+  "description": "Aligns the selected paragraphs to the left."
+ },
+ "type.alignRight": {
+  "description": "Aligns the selected paragraphs to the right."
+ },
+ "type.allCaps": {
+  "description": "Toggles all caps on the selected text."
+ },
+ "type.bold": {
+  "description": "Toggles bold on the selected text."
+ },
+ "type.changeCase": {
+  "description": "Changes the selected text (or selected frames' stories) to upper, lower, title or sentence case."
+ },
+ "type.char": {
+  "description": "Sets character attributes on the selected text: font family and style, size, leading, tracking, colour and more."
+ },
+ "type.createOutlines": {
+  "description": "Converts text frames into compound paths of their glyphs."
+ },
+ "type.fillWithPlaceholder": {
+  "description": "Fills a text frame with placeholder text."
+ },
+ "type.italic": {
+  "description": "Toggles italic on the selected text."
+ },
+ "type.justify": {
+  "description": "Justifies the selected paragraphs with the last line aligned left."
+ },
+ "type.kenten": {
+  "description": "Turns emphasis dots (kenten) on the selected characters on or off."
+ },
+ "type.onPath": {
+  "description": "Puts text on a path, with a start distance, flip and alignment.",
+  "params": {
+   "flip": {
+    "type": "boolean"
+   },
+   "start": {
+    "description": "distance along the path in points",
+    "type": "number"
+   }
+  }
+ },
+ "type.openType": {
+  "description": "Turns an OpenType feature (ligatures, fractions, ordinals, swashes, stylistic sets…) on or off for the selected text.",
+  "params": {
+   "feature": {
+    "type": "string"
+   }
+  }
+ },
+ "type.para": {
+  "description": "Sets paragraph attributes on the selected paragraphs: alignment, indents, spacing, drop caps and more."
+ },
+ "type.pathOptions": {
+  "description": "Changes type on a path's start, flip and alignment, or removes it.",
+  "params": {
+   "flip": {
+    "type": "boolean"
+   }
+  }
+ },
+ "type.ruby": {
+  "description": "Sets the ruby reading over the selected text; empty text removes it."
+ },
+ "type.selectionAttrs": {
+  "description": "Answers the resolved character and paragraph attributes at the text selection.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "charOverrides": {
+     "type": "number"
+    },
+    "characterStyle": {
+     "type": "string"
+    },
+    "chars": {
+     "additionalProperties": true,
+     "properties": {
+      "allowKashidas": {
+       "type": "boolean"
+      },
+      "baselineShift": {
+       "type": "number"
+      },
+      "capitalization": {
+       "type": "string"
+      },
+      "change": {
+       "type": "string"
+      },
+      "characterAlignment": {
+       "type": "string"
+      },
+      "characterDirection": {
+       "type": "string"
+      },
+      "conditions": {
+       "type": "array"
+      },
+      "diacriticPosition": {
+       "type": "string"
+      },
+      "diacriticXOffset": {
+       "type": "number"
+      },
+      "diacriticYOffset": {
+       "type": "number"
+      },
+      "digits": {
+       "type": "string"
+      },
+      "fill": {
+       "type": "string"
+      },
+      "fillTint": {
+       "type": "number"
+      },
+      "fontFamily": {
+       "type": "string"
+      },
+      "fontStyle": {
+       "type": "string"
+      },
+      "glyphForm": {
+       "type": "string"
+      },
+      "hScale": {
+       "type": "number"
+      },
+      "jidori": {
+       "type": "number"
+      },
+      "kenten": {
+       "type": "boolean"
+      },
+      "kentenCharacter": {
+       "type": "string"
+      },
+      "kerning": {
+       "additionalProperties": true,
+       "properties": {
+        "kind": {
+         "type": "string"
+        }
+       },
+       "type": "object"
+      },
+      "language": {
+       "type": "string"
+      },
+      "leading": {
+       "additionalProperties": true,
+       "properties": {
+        "kind": {
+         "type": "string"
+        }
+       },
+       "type": "object"
+      },
+      "leadingAki": {
+       "type": "json"
+      },
+      "leadingModel": {
+       "type": "string"
+      },
+      "ligatures": {
+       "type": "boolean"
+      },
+      "noBreak": {
+       "type": "boolean"
+      },
+      "otfFeatures": {
+       "type": "array"
+      },
+      "position": {
+       "type": "string"
+      },
+      "positionalForm": {
+       "type": "string"
+      },
+      "ruby": {
+       "type": "string"
+      },
+      "size": {
+       "type": "number"
+      },
+      "skew": {
+       "type": "number"
+      },
+      "strikethrough": {
+       "type": "boolean"
+      },
+      "strikethroughColor": {
+       "type": "string"
+      },
+      "strikethroughOffset": {
+       "type": "json"
+      },
+      "strikethroughTint": {
+       "type": "number"
+      },
+      "strikethroughWeight": {
+       "type": "json"
+      },
+      "stroke": {
+       "type": "string"
+      },
+      "strokeTint": {
+       "type": "number"
+      },
+      "strokeWeight": {
+       "type": "number"
+      },
+      "tateChuYoko": {
+       "type": "boolean"
+      },
+      "tateChuYokoXOffset": {
+       "type": "number"
+      },
+      "tateChuYokoYOffset": {
+       "type": "number"
+      },
+      "tracking": {
+       "type": "number"
+      },
+      "trailingAki": {
+       "type": "json"
+      },
+      "tsume": {
+       "type": "number"
+      },
+      "underline": {
+       "type": "boolean"
+      },
+      "underlineColor": {
+       "type": "string"
+      },
+      "underlineOffset": {
+       "type": "json"
+      },
+      "underlineTint": {
+       "type": "number"
+      },
+      "underlineWeight": {
+       "type": "json"
+      },
+      "vScale": {
+       "type": "number"
+      },
+      "warichu": {
+       "type": "boolean"
+      },
+      "warichuAlignment": {
+       "type": "string"
+      },
+      "warichuCharsAfterBreak": {
+       "type": "number"
+      },
+      "warichuCharsBeforeBreak": {
+       "type": "number"
+      },
+      "warichuLineSpacing": {
+       "type": "number"
+      },
+      "warichuLines": {
+       "type": "number"
+      },
+      "warichuSize": {
+       "type": "number"
+      },
+      "xmlTag": {
+       "type": "string"
+      }
+     },
+     "type": "object"
+    },
+    "para": {
+     "additionalProperties": true,
+     "properties": {
+      "align": {
+       "type": "string"
+      },
+      "arabicJustification": {
+       "type": "string"
+      },
+      "autoLeading": {
+       "type": "number"
+      },
+      "balanceRagged": {
+       "type": "boolean"
+      },
+      "borderColor": {
+       "type": "string"
+      },
+      "borderOffsets": {
+       "items": {
+        "type": "number"
+       },
+       "type": "array"
+      },
+      "borderOn": {
+       "type": "boolean"
+      },
+      "borderTint": {
+       "type": "number"
+      },
+      "borderWeights": {
+       "items": {
+        "type": "number"
+       },
+       "type": "array"
+      },
+      "bulletChar": {
+       "type": "string"
+      },
+      "bunriKinshi": {
+       "type": "boolean"
+      },
+      "composer": {
+       "type": "string"
+      },
+      "direction": {
+       "type": "string"
+      },
+      "dropCapChars": {
+       "type": "number"
+      },
+      "dropCapLines": {
+       "type": "number"
+      },
+      "firstLineIndent": {
+       "type": "number"
+      },
+      "glyphScaleDesired": {
+       "type": "number"
+      },
+      "glyphScaleMax": {
+       "type": "number"
+      },
+      "glyphScaleMin": {
+       "type": "number"
+      },
+      "grepStyles": {
+       "type": "array"
+      },
+      "gridAlign": {
+       "type": "string"
+      },
+      "hyphAcrossColumn": {
+       "type": "boolean"
+      },
+      "hyphAfterFirst": {
+       "type": "number"
+      },
+      "hyphBeforeLast": {
+       "type": "number"
+      },
+      "hyphCapitalized": {
+       "type": "boolean"
+      },
+      "hyphLastWord": {
+       "type": "boolean"
+      },
+      "hyphLimit": {
+       "type": "number"
+      },
+      "hyphMinWord": {
+       "type": "number"
+      },
+      "hyphWeight": {
+       "type": "number"
+      },
+      "hyphZone": {
+       "type": "number"
+      },
+      "hyphenate": {
+       "type": "boolean"
+      },
+      "kashidas": {
+       "type": "boolean"
+      },
+      "keepAllLines": {
+       "type": "boolean"
+      },
+      "keepFirst": {
+       "type": "number"
+      },
+      "keepLast": {
+       "type": "number"
+      },
+      "keepLinesTogether": {
+       "type": "boolean"
+      },
+      "keepWithNext": {
+       "type": "number"
+      },
+      "kinsoku": {
+       "type": "json"
+      },
+      "kinsokuHang": {
+       "type": "string"
+      },
+      "kinsokuType": {
+       "type": "string"
+      },
+      "koreanCharBreaks": {
+       "type": "boolean"
+      },
+      "lastLineIndent": {
+       "type": "number"
+      },
+      "leftIndent": {
+       "type": "number"
+      },
+      "letterSpaceDesired": {
+       "type": "number"
+      },
+      "letterSpaceMax": {
+       "type": "number"
+      },
+      "letterSpaceMin": {
+       "type": "number"
+      },
+      "listName": {
+       "type": "string"
+      },
+      "listSeparator": {
+       "type": "string"
+      },
+      "listType": {
+       "type": "string"
+      },
+      "mojikumi": {
+       "type": "string"
+      },
+      "nestedLineStyles": {
+       "type": "array"
+      },
+      "nestedStyles": {
+       "type": "array"
+      },
+      "numberExpression": {
+       "type": "string"
+      },
+      "numberStyle": {
+       "type": "string"
+      },
+      "opticalMargin": {
+       "type": "boolean"
+      },
+      "paragraphKashidaWidth": {
+       "type": "json"
+      },
+      "rensuuji": {
+       "type": "boolean"
+      },
+      "rightIndent": {
+       "type": "number"
+      },
+      "ruleAbove": {
+       "additionalProperties": true,
+       "properties": {
+        "color": {
+         "type": "string"
+        },
+        "columnWidth": {
+         "type": "boolean"
+        },
+        "leftIndent": {
+         "type": "number"
+        },
+        "offset": {
+         "type": "number"
+        },
+        "on": {
+         "type": "boolean"
+        },
+        "rightIndent": {
+         "type": "number"
+        },
+        "tint": {
+         "type": "number"
+        },
+        "weight": {
+         "type": "number"
+        }
+       },
+       "type": "object"
+      },
+      "ruleBelow": {
+       "additionalProperties": true,
+       "properties": {
+        "color": {
+         "type": "string"
+        },
+        "columnWidth": {
+         "type": "boolean"
+        },
+        "leftIndent": {
+         "type": "number"
+        },
+        "offset": {
+         "type": "number"
+        },
+        "on": {
+         "type": "boolean"
+        },
+        "rightIndent": {
+         "type": "number"
+        },
+        "tint": {
+         "type": "number"
+        },
+        "weight": {
+         "type": "number"
+        }
+       },
+       "type": "object"
+      },
+      "shadingColor": {
+       "type": "string"
+      },
+      "shadingOffsets": {
+       "items": {
+        "type": "number"
+       },
+       "type": "array"
+      },
+      "shadingOn": {
+       "type": "boolean"
+      },
+      "shadingTint": {
+       "type": "number"
+      },
+      "singleWordJustify": {
+       "type": "string"
+      },
+      "spaceAfter": {
+       "type": "number"
+      },
+      "spaceBefore": {
+       "type": "number"
+      },
+      "spanColumns": {
+       "additionalProperties": true,
+       "properties": {
+        "kind": {
+         "type": "string"
+        }
+       },
+       "type": "object"
+      },
+      "splitInsideGutter": {
+       "type": "number"
+      },
+      "splitOutsideGutter": {
+       "type": "number"
+      },
+      "startAt": {
+       "type": "json"
+      },
+      "startParagraph": {
+       "type": "string"
+      },
+      "tabs": {
+       "type": "array"
+      },
+      "treatIdeographicSpaceAsSpace": {
+       "type": "boolean"
+      },
+      "wordSpaceDesired": {
+       "type": "number"
+      },
+      "wordSpaceMax": {
+       "type": "number"
+      },
+      "wordSpaceMin": {
+       "type": "number"
+      }
+     },
+     "type": "object"
+    },
+    "paraOverrides": {
+     "type": "number"
+    },
+    "paragraphStyle": {
+     "type": "string"
+    },
+    "story": {
+     "type": "number"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "type.sizeDown": {
+  "description": "Decreases the selected text's point size by one step."
+ },
+ "type.sizeUp": {
+  "description": "Increases the selected text's point size by one step."
+ },
+ "type.storyDirection": {
+  "description": "Makes the stories of the text selection or selected frames vertical or horizontal."
+ },
+ "type.tateChuYoko": {
+  "description": "Sets the selected text horizontally within a vertical line (tate-chu-yoko), or not."
+ },
+ "type.underline": {
+  "description": "Toggles underline on the selected text."
+ },
+ "type.warichu": {
+  "description": "Turns warichu (inline split lines) on the selected text on or off, with lines, size, spacing and alignment."
+ },
+ "variables.define": {
+  "description": "Defines a text variable (custom, last page number, chapter number, file name, dates, running header…).",
+  "params": {
+   "after": {
+    "type": "string"
+   },
+   "before": {
+    "type": "string"
+   },
+   "character": {
+    "type": "boolean"
+   },
+   "extension": {
+    "type": "boolean"
+   },
+   "format": {
+    "type": "string"
+   },
+   "section": {
+    "type": "boolean"
+   }
+  }
+ },
+ "variables.delete": {
+  "description": "Deletes a text variable; its instances become plain text."
+ },
+ "variables.insert": {
+  "description": "Inserts a text variable at the text insertion point."
+ },
+ "variables.list": {
+  "description": "Lists the text variables with their types and values.",
+  "output": {
+   "items": {
+    "additionalProperties": true,
+    "properties": {
+     "character": {
+      "type": "boolean"
+     },
+     "extension": {
+      "type": "boolean"
+     },
+     "format": {
+      "type": "string"
+     },
+     "index": {
+      "type": "number"
+     },
+     "name": {
+      "type": "string"
+     },
+     "section": {
+      "type": "boolean"
+     },
+     "style": {
+      "type": "string"
+     },
+     "type": {
+      "type": "string"
+     },
+     "use": {
+      "type": "string"
+     },
+     "value": {
+      "type": "json"
+     }
+    },
+    "type": "object"
+   },
+   "type": "array"
+  }
+ },
+ "view.showTextThreads": {
+  "description": "Shows or hides the lines between threaded text frames in the editor."
+ },
+ "xml.deleteDtd": {
+  "description": "Removes the loaded DTD."
+ },
+ "xml.deleteTag": {
+  "description": "Deletes an XML tag; tagged objects are untagged."
+ },
+ "xml.loadDtd": {
+  "description": "Loads a DTD for validation and adds a tag for each element it declares."
+ },
+ "xml.mapStyle": {
+  "description": "Maps a paragraph style to an XML tag for export.",
+  "params": {
+   "style": {
+    "type": "string"
+   }
+  }
+ },
+ "xml.newTag": {
+  "description": "Creates an XML tag with a colour."
+ },
+ "xml.structure": {
+  "description": "Answers the XML structure in reading order: elements with tags, ids, kinds and text.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "elements": {
+     "type": "array"
+    },
+    "root": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "xml.tag": {
+  "description": "Tags frames (default: the selection) with an XML tag, creating it if new, or untags them.",
+  "params": {
+   "tag": {
+    "type": "string"
+   }
+  }
+ },
+ "xml.tagText": {
+  "description": "Tags the selected text as an inline element, or untags it.",
+  "params": {
+   "tag": {
+    "type": "string"
+   }
+  }
+ },
+ "xml.tags": {
+  "description": "Answers the XML tags, the style-to-tag map and whether a DTD is loaded.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "dtd": {
+     "type": "boolean"
+    },
+    "root": {
+     "type": "string"
+    },
+    "styleMap": {
+     "type": "array"
+    },
+    "tags": {
+     "type": "array"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "xml.validate": {
+  "description": "Validates the XML structure against the loaded DTD and answers the problems.",
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "problems": {
+     "type": "array"
+    },
+    "valid": {
+     "type": "boolean"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "xref.defineFormat": {
+  "description": "Defines a cross-reference format from building blocks such as <paraText /> and <pageNum />.",
+  "params": {
+   "definition": {
+    "type": "string"
+   }
+  }
+ },
+ "xref.formats": {
+  "description": "Lists the cross-reference formats with their definitions.",
+  "output": {
+   "items": {
+    "additionalProperties": true,
+    "properties": {
+     "definition": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "type": "array"
+  }
+ },
+ "xref.insert": {
+  "description": "Inserts a cross-reference to a text anchor or paragraph in a format at the insertion point."
+ },
+ "xref.list": {
+  "description": "Lists the cross-references with their position, target, format and text.",
+  "output": {
+   "type": "array"
+  }
+ },
+ "xref.setFormat": {
+  "description": "Changes a cross-reference's format.",
+  "params": {
+   "format": {
+    "type": "string"
+   },
+   "story": {
+    "description": "a story id from document.inspect",
+    "type": "integer"
+   }
+  }
+ }
+}

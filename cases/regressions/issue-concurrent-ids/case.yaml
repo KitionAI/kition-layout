@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-concurrent-ids
+feature: layout.collab.coedit
+intent: >-
+  Engine ids stored in the replica keep every kind of object (layers, spreads, pages, stories,
+  assets, items, tables, footnotes, endnotes, text anchors) under its id through save and reopen.
+  Two replicas that make an object each offline mint one id; after the merge both replicas give the
+  two objects distinct ids, alike and whatever the merge order (the smaller object id keeps the
+  number, the other gets the next free one), with nothing left to exchange, and the next edit
+  stores the new number. An object made without a number gets the next free one, stored.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/kdm/kdm-model/tests/numbers.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-layout-kdm
+      test: numbers
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-17"

@@ -1,0 +1,15 @@
+format: 1
+id: regressions/issue-c8-layout-review-places
+feature: layout.agent.premises
+intent: Stale page positions, local notes and frame-selected story edits hold the resolved content and identity; an unrelated saved edit still applies.
+layer: gate
+source:
+  kind: synthetic
+  from: C8-layout review
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review_places}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

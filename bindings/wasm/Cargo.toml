@@ -1,0 +1,36 @@
+[package]
+name = "kition-layout-kit"
+description = "The Layout engine for Kition's in-page editor: open, edit, and save Kition Layout layouts from JavaScript (WebAssembly), on the Kition SDK."
+version.workspace = true
+edition.workspace = true
+license = "Apache-2.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-kit = { workspace = true }
+kition-layout-engine = { workspace = true }
+kition-layout-doc = { workspace = true }
+kition-layout-geom = { workspace = true }
+kition-layout-tools = { workspace = true }
+kition-layout-render = { workspace = true }
+kition-layout-format = { workspace = true }
+kition-layout-compose = { workspace = true }
+kition-layout-fonts = { workspace = true }
+kition-layout-idml = { workspace = true }
+kition-layout-kdm = { workspace = true }
+# The PNG `file.render` answers (src/render.rs), and the conformance goldens (src/conformance.rs).
+image = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+log = { workspace = true }
+kition-layout-fonts = { workspace = true, features = ["testing"] }
+# The Kition platform convergence suite (L6): two to five replicas of a layout (tests/convergence.rs).
+kition-convergence = { workspace = true }

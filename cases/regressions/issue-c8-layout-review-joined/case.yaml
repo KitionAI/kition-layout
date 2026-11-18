@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-joined
+feature: layout.agent.premises
+intent: Premises two families state for one object join rather than the later one replacing the earlier. A page written by number keeps its content premise when a later page's counted prefix includes it, and fitting or caret placement keeps the story text premise beside its composition premise. Outside same-field and text rewrites refuse; unrelated opacity applies.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review_joined}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

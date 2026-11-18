@@ -1,0 +1,22 @@
+format: 1
+id: layout.collab.coedit/convergence-suite
+feature: layout.collab.coedit
+intent: >-
+  The Kition platform convergence suite (kition-convergence, L6) on two to five replicas of a
+  layout edited through the engine's own commands: every scenario passes but reparent, which the
+  kit cannot make (no command moves an existing object into another group).
+layer: gate
+source:
+  kind: synthetic
+  from: kition-sdk crates/kition-convergence
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-layout-kit
+      test: convergence
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-17"

@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-3-more
+feature: layout.agent.premises
+intent: A drop shadow holds only that effect of its target, so an independent writer's rename or move of the same frame applies, and a drop shadow change refuses.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read-3, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: read3_effect_holds_only_that_effect}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

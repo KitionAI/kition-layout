@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-2-cell-source
+feature: layout.agent.premises
+intent: Creating a cell style from a source cell accepts the explicit table addresses used by the handler's shared target resolver, even with no current selection.
+layer: gate
+dimension: function
+source: {kind: synthetic, from: C8-layout-read-2, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-kit, test: cell_style_source}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

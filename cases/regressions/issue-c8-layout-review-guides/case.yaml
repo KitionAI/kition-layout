@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-guides
+feature: layout.agent.premises
+intent: Guide move/delete by page and index hold the counted spread/page prefix and the addressed guide; an outside deletion of an earlier guide or a move of the addressed guide refuses the stale write, and an unrelated change applies.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review_guide_}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

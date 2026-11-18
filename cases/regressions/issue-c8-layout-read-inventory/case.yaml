@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-inventory
+feature: layout.agent.premises
+intent: Every registry handler has an independently recorded parameter/read/write row. All 345 existing projection inputs compare with effective guard holds and gate the partial discrepancy counts; 66 journaled commands and additional conditional paths remain unprojected.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-kit, test: declarations_independent}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

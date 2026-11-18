@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-3-two-paths
+feature: layout.agent.premises
+intent: Editing a table style holds the tables it is applied to again, so an independent writer's change of such a table's options refuses, and an unrelated item rename applies.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read-3, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: read3_table_style_edit_holds_the_tables_using_it}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

@@ -1,0 +1,10 @@
+*~
+plan/
+/target
+/dist
+/corpus
+/log
+.DS_Store
+/.claude/settings.local.json
+/target-*/
+/kition-fonts/

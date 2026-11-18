@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-section
+feature: layout.agent.premises
+intent: Updating only the marker of an existing noninitial section preserves its start number, number style, prefix and include-prefix flag, just as on page one.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read handler reading, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-engine, test: independent_read, filter: section_updates_preserve_unspecified_values_at_every_page}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

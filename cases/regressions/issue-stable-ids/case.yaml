@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-stable-ids
+feature: layout.agent.observe
+intent: >-
+  The ids layout_inspect, the commands and the diagnostics use were numbered afresh each time the
+  replica was read, so after a save and reopen, a replica-only open (model.export, model.open) or
+  the reopen with which Kition rolls back a failed layout_run, an id the agent had noted named
+  another object (KHP A46, A53, A57). Every object now stores its id in the replica: inspect answers
+  the same ids after each of these, for an item made through layout_batch too, and two imports of
+  one IDML file answer the same ids.
+layer: gate
+source:
+  kind: probe
+  from: khp check of kit.layout (A53, layout_inspect answers differently after a failed run)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-layout-kit
+      test: stable_ids
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-17"

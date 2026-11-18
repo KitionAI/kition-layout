@@ -1,0 +1,108 @@
+{
+  "id": "editorial",
+  "name": "Editorial",
+  "width": 1080,
+  "height": 1440,
+  "swatches": {
+    "Surface": "#f8f5e8",
+    "Primary": "#5645d4",
+    "Text": "#1a1a1a",
+    "Accent": "#dd5b00"
+  },
+  "background": "Surface",
+  "paragraphStyles": {
+    "Label": {
+      "font": "Inter",
+      "fontStyle": "Bold",
+      "size": 24,
+      "leading": 24.96,
+      "fill": "Text"
+    },
+    "Headline": {
+      "font": "Lora",
+      "fontStyle": "Bold",
+      "size": 132,
+      "leading": 137.28,
+      "fill": "Text"
+    },
+    "Body": {
+      "font": "Inter",
+      "fontStyle": "Bold",
+      "size": 32,
+      "leading": 33.28,
+      "fill": "Text"
+    }
+  },
+  "items": [
+    {
+      "type": "rectangle",
+      "name": "Accent bar",
+      "rect": [
+        80,
+        80,
+        12,
+        1280
+      ],
+      "fill": "Primary",
+      "constraints": {
+        "horizontal": "left",
+        "vertical": "scale"
+      }
+    },
+    {
+      "type": "text",
+      "name": "Label",
+      "rect": [
+        140,
+        90,
+        880,
+        96
+      ],
+      "style": "Label",
+      "text": "FIELD NOTES / 01"
+    },
+    {
+      "type": "text",
+      "name": "Headline",
+      "rect": [
+        140,
+        285,
+        830,
+        528
+      ],
+      "style": "Headline",
+      "text": "Ideas for a slower world"
+    },
+    {
+      "type": "ellipse",
+      "name": "Orb",
+      "rect": [
+        655,
+        880,
+        320,
+        320
+      ],
+      "fill": "Accent",
+      "constraints": {
+        "horizontal": "right",
+        "vertical": "bottom"
+      }
+    },
+    {
+      "type": "text",
+      "name": "Body",
+      "rect": [
+        140,
+        1100,
+        440,
+        128
+      ],
+      "style": "Body",
+      "text": "A little room to think. A different way to see.",
+      "constraints": {
+        "horizontal": "left",
+        "vertical": "bottom"
+      }
+    }
+  ]
+}

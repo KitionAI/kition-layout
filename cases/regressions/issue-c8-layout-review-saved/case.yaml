@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-saved
+feature: layout.agent.act
+intent: Writes across the published command families on every native conformance fixture and IDML imports agree with native save/reopen and receipt diffs. Reopened clipboard paste must allocate fresh identities.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-kit, test: saved_families}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

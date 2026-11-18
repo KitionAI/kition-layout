@@ -1,0 +1,19 @@
+[package]
+name = "kition-layout-doc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Kition Layout document model: spreads, pages, parents, layers, frames, stories, styles, swatches"
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-layout-geom = { workspace = true }
+kition-layout-color = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

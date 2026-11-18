@@ -1,0 +1,17 @@
+format: 1
+id: layout.table.cells/save-reopen
+feature: layout.table.cells
+intent: >-
+  A table with a header row, text typed into cells and two merged cells keeps its cells, text and spans after saving and reopening the .klayout file (id-blind document equality, web and desktop save paths).
+layer: gate
+source:
+  kind: synthetic
+  from: "crates/engine/engine/src/tests_roundtrip.rs"
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: "kition-layout-engine", filter: "tests_roundtrip::tables_survive_save_and_reopen" }
+expected:
+  - actual: out:exit
+    compare: exit
+since: "2026-11-17"

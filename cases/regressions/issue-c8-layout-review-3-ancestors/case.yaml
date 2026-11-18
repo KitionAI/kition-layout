@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-3-ancestors
+feature: layout.agent.premises
+intent: A cut point or feather vector given in spread coordinates holds the transforms of the target's ancestors, refusing after another writer moved the group and applying after a change elsewhere.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review 3, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review3_compound_and_split}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

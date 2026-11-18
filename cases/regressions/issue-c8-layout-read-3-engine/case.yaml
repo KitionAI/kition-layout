@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-3-engine
+feature: layout.agent.premises
+intent: Engine defects found while reading handler dependencies stay fixed - a snippet image keeps its pixels when asset ids collide, deleting path text keeps a threaded frame's story, transform.set works on a spread without pages, paragraph style deletion and variable deletion reach cell text, rename to an existing style name refuses, nextStyle edits apply, font replacement reaches endnotes, an image placed into a text frame releases its story, whole-story replacement drops endnotes, and pasted text keeps its endnotes.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read-3, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-engine, test: read3_engine}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

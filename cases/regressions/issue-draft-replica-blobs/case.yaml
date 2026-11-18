@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-draft-replica-blobs
+feature: layout.agent.draft
+intent: >-
+  kition-layout opens a layout from its replica (model.open, which kit.json lists): what
+  model.export answers for an open layout, its changes and the images they reference, opens again
+  as the same layout, ids included, with no file, takes edits apart from the file, and its changes
+  go back with their images through model.import. An agent's headless draft is such a replica
+  (KHP A12); ReplicaPort kept the defaults of model_blobs_since and model_add_blobs, so a draft of
+  a layout with an image lost the image and changes with images were refused.
+layer: gate
+source:
+  kind: probe
+  from: kition-slide 2611cda and kition-pdf cf1747fd (the same defect in sibling kits)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-layout
+      test: replica
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-17"

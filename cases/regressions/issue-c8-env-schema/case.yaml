@@ -1,0 +1,16 @@
+format: 1
+id: regressions/issue-c8-env-schema
+feature: layout.agent.act
+intent: Schema sampling names objects and respects stored opacity bounds while leaving engine identity read-only.
+layer: gate
+dimension: ai
+source:
+  kind: synthetic
+  from: C8-land-13-layout
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, test: object_params, filter: environment_schema_names_objects_and_bounds_opacity }
+expected:
+  - { actual: exit, compare: exit, value: 0 }
+since: "2026-11-17"

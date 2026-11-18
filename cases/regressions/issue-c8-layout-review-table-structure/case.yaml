@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-table-structure
+feature: layout.agent.premises
+intent: Structural table edits hold their addressed cells, copied formatting and merged regions, while anchor replacement holds surrounding story text and unrelated cells can change.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review_tables_structural}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

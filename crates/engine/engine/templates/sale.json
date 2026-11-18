@@ -1,0 +1,110 @@
+{
+  "id": "sale",
+  "name": "Promotion",
+  "width": 1080,
+  "height": 1440,
+  "swatches": {
+    "Accent": "#f9e79f",
+    "Text": "#1a1a1a",
+    "Primary": "#1a1a1a",
+    "Surface": "#ffffff"
+  },
+  "background": "Accent",
+  "paragraphStyles": {
+    "Label": {
+      "font": "Inter",
+      "fontStyle": "Bold",
+      "size": 28,
+      "leading": 29.12,
+      "fill": "Text"
+    },
+    "Headline": {
+      "font": "Inter",
+      "fontStyle": "Bold",
+      "size": 152,
+      "leading": 158.08,
+      "fill": "Text"
+    },
+    "Body": {
+      "font": "Inter",
+      "fontStyle": "Bold",
+      "size": 38,
+      "leading": 39.52,
+      "fill": "Surface"
+    }
+  },
+  "items": [
+    {
+      "type": "rectangle",
+      "name": "Frame",
+      "rect": [
+        60,
+        60,
+        960,
+        1320
+      ],
+      "stroke": "Text",
+      "strokeWeight": 3,
+      "constraints": {
+        "horizontal": "scale",
+        "vertical": "scale"
+      }
+    },
+    {
+      "type": "text",
+      "name": "Label",
+      "rect": [
+        110,
+        125,
+        880,
+        112
+      ],
+      "style": "Label",
+      "text": "THE NEW SEASON"
+    },
+    {
+      "type": "text",
+      "name": "Headline",
+      "rect": [
+        110,
+        390,
+        860,
+        608
+      ],
+      "style": "Headline",
+      "text": "GOOD THINGS ARE HERE"
+    },
+    {
+      "type": "rectangle",
+      "name": "Button",
+      "rect": [
+        110,
+        1150,
+        860,
+        120
+      ],
+      "fill": "Primary",
+      "radius": 10,
+      "constraints": {
+        "horizontal": "left",
+        "vertical": "bottom"
+      }
+    },
+    {
+      "type": "text",
+      "name": "Body",
+      "rect": [
+        145,
+        1180,
+        790,
+        152
+      ],
+      "style": "Body",
+      "text": "Discover the collection",
+      "constraints": {
+        "horizontal": "left",
+        "vertical": "bottom"
+      }
+    }
+  ]
+}

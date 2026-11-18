@@ -1,0 +1,16 @@
+format: 1
+id: regressions/issue-c8-places
+feature: layout.agent.act
+intent: Audited property and transform calls hold their precise facts; spatial picks share the engine resolver and replay historical bounds together.
+layer: gate
+dimension: data-safety
+source:
+  kind: synthetic
+  from: C8-land-13-layout
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, test: places }
+expected:
+  - { actual: exit, compare: exit, value: 0 }
+since: "2026-11-17"

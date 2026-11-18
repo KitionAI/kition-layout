@@ -1,0 +1,46 @@
+[package]
+name = "kition-layout-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Kition Layout engine: session, documents and their replicas, selection, command registry, tool hosting"
+
+[lints]
+workspace = true
+
+[dependencies]
+kition-layout-images = { workspace = true }
+kition-layout-geom = { workspace = true }
+kition-layout-color = { workspace = true }
+kition-layout-doc = { workspace = true }
+kition-layout-fonts = { workspace = true }
+kition-layout-compose = { workspace = true }
+kition-layout-render = { workspace = true }
+kition-layout-format = { workspace = true }
+kition-layout-epub = { workspace = true }
+kition-layout-textimport = { workspace = true }
+kition-layout-pdf = { workspace = true }
+kition-layout-tools = { workspace = true }
+kition-layout-idml = { workspace = true }
+kition-layout-kdm = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+regex = { workspace = true }
+quick-xml = { workspace = true }
+caseless = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tempfile = { workspace = true }
+
+[dev-dependencies]
+kition-layout-fonts = { workspace = true, features = ["testing"] }
+zip = { workspace = true }
+hayro-syntax = "0.7.2"
+hayro-interpret = { version = "0.7.0", default-features = false, features = ["embed-fonts"] }
+hayro-cmap = "0.1"
+kurbo = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "0.3"

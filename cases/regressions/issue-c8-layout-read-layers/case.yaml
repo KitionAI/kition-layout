@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-read-layers
+feature: layout.agent.premises
+intent: Layer writes hold the count, affected flags and usage their handlers read, while guide writes hold their layer protection; unrelated fields remain writable after a real outside edit.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-read, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: independent_layers}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

@@ -1,0 +1,24 @@
+format: 1
+id: layout.collab.coedit/engine-replicas
+feature: layout.collab.coedit
+intent: >-
+  Kition One's managed co-editing cases, at the engine: two editors of one .klayout file open one
+  document (one room) and converge after editing at once, also when both open a new file at once;
+  a page offline and edited on both sides converges when it reconnects; a fresh page reads the
+  room's edits from the older file or from the replica alone; a viewer's page follows the
+  editors, and nothing a viewer's editor lets run writes to the replica.
+layer: gate
+source:
+  kind: synthetic
+  from: kition-one e2e/collab-managed.mjs (MC-02, MC-05, MC-16, MC-17, MC-18, MC-24)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-layout-kit
+      test: coediting
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-17"

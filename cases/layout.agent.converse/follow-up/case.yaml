@@ -1,0 +1,46 @@
+format: 1
+id: layout.agent.converse/follow-up
+feature: layout.agent.converse
+intent: >-
+  Over two messages the agent adds a frame and then changes that same frame when the person corrects the time, instead of adding a second one (the conversation suite's remembered-object mistake). layout declares no drafts (agent.drafts false, KHP A35), so this is its multi-turn case.
+layer: eval
+source:
+  kind: synthetic
+  from: repo:conformance/basic.klayout
+  license: Apache-2.0
+  note: "A copy of the conformance fixture the layout engine writes: a text frame \"Spring concert\" (story 8) above a rectangle, on one letter page."
+input: [input/poster.klayout]
+steps:
+  - task:
+      turns:
+        - In poster.klayout, add a text frame below the rectangle that says "Saturday 8 pm".
+        - The venue moved the time. Make that frame say "Saturday 7 pm" instead.
+      max_turns: 25
+  - inspect: { path: poster.klayout, as: after }
+expected:
+  - actual: out:after
+    compare: values
+    value:
+      details.stories: { any: { preview: Saturday 7 pm } }
+  - actual: out:after
+    compare: values
+    value:
+      details.stories: { count: 2 }
+      details.spreads.0.items: { count: 3 }
+  - actual: out:after
+    compare: values
+    collateral: true
+    value:
+      details.stories: { any: { preview: Spring concert, length: 14 } }
+  - actual: out:after
+    compare: values
+    collateral: true
+    value:
+      details.spreads.0.items: { any: { kind: "<rectangle>", bounds: [72, 200, 540, 260] } }
+solution:
+  - tool: layout_run
+    args: { path: poster.klayout, steps: [{ command: frame.create, params: { content: text, rect: [72, 300, 540, 360], text: Saturday 8 pm } }] }
+  - tool: layout_run
+    args: { path: poster.klayout, steps: [{ command: story.setText, params: { story: 11, text: Saturday 7 pm } }] }
+since: "2026-11-17"
+timeout_s: 600

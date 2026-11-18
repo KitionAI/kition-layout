@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-overflow-tag
+feature: layout.agent.recover
+intent: >-
+  Tools and agents tell an overflow diagnostic by its check-catalogue entry, never by its code's
+  name (KHP A38, A40): the kit's overflow code layout.overset carried no tag, so a check looking
+  for overflow codes found none. Its entry in agent/checks.json (and check::CATALOGUE, which the
+  file must equal) now carries "overflow": "text", and no entry carries an unknown kind.
+layer: gate
+source:
+  kind: probe
+  from: khp e5fb03b (overflow codes are tagged in the check catalogue)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-layout-kit
+      test: checks
+      filter: the_catalogue
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-17"

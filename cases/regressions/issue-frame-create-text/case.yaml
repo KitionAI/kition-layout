@@ -1,0 +1,21 @@
+format: 1
+id: regressions/issue-frame-create-text
+feature: layout.collab.coedit
+intent: >-
+  frame.create given text and no content type made an empty graphic frame and dropped the text;
+  it now makes a text frame holding it (Kition One's co-editing cases make exactly this edit).
+layer: gate
+source:
+  kind: probe
+  from: kition-one e2e/collab-managed.mjs (the layout edit)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test:
+      package: kition-layout-engine
+      filter: frame_text_tests
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-17"

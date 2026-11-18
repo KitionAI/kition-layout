@@ -1,0 +1,12 @@
+format: 1
+id: regressions/issue-c8-layout-review-reflow
+feature: layout.agent.premises
+intent: Point-to-caret writes, outlines and fitting text hold earlier threaded frame geometry and permit unrelated changes.
+layer: gate
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review_reflow}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

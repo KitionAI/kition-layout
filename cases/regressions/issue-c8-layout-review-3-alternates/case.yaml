@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-3-alternates
+feature: layout.agent.premises
+intent: Deleting an alternate layout holds its pages and the items on them, and creating one holds the source pages' items; another writer's frame on those pages (or a deleted source item) refuses, a new swatch does not.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review 3, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review3_alternate_layouts}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

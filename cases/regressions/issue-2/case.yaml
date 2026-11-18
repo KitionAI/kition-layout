@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-2
+feature: layout.text.frames
+intent: >-
+  Turning facing pages on makes every parent a left and right page spread (and off, one page
+  again), so right-hand parent items fall on right-hand pages; layout.pages.applyParent counts
+  pages from 1 as layout.section, frame.thread and page.background do; a spread param that names
+  no spread is refused instead of meaning spread 0, a parent spread can be named by its prefix (A)
+  or label, and frame.thread with a rect puts the new frame on the source frame's spread.
+layer: gate
+source:
+  kind: issue
+  from: Kition Layout regression suite
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, test: pages_and_spreads }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-17"

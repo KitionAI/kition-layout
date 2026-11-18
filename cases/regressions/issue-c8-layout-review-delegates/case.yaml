@@ -1,0 +1,14 @@
+format: 1
+id: regressions/issue-c8-layout-review-delegates
+feature: layout.agent.premises
+intent: Delegated text operations hold the selected story and generated contents/index operations hold source stories across independent file rewrites, while permitting unrelated opacity edits.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review_delegated_text}
+  - cargo-test: {package: kition-layout, test: outside, filter: review_generated_text}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-pin-reread
+feature: layout.agent.premises
+intent: At kition-sdk 2ce294a1 a clean session reconciles a file another writer saved instead of being replaced; it keeps both undo histories, identities and editor state, imports only the file difference outside undo, and refuses an editor state naming an object the file no longer has without changing the session.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout-pin-reread, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout-kit, test: pin_reread}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

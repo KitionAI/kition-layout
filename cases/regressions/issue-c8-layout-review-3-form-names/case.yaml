@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-3-form-names
+feature: layout.agent.premises
+intent: A default form-field name holds the names of the existing form fields, refusing after another writer added or renamed a form field and applying with an explicit name or after an unrelated change.
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review 3, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review3_form_default}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

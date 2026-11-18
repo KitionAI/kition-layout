@@ -1,0 +1,12 @@
+format: 1
+id: regressions/issue-c8-layout-review-sources
+feature: layout.agent.premises
+intent: Copy and outline operations hold the source story consumed by the handler across an independent file rewrite.
+layer: gate
+source: {kind: synthetic, from: C8-layout review, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review_sources}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

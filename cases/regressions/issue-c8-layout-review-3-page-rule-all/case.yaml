@@ -1,0 +1,13 @@
+format: 1
+id: regressions/issue-c8-layout-review-3-page-rule-all
+feature: layout.agent.premises
+intent: "A page rule without pages holds every page and the spread list: another writer's added page or page rule refuses, an unrelated change does not."
+layer: gate
+dimension: data-safety
+source: {kind: synthetic, from: C8-layout review 3, license: Apache-2.0}
+input: []
+steps:
+  - cargo-test: {package: kition-layout, test: outside, filter: review3_page_rule_for_all}
+expected:
+  - {actual: exit, compare: exit, value: 0}
+since: '2026-11-17'

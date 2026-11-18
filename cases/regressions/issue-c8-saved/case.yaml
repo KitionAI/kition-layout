@@ -1,0 +1,16 @@
+format: 1
+id: regressions/issue-c8-saved
+feature: layout.agent.act
+intent: Representative native fixture writes have the same live inspection and model diff after saving and reopening.
+layer: gate
+dimension: data-safety
+source:
+  kind: synthetic
+  from: C8-land-13-layout
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, test: saved }
+expected:
+  - { actual: exit, compare: exit, value: 0 }
+since: "2026-11-17"

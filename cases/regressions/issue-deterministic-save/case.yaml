@@ -1,0 +1,21 @@
+format: 1
+id: regressions/issue-deterministic-save
+feature: layout.agent.act
+intent: >-
+  A document built by the same commands saves the same bytes when SOURCE_DATE_EPOCH is set (a
+  showcase sample, a gate case): the document id, the replica's actor and new objects' ids are
+  counted from the epoch, and the replica writes JSON objects in key order (kition-sdk 30f21ec).
+  Before, every build of a sample saved another docId, version and snapshot.
+layer: gate
+source:
+  kind: probe
+  from: kition-showcase round-2 rebuild (layout samples saved other bytes on every build)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, test: deterministic_save }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-17"

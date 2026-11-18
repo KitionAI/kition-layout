@@ -1,0 +1,36 @@
+format: 1
+id: regressions/issue-host-files-only
+feature: layout.security.workspace
+intent: >-
+  An engine session made for a host (Session::for_host, KHP A29, A42, A45, section 10.6) reads a
+  file a command or a document names only through its host, by its path in the workspace, and
+  reaches nothing else by path: no write, read, listing, folder, recovery data, package, book,
+  library, colour profile or document font folder, and no print spooler (file.printers, file.print,
+  even a dry run). Links that name files outside the workspace (absolute paths, `../`, `file:` and
+  remote URLs, hidden names) in a layout, an IDML package or an SVG are never read: the graphic
+  stays missing and is reported. Anyone but a person passes the session's agent gate at every
+  step a command dispatches (script.run, nested). The engine's code reaches files and programs
+  only through its door (crate::disk) or behind a refusal of hosted sessions.
+layer: gate
+tags: [security]
+source:
+  kind: probe
+  from: workspace-escape audit (layout section)
+  license: owned
+input: []
+steps:
+  - cargo-test:
+      package: kition-layout-engine
+      filter: tests_hosted
+  - cargo-test:
+      package: kition-layout-engine
+      filter: "disk::"
+  - cargo-test:
+      package: kition-layout-images
+      filter: svg_images_are_never_read_by_path
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+timeout_s: 300
+since: "2026-11-17"

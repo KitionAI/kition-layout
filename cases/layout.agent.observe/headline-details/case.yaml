@@ -1,0 +1,39 @@
+format: 1
+id: layout.agent.observe/headline-details
+feature: layout.agent.observe
+intent: >-
+  The agent reads the headline through the kit (the stories in document.inspect) and reuses it in a new text frame on the page, leaving the headline and the rectangle as they were.
+layer: eval
+source:
+  kind: synthetic
+  from: repo:conformance/basic.klayout
+  license: Apache-2.0
+  note: "A copy of the conformance fixture the layout engine writes: a text frame \"Spring concert\" (story 6) above a rectangle, on one letter page."
+input: [input/poster.klayout]
+steps:
+  - task:
+      prompt: >-
+        In poster.klayout, add a new text frame below the rectangle whose text is the poster's
+        headline followed by " – details". Do not change the existing objects.
+      max_turns: 20
+  - inspect: { path: poster.klayout, as: after }
+expected:
+  - actual: out:after
+    compare: values
+    value:
+      details.stories: { any: { preview: Spring concert – details, overset: false } }
+  - actual: out:after
+    compare: values
+    collateral: true
+    value:
+      details.stories: { any: { preview: Spring concert, length: 14 } }
+  - actual: out:after
+    compare: values
+    collateral: true
+    value:
+      details.spreads.0.items: { any: { kind: "<rectangle>", bounds: [72, 200, 540, 260] } }
+solution:
+  - tool: layout_run
+    args: { path: poster.klayout, steps: [{ command: frame.create, params: { content: text, rect: [72, 300, 540, 360], text: Spring concert – details } }] }
+since: "2026-11-17"
+timeout_s: 600
