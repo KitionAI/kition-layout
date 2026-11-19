@@ -169,7 +169,7 @@ can run that fix, or leave the choice to you. The agent's guide is [agent/guide.
 
 ## Maturity
 
-Version 0.1.0 · KHP 1.0, conformance level `basic`.
+Version 0.1.1 · KHP 1.0, conformance level `basic`.
 
 | Works today | Partly there | Not yet |
 | --- | --- | --- |
