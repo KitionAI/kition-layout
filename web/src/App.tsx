@@ -20,6 +20,7 @@ import {
   useFrameMode,
 } from '@kition/kit-editor'
 import { engineManifest } from './engine'
+import { useEngineBackdrop } from './backdrop'
 import { CATALOGS } from './strings'
 import { LAYOUT_PRIMARY, HIDDEN_TOOLS, MENU_ORDER, describe } from './layout'
 import { HomeTab } from './HomeTab'
@@ -46,6 +47,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   const { doc, change, state } = session
   const tools = useEngineTools(session.tool, doc != null, change, { initial: 'selection', hostTools: HOST_TOOLS, hidden: HIDDEN })
   const canvas = useRef<KitCanvasHandle>(null)
+  useEngineBackdrop(doc, canvas)
   const viewMemory = useRef<RasterView | null>(null)
   const [view, setView] = useState<KitCanvasView | null>(null)
   const [dialog, setDialog] = useState<'setup' | 'export' | 'templates' | null>(null)
