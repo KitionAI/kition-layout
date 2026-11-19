@@ -40,7 +40,7 @@ upstream rules below still apply to the engine.
 - `bindings/wasm` compiles the engine to WebAssembly on the public `KitionAI/kition-sdk`
   crate; the editor runs it in a Web Worker. The contract and the Kition platform rules live in kition-sdk
   (`docs/platform/kits/engine.md`, `docs/platform/reference/ui-protocol.md`), the agent protocol
-  in KHP ([`kitharness/khp`](https://github.com/kitharness/khp)); change them there, never here. `kition-layout-kit` must keep passing `kition_kit::testing::check_contract`,
+  in KHP ([`kitharness/kitharness`](https://github.com/kitharness/kitharness)); change them there, never here. `kition-layout-kit` must keep passing `kition_kit::testing::check_contract`,
   and `kit.json` must pass kition-sdk's `tools/check-manifest.mjs`.
 - Tools run in the engine (`KitTools`); what upstream's canvas draws over the pages is returned as
   engine overlays (`src/chrome.rs`). Never draw editor chrome into the rendered pixels.
