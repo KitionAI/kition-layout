@@ -12,6 +12,10 @@ workspace = true
 [dependencies]
 kition-layout-kit = { path = "../wasm" }
 kition-headless = { workspace = true }
+# The layout container's replica (`LayoutFiles`, document.identity): its schema and error type.
+kition-layout-kdm = { workspace = true }
+kition-kit = { workspace = true }
+kition-kit-server = { workspace = true }
 
 [dev-dependencies]
 # workspace_only.rs: the pictures it plants and reads back, and the IDML packages it writes.
@@ -19,8 +23,10 @@ image = { workspace = true }
 zip = { workspace = true }
 # workspace_only.rs: a font planted in the home folder's font folders.
 kition-layout-fonts = { workspace = true, features = ["testing"] }
-kition-kit-server = { workspace = true }
-kition-kit = { workspace = true }
 kition-kits = { workspace = true }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 serde_json = { workspace = true }
+# document.identity and document.fork through the real process (tests/identity.rs).
+kition-kit-host = { workspace = true }
+kition-layout-format = { workspace = true }
+kition-layout-engine = { workspace = true }

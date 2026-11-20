@@ -1,6 +1,6 @@
 format: 1
 kit: layout
-updated: "2026-11-19"
+updated: "2026-11-20"
 gate_budget_s: 600
 protected: []
 features:
@@ -473,6 +473,14 @@ features:
     paths: [web/src/App.tsx, web/src/HomeTab.tsx, web/tests/modes.mjs, web/tests/focus.mjs]
     cases: [layout.editor.display-modes/mode-smoke, regressions/issue-focus-rulers-escape]
     since: "2026-11-17"
+  - id: layout.platform.document-identity
+    title: "A host reads the document id a .klayout carries and forks a copied layout into a new document with no history (document.identity, document.fork; Kit Process Protocol 5.6)"
+    dimension: [platform, data-safety]
+    priority: P1
+    status: has
+    paths: [bindings/headless/src/lib.rs, bindings/headless/tests/identity.rs, crates/kdm/kdm-model/src/file.rs, kit.json]
+    cases: [layout.platform.document-identity/fork, layout.platform.document-identity/no-replica]
+    since: "2026-11-20"
   - id: layout.editor.host-theme
     title: "The editor follows the host's light or dark theme, live: the pasteboard the engine paints around the spreads is the host's canvas color, and the pages stay white"
     dimension: [platform]

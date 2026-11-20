@@ -1,0 +1,23 @@
+format: 1
+id: layout.platform.document-identity/no-replica
+feature: layout.platform.document-identity
+intent: >-
+  Through the real kition-layout process: an empty .klayout (made for the kit before it saved a
+  layout) and an IDML package (another program's file, a new layout each time it opens) carry no
+  identity, and their forks are the same bytes with no docId; bytes that are not a layout are
+  refused as unsupported_format by both document.identity and document.fork, never answered with
+  no identity, and the fork writes nothing.
+layer: gate
+tags: [headless]
+source:
+  kind: synthetic
+  from: bindings/headless/tests/identity.rs (files_without_a_replica_have_no_identity_and_bytes_that_are_no_layout_are_refused)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout, test: identity, filter: files_without_a_replica_have_no_identity_and_bytes_that_are_no_layout_are_refused }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-20"

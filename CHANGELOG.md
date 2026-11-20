@@ -3,6 +3,11 @@
 Changes to Kition Layout, newest first. A version is the kit package version in `kit.json`;
 each package is published with a `package-v<version>` tag.
 
+## 0.1.3
+
+- A host tells a layout file's document id (`document.identity`) and makes a copied layout a new document (`document.fork`): the fork keeps the pages, frames, stories, styles and their ids, and carries a new id and none of the source's history (Kit Process Protocol section 5.6, kition-sdk 44d500b). Two copies of the same `.klayout` were one document until now.
+- The headless program speaks Kit Process Protocol version 1 (`headless.protocol` is `kition-kit/1`), as hosts on kition-sdk from bb1b07b require.
+
 ## 0.1.2
 
 - `kit.json` declares the engine's editor state as `engine.editorState`, the same list as the engine's `EDITOR_STATE`, so a host that does not run the engine reads `inspect()` without it.

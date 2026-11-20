@@ -60,7 +60,7 @@ fn undoable(origin: &Origin) -> bool {
 }
 
 /// The blob hashes the replica's assets reference.
-fn referenced(replica: &Replica) -> BTreeSet<String> {
+pub(crate) fn referenced(replica: &Replica) -> BTreeSet<String> {
     replica
         .objects_of_type("Asset")
         .into_iter()

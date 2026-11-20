@@ -1,0 +1,25 @@
+format: 1
+id: layout.platform.document-identity/fork
+feature: layout.platform.document-identity
+intent: >-
+  Through the real kition-layout process: document.identity answers the docId a .klayout carries
+  (the one meta.json's copy names), and a byte copy answers the same one; document.fork writes a
+  new document to a new file: a new docId in the replica and in meta.json, the same objects, ids
+  and values, no change entries, only the blobs the layout references (a stray one stays behind),
+  the title, app and unknown entries as they were; the fork exports and opens as a draft; the text
+  of a frame deleted before the fork is in the source's bytes and not the fork's; a fork of the
+  fork is a third document; a fork never replaces an existing file.
+layer: gate
+tags: [headless]
+source:
+  kind: synthetic
+  from: bindings/headless/tests/identity.rs (a_layout_tells_its_identity_and_forks_into_a_new_document_without_history)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout, test: identity, filter: a_layout_tells_its_identity_and_forks_into_a_new_document_without_history }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-20"

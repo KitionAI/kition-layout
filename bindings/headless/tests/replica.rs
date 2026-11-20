@@ -50,7 +50,9 @@ fn a_layout_opens_from_its_exported_replica_with_its_images() {
     poster.execute("file.place", json!({ "base64": PICTURE, "name": "dot.png", "x": 72, "y": 72, "width": 100 })).unwrap();
     std::fs::write(root.join("Poster.klayout"), poster.save(None).unwrap()).unwrap();
 
-    let mut kit = Headless::<LayoutDocument>::with_replica_port(KitInfo::from_manifest(include_str!("../../../kit.json"), &[], &[]).unwrap());
+    let mut kit = Headless::<LayoutDocument>::with_replica_port(
+        KitInfo::from_manifest(include_str!("../../../kit.json"), &[], kition_layout_kit::EDITOR_STATE).unwrap(),
+    );
     let folder = HostFolder::new(&root).unwrap();
     kit.set_host(folder.host());
     let file = kit.open(OpenRequest { file: &folder.file("Poster.klayout").unwrap(), read_only: false, create: None }).unwrap().id;

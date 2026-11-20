@@ -17,7 +17,7 @@ const alone = window.setTimeout(() => {
 
 // `replica`: kit-editor's runtime keeps the layout's KDM replica for the host (`replica/*`), so a
 // host co-edits it through its sync room (Kition Server) and keeps it beside the file.
-void connectHost({ id: 'kit.layout', version: '0.1.2', capabilities: ['ai', 'replica'], brand: manifest.ui.brand, display: manifest.ui.display }).then(async (host) => {
+void connectHost({ id: 'kit.layout', version: '0.1.3', capabilities: ['ai', 'replica'], brand: manifest.ui.brand, display: manifest.ui.display }).then(async (host) => {
   window.clearTimeout(alone)
   // Kition Layout ships no catalogs of its own; this editor's phrases translate its labels.
   const phrase = withPhrases(await loadPhrases({}, host.init.locale), PHRASES, host.init.locale)

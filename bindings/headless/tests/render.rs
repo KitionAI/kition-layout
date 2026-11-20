@@ -27,7 +27,7 @@ fn the_host_previews_a_target_through_the_render_command() {
     let fixture = std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../../conformance/check-overset.klayout"));
     std::fs::copy(fixture, root.join("programme.klayout")).unwrap();
     let before = std::fs::read(root.join("programme.klayout")).unwrap();
-    let mut kit = Headless::<LayoutDocument>::with_replica_port(KitInfo::from_manifest(MANIFEST, &[], &[]).unwrap());
+    let mut kit = Headless::<LayoutDocument>::with_replica_port(KitInfo::from_manifest(MANIFEST, &[], kition_layout_kit::EDITOR_STATE).unwrap());
     let folder = HostFolder::new(&root).unwrap();
     kit.set_host(folder.host());
     let id = kit.open(OpenRequest { file: &folder.file("programme.klayout").unwrap(), read_only: false, create: None }).unwrap().id;

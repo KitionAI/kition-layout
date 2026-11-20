@@ -9,7 +9,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use kition_kit::kdm::{KDM_VERSION, Version};
+use kition_kit::kdm::{ActorId, KDM_VERSION, Replica, Version};
 use kition_kit::session::{KitError, MemoryBlobs};
 use kition_layout_format::container::{self, App, Container, ContainerError, Meta, SnapshotRef};
 
@@ -112,6 +112,57 @@ pub fn save_file(session: &LayoutSession, base: Option<&FileBase>, app_version: 
     };
     let bytes = container::write(&parts).map_err(kit_err)?;
     Ok((bytes, FileBase { snapshot, snapshot_version, changes, version, doc_id, extra }))
+}
+
+/// The replica a `.klayout` file embeds, as one KDM snapshot (`document.identity`, KitModel M7a):
+/// `snapshot.bin` with the listed change entries imported, checked against `meta.json`'s copy of
+/// the docId. `None` for a file that holds no replica: an empty file (one made for the kit before
+/// it saved a layout there) or an IDML package (another program's file, which opens as a new
+/// replica each time). Other bytes answer `not-a-layout: …` or `damaged: …`, as [`open_file`]
+/// does; never repairs, never writes.
+pub fn embedded_replica(bytes: &[u8]) -> Result<Option<Vec<u8>>> {
+    if bytes.is_empty() || kition_layout_idml::is_idml(bytes) {
+        return Ok(None);
+    }
+    let parts = container::read(bytes).map_err(container_error)?;
+    let mut replica = load(&parts.snapshot)?;
+    for change in &parts.changes {
+        replica.import_changes(change).map_err(damaged)?;
+    }
+    let doc_id = replica.doc_id().to_string();
+    if !parts.meta.doc_id.is_empty() && parts.meta.doc_id != doc_id {
+        return Err(damaged(format!("meta.json names document {}, the snapshot {doc_id}", parts.meta.doc_id)));
+    }
+    if parts.changes.is_empty() {
+        return Ok(Some(parts.snapshot));
+    }
+    Ok(Some(replica.snapshot().map_err(kit_err)?))
+}
+
+/// `bytes` (a `.klayout` file) holding the document `snapshot` instead of its own
+/// (`document.fork`, KitModel M7a): `snapshot.bin` is `snapshot`, there are no change entries,
+/// `meta.json`'s copies of the docId and the snapshot version are the snapshot's, and the blobs are
+/// only the ones its state references (what a save writes), so no earlier identity or history stays
+/// in the file. Everything else (the title, `app`, entries this build does not know) is kept.
+pub fn replace_replica(bytes: &[u8], snapshot: &[u8]) -> Result<Vec<u8>> {
+    let mut parts = container::read(bytes).map_err(container_error)?;
+    let replica = load(snapshot)?;
+    let referenced = crate::session::referenced(&replica);
+    parts.blobs.retain(|hash, _| referenced.contains(hash));
+    parts.meta.doc_id = replica.doc_id().to_string();
+    parts.meta.snapshot.version = base64_encode(&replica.version().encode());
+    parts.snapshot = snapshot.to_vec();
+    parts.changes.clear();
+    container::write(&parts).map_err(kit_err)
+}
+
+fn damaged(error: impl std::fmt::Display) -> KitError {
+    KitError::new(format!("damaged: {error}"))
+}
+
+/// A layout snapshot loaded as a replica of a fresh actor: `damaged: …` when it does not load.
+fn load(snapshot: &[u8]) -> Result<Replica> {
+    Replica::load(crate::schema(), snapshot, ActorId::random()).map_err(damaged)
 }
 
 const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
