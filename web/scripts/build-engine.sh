@@ -9,6 +9,20 @@ if toolchain="$(rustc --print sysroot 2>/dev/null)" && [ -d "$toolchain/lib" ]; 
 fi
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$repo/target}"
 cd "$repo"
+# On CI a job that did not set wasm-pack up (Kition's kit CI's Rust job, where the convergence
+# test builds the engine) fetches the release Kition's CI uses.
+if ! command -v wasm-pack >/dev/null 2>&1 && [ -n "${CI:-}" ]; then
+  version="${WASM_PACK_VERSION:-v0.13.1}"
+  bin="${CARGO_HOME:-$HOME/.cargo}/bin"
+  mkdir -p "$bin"
+  if [ "$(uname -s)-$(uname -m)" = Linux-x86_64 ]; then
+    curl -fsSL "https://github.com/rustwasm/wasm-pack/releases/download/$version/wasm-pack-$version-x86_64-unknown-linux-musl.tar.gz" |
+      tar -xz --strip-components=1 -C "$bin" "wasm-pack-$version-x86_64-unknown-linux-musl/wasm-pack"
+  else
+    cargo install wasm-pack --locked --version "${version#v}"
+  fi
+  export PATH="$bin:$PATH"
+fi
 wasm-pack build bindings/wasm --target web --release --no-typescript --out-dir "$web/public/engine"
 rm -f "$web/public/engine/.gitignore" "$web/public/engine/package.json"
 # The faces the web build does not embed, from the kition-fonts checkout next to the repository

@@ -99,8 +99,10 @@ fn without_a_chain_font_the_fallback_is_unchanged() {
         assert_eq!(family(&db, HAN, Some(language)).as_deref(), kition_fonts, "{language}");
     }
     assert_eq!(family(&db, HANGUL, Some("ko")).as_deref(), Some("Other CJK"));
-    // kition-fonts' Droid Sans Fallback covers Bopomofo too; without it, nothing would.
-    assert_eq!(family(&db, BOPOMOFO, Some("zh-Hant")).as_deref(), kition_fonts);
+    // kition-fonts' Droid Sans Fallback covers Bopomofo too (its Japanese faces ahead of it do
+    // not); without it, nothing would.
+    let droid = crate::KITION_FONTS.iter().any(|f| f.family == "Droid Sans Fallback").then_some("Droid Sans Fallback");
+    assert_eq!(family(&db, BOPOMOFO, Some("zh-Hant")).as_deref(), droid);
 }
 
 #[test]

@@ -34,19 +34,28 @@ fn wasm_parity() {
 }
 
 /// The Layout engine built for WebAssembly: a folder with `kition_layout_kit.js` and
-/// `kition_layout_kit_bg.wasm` in `KITION_WASM_ENGINE`, else the editor's `web/public/engine/`.
-/// It is built from this repository, not a private tool, so a missing engine fails the test
-/// (docs/quality.md, Private tools) and says how to build it.
+/// `kition_layout_kit_bg.wasm` in `KITION_WASM_ENGINE`, else the editor's `web/public/engine/`,
+/// which the test builds with `web/scripts/build-engine.sh` when it is not there (a fresh
+/// checkout, Kition's kit CI). It is built from this repository, not a private tool, so an
+/// engine that is still missing fails the test (docs/quality.md, Private tools).
 fn wasm_engine() -> WasmEngine {
     const MODULE: &str = "kition_layout_kit";
-    let engine = WasmEngine::from_env(MODULE, "LayoutDocument", NAME).unwrap_or_else(|| WasmEngine {
-        dir: Path::new(env!("CARGO_MANIFEST_DIR")).join("../../web/public/engine"),
-        module: MODULE.to_owned(),
-        class: "LayoutDocument".to_owned(),
-        file_name: NAME.to_owned(),
-        node: std::env::var_os("NODE").map_or_else(|| PathBuf::from("node"), PathBuf::from),
+    let files = [format!("{MODULE}.js"), format!("{MODULE}_bg.wasm")];
+    let engine = WasmEngine::from_env(MODULE, "LayoutDocument", NAME).unwrap_or_else(|| {
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let dir = repo.join("web/public/engine");
+        if !files.iter().all(|file| dir.join(file).is_file()) {
+            build_engine(&repo);
+        }
+        WasmEngine {
+            dir,
+            module: MODULE.to_owned(),
+            class: "LayoutDocument".to_owned(),
+            file_name: NAME.to_owned(),
+            node: std::env::var_os("NODE").map_or_else(|| PathBuf::from("node"), PathBuf::from),
+        }
     });
-    for file in [format!("{MODULE}.js"), format!("{MODULE}_bg.wasm")] {
+    for file in files {
         assert!(
             engine.dir.join(&file).is_file(),
             "no WebAssembly engine: {file} is not in {}. Build it with `pnpm --dir web engine` (wasm-pack, into web/public/engine/), or set KITION_WASM_ENGINE to a folder with {MODULE}.js and {MODULE}_bg.wasm",
@@ -54,4 +63,17 @@ fn wasm_engine() -> WasmEngine {
         );
     }
     engine
+}
+
+/// Builds the editor's engine into `web/public/engine/` (`pnpm --dir web engine`), in a target
+/// folder of its own: this test's `cargo test` holds the workspace's.
+fn build_engine(repo: &Path) {
+    let target = Path::new(env!("CARGO_TARGET_TMPDIR")).join("wasm-engine");
+    println!("building the WebAssembly engine into web/public/engine (web/scripts/build-engine.sh)");
+    let status = std::process::Command::new("sh")
+        .arg(repo.join("web/scripts/build-engine.sh"))
+        .env("CARGO_TARGET_DIR", &target)
+        .status()
+        .unwrap_or_else(|error| panic!("could not start web/scripts/build-engine.sh: {error}"));
+    assert!(status.success(), "web/scripts/build-engine.sh failed ({status}): it needs wasm-pack and the wasm32-unknown-unknown target");
 }
