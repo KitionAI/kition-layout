@@ -1,5 +1,6 @@
 // The editor's flow in a real browser, through the development host: node tests/flow.mjs [chromium|webkit]
 // Starts the Vite dev server itself, opens dev.html in Chinese, and prints PASS or FAIL per step.
+import './platform.mjs'
 import { chromium, webkit } from 'playwright'
 import { createServer } from 'vite'
 
@@ -27,11 +28,34 @@ const until = async (check, tries = 60) => {
 }
 const inspect = () => page.evaluate(async () => window.devHost.connection().ai.inspect())
 const details = async () => (await inspect()).details
+const kit = page.frameLocator('#kit')
+// The person selects an object from its row in Layers (scrolled into the list's drawn rows), and
+// clears the selection with Escape: an agent's selection.set acts in the agent's own editor state
+// and never moves the person's selection or tool (Kit UI protocol, "The agent's own editor
+// state"), so what the person does next would not act on it.
+const select = async (id) => {
+  const list = kit.getByTestId('layout-layer-list')
+  const row = kit.getByTestId(`layout-object-name-${id}`)
+  for (let top = 0; !(await row.count()); top += 200) {
+    const past = await list.evaluate((element, at) => {
+      element.scrollTop = at
+      return element.scrollTop < at
+    }, top)
+    await page.waitForTimeout(50)
+    if (past) break
+  }
+  await row.click()
+  await until(async () => JSON.stringify((await details()).selection.items) === JSON.stringify([id]))
+}
+const deselect = async () => {
+  await kit.locator('.kui-app').focus()
+  await page.keyboard.press('Escape')
+  await until(async () => (await details()).selection.items.length === 0)
+}
 
 try {
   await page.goto(`${origin}/dev.html?modes=menus&locale=zh-CN`)
   await page.waitForFunction(() => document.getElementById('status')?.textContent?.includes(' open in '), null, { timeout: 60000 })
-  const kit = page.frameLocator('#kit')
   await page.waitForTimeout(1000)
   step('Chinese menu names', (await kit.getByTestId('layout-menu-Layout').textContent()) === '版面')
   step('status counts the pages', (await kit.getByTestId('layout-status').textContent()) === '2 页')
@@ -87,7 +111,7 @@ try {
     { command: 'frame.create', params: { rect: [pageBox[0] + 60, 200, pageBox[0] + 260, 420], content: 'unassigned' } },
   ])
   const [source, target] = made.completed.map((item) => item.result.id)
-  await agent([{ command: 'selection.set', params: { ids: [source] } }])
+  await select(source)
   await kit.getByTestId('layout-spread-0').click()
   await page.waitForTimeout(400)
   // Document pixels to the page: the spread's place on the canvas, then the canvas view.
@@ -143,7 +167,7 @@ try {
     await input.press('Enter')
   }
   const box = (await agent([{ command: 'frame.create', params: { rect: [pageBox[0] + 60, 460, pageBox[0] + 160, 560], content: 'graphic' } }])).completed[0].result.id
-  await agent([{ command: 'selection.set', params: { ids: [box] } }])
+  await select(box)
   await until(async () => (await kit.getByTestId('layout-geometry').getAttribute('data-item').catch(() => null)) === String(box))
   await setField('layout-w', 150)
   await until(async () => Math.abs((await itemOf(box)).bounds[2] - (await itemOf(box)).bounds[0] - 150) < 0.01)
@@ -163,7 +187,7 @@ try {
   await until(mirrored)
   step('Properties flips', await mirrored())
 
-  await agent([{ command: 'selection.set', params: { ids: [fontFrames.completed[0].result.id] } }])
+  await select(fontFrames.completed[0].result.id)
   await until(async () => (await kit.getByTestId('layout-font').count()) > 0)
   await kit.getByTestId('layout-font').selectOption('Lora')
   const fontAt = async () => (await agent([{ command: 'type.selectionAttrs', params: {} }])).completed[0].result?.chars?.fontFamily
@@ -205,13 +229,13 @@ try {
   await until(async () => (await details()).swatches.includes('Brand'))
   const brand = (await inspect()).details.swatchColors?.find((swatch) => swatch.name === 'Brand')
   step('Swatches makes a new swatch', brand?.color === '#5645d4', JSON.stringify(brand))
-  await agent([{ command: 'selection.set', params: { ids: [box] } }])
+  await select(box)
   await kit.getByTestId('layout-swatch-Brand').click()
   await until(async () => (await itemOf(box)).fill === 'Brand')
   step('Swatches fills the selection', (await itemOf(box)).fill === 'Brand')
 
   // Paragraph styles: new from the selected text, edited in its dialog.
-  await agent([{ command: 'selection.set', params: { ids: [fontFrames.completed[1].result.id] } }])
+  await select(fontFrames.completed[1].result.id)
   await kit.getByTestId('layout-paragraph-styles').getByText('段落样式', { exact: true }).first().click()
   const before2 = (await details()).paragraphStyles.length
   await kit.getByTestId('layout-paragraph-style-new').click()
@@ -236,7 +260,7 @@ try {
     window.devHost.files.set('photo.png', { bytes: await blob.arrayBuffer(), version: 1 })
   })
   const empty = (await agent([{ command: 'frame.create', params: { rect: [pageBox[0] + 300, 460, pageBox[0] + 400, 560], content: 'graphic' } }])).completed[0].result.id
-  await agent([{ command: 'selection.set', params: { ids: [empty] } }])
+  await select(empty)
   await kit.getByText('链接', { exact: true }).click()
   await kit.getByTestId('layout-place-image').click()
   await until(async () => (await itemOf(empty))?.asset != null)
@@ -294,10 +318,13 @@ try {
   // character style delete, templates, page background, sizes and "export all sizes".
   const pagesBefore = (await details()).pageCount
   const flowFrom = (await agent([{ command: 'frame.create', params: { rect: [pageBox[0] + 60, 60, pageBox[0] + 200, 120], content: 'text', text: long.repeat(6), caret: false } }])).completed[0].result.id
-  await agent([{ command: 'frame.loadText', params: { frame: flowFrom } }])
-  await until(async () => (await details()).tool === 'loadedText')
+  // The person loads the text cursor from the frame's out port, as above.
+  await select(flowFrom)
   await kit.getByTestId('layout-spread-0').click()
   await page.waitForTimeout(400)
+  const flowPort = await toScreen(pageBox[0] + 200, 120 - 12 / (await toScreen(0, 0)).zoom)
+  await page.mouse.click(flowPort.x, flowPort.y)
+  await until(async () => (await details()).tool === 'loadedText')
   const empty2 = await toScreen((await details()).spreads[0].pages[0].bounds[0] + 300, 640)
   await page.keyboard.down('Shift')
   await page.mouse.click(empty2.x, empty2.y)
@@ -310,7 +337,7 @@ try {
 
   await agent([{ command: 'style.character.create', params: { name: 'Doomed', chars: { fontStyle: 'Italic' } } }])
   await until(async () => (await details()).characterStyles.includes('Doomed'))
-  await agent([{ command: 'edit.deselectAll', params: {} }])
+  await deselect()
   await kit.getByTestId('layout-character-styles').getByText('字符样式', { exact: true }).first().click()
   await kit.getByTestId('layout-character-style-Doomed').click()
   await kit.getByTestId('layout-character-style-delete').click()
@@ -329,7 +356,7 @@ try {
   step('the template makes the Editorial layout', names.includes('Headline') && templated.swatches.includes('Primary') && templated.spreads[0].pages[0].background === 'Surface', JSON.stringify(names))
 
   // Page background: with nothing selected, Properties sets it (none = transparent).
-  await agent([{ command: 'edit.deselectAll', params: {} }])
+  await deselect()
   await until(async () => (await kit.getByTestId('layout-background').count()) > 0)
   await kit.getByTestId('layout-background').selectOption('')
   await until(async () => (await details()).spreads[0].pages[0].background == null)
@@ -340,7 +367,7 @@ try {
 
   // Fit text to frame.
   const headline = templated.spreads[0].items.find((entry) => entry.name === 'Headline')
-  await agent([{ command: 'selection.set', params: { ids: [headline.id] } }])
+  await select(headline.id)
   const sizeOf = async () => (await agent([{ command: 'type.selectionAttrs', params: {} }])).completed[0].result?.chars?.size
   const sizeBefore = await sizeOf()
   await until(async () => (await kit.getByTestId('layout-fit-text').count()) > 0)

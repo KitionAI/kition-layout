@@ -2,6 +2,7 @@
 // Kition writes a new file (`host/write`, mode `export`) only in a format some kit's kit.json
 // `exports` declares; before layout declared IDML and EPUB, Kition refused them and nothing was
 // written. The development host is made to hold the same rule, from this kit's kit.json.
+import './platform.mjs'
 import { readFileSync } from 'node:fs'
 import { chromium, webkit } from 'playwright'
 import { createServer } from 'vite'

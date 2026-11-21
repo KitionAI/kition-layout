@@ -1,6 +1,7 @@
 // Focus shows the canvas alone (no rulers) and Escape cancels first there: it ends a pen path or
 // clears the selection and stays in Focus; only an Escape with nothing to cancel leaves Focus.
 // node tests/focus.mjs [chromium|webkit]
+import './platform.mjs'
 import assert from 'node:assert/strict'
 import { chromium, webkit } from 'playwright'
 import { createServer } from 'vite'

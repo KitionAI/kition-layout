@@ -4,6 +4,7 @@
 // switches dark, light and dark again without a reload. Each time the pasteboard must be the
 // theme's canvas color (no light-grey band in dark), and the white pages stay white and where it
 // was. SHOT=<dir> writes screenshots of the canvas in each scheme there.
+import './platform.mjs'
 import assert from 'node:assert/strict'
 import { chromium, webkit } from 'playwright'
 import { createServer } from 'vite'
