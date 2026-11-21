@@ -6,7 +6,7 @@
 | --- | --- |
 | `crates/` | The engine (Rust), grouped as `crates/{engine,formats,kdm,render,support}/<name>` |
 | `bindings/` | The engine's two outlets: `wasm` (the editor's engine, behind Kition's `KitDocument` contract) and `headless` (the kit executable `kition-layout` for agents) |
-| `web/` | The kit's editor (React, on kition-sdk's `@kition/kit-editor`) |
+| `web/` | The kit's editor (React, on kition-sdk's `@kition/sdk/editor`) |
 | `kit.json` | The kit manifest (KHP) |
 | `agent/` | The agent guide and checks (KHP) |
 | `conformance/` | KHP conformance fixtures |
@@ -40,13 +40,14 @@ Six P0 features are proved by command-level save-and-reopen round trips in
 the rest of the feature catalogue ([quality.md](quality.md)).
 
 By default the editor's dependencies come from npm: `pnpm install` in `web/` installs the
-published `@kition/*` packages at the versions the committed `web/pnpm-lock.yaml` pins, so no
-other checkout is needed. To develop against local checkouts instead, run
-`KITION_LINK=1 pnpm install` in `web/`: `web/.pnpmfile.cjs` then links `@kition/kit-dev-host`,
-`@kition/kit-editor`, `@kition/kit-host`, `@kition/kit-ui-protocol` and `@kition/sync` from a
-kition-sdk checkout, and `@kition/tessera-icons` from a kition-tessera checkout (by default
-`../kition-sdk` and `../kition-tessera` beside this repository; `KITION_SDK` and `KITION_TESSERA`
-name others). A package whose folder is not there stays on npm. The linked install rewrites
+published `@kition/sdk` and `@kition/tessera` packages at the versions the committed
+`web/pnpm-lock.yaml` pins, so no other checkout is needed. To develop against local checkouts
+instead, run `KITION_LINK=1 pnpm install` in `web/`: `web/.pnpmfile.cjs` then links `@kition/sdk`
+from a kition-sdk checkout (`packages/sdk`) and `@kition/tessera` from a kition-tessera checkout
+(`packages/tessera`), by default `../kition-sdk` and `../kition-tessera` beside this repository
+(`KITION_SDK` and `KITION_TESSERA` name others). Both packages' `exports` point at their built
+`dist/`, so run `pnpm build` in each package first. A package whose folder is not there stays on
+npm. The linked install rewrites
 `web/pnpm-lock.yaml`; a lockfile changed that way must not be committed.
 
 `pnpm engine` copies fonts from a [kition-fonts](https://github.com/KitionAI/kition-fonts)

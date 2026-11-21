@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Checkbox, Choice, Dialog, NumberField, useKitEditor } from '@kition/kit-editor'
+import { Button, Checkbox, Choice, Dialog, NumberField, useKitEditor } from '@kition/sdk/editor'
 import type { DocumentInfo } from '../layout'
 
 /** Units the dialog measures in; a pixel is a point, as in a web or mobile document. */

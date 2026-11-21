@@ -1,4 +1,4 @@
-import type { KitEngineInfo, RasterRect } from '@kition/kit-editor'
+import type { KitEngineInfo, RasterRect } from '@kition/sdk/editor'
 
 /** A page in spread coordinates (points), as the engine reports it. */
 export type Page = {

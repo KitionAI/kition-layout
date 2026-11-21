@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { PlusIcon as Plus, TrashIcon as Trash } from '@kition/tessera-icons/react'
-import { Button, Dialog, IconButton, NumberField, PanelFooter, PanelSection, useKitEditor, useReadOnly } from '@kition/kit-editor'
+import { PlusIcon as Plus, TrashIcon as Trash } from '@kition/tessera/icons/react'
+import { Button, Dialog, IconButton, NumberField, PanelFooter, PanelSection, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import type { DocumentInfo, LayoutInfo, Spread } from '../layout'
 import { PRESETS, presetOf } from '../dialogs/DocumentSetup'
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { PencilIcon as Pencil, PlusIcon as Plus, TrashIcon as Trash } from '@kition/tessera-icons/react'
-import { Button, Choice, Dialog, IconButton, PanelFooter, PanelSection, useEngineQuery, useKitEditor, useReadOnly } from '@kition/kit-editor'
+import { PencilIcon as Pencil, PlusIcon as Plus, TrashIcon as Trash } from '@kition/tessera/icons/react'
+import { Button, Choice, Dialog, IconButton, PanelFooter, PanelSection, useEngineQuery, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import type { DocumentInfo } from '../layout'
 
 type Kind = 'paragraph' | 'character'

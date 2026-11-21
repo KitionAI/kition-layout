@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import type { KitCanvasView } from '@kition/kit-editor'
+import type { KitCanvasView } from '@kition/sdk/editor'
 import { spreadAt, type DocumentInfo, type Spread } from './layout'
 
 /** Ruler thickness in CSS pixels. */

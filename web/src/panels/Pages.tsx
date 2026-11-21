@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ArrowDownIcon as ArrowDown, ArrowUpIcon as ArrowUp, CopyIcon as Copy, PlusIcon as Plus, Settings2Icon as Settings2, TrashIcon as Trash } from '@kition/tessera-icons/react'
-import { Choice, IconButton, PanelFooter, PanelSection, useKitEditor, useReadOnly } from '@kition/kit-editor'
+import { ArrowDownIcon as ArrowDown, ArrowUpIcon as ArrowUp, CopyIcon as Copy, PlusIcon as Plus, Settings2Icon as Settings2, TrashIcon as Trash } from '@kition/tessera/icons/react'
+import { Choice, IconButton, PanelFooter, PanelSection, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import type { DocumentInfo, Spread } from '../layout'
 
 const THUMB = 92

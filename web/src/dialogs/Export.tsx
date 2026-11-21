@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Checkbox, Choice, Dialog, NumberField, toast, useKitEditor, useKitStore } from '@kition/kit-editor'
+import { Button, Checkbox, Choice, Dialog, NumberField, toast, useKitEditor, useKitStore } from '@kition/sdk/editor'
 import type { DocumentInfo } from '../layout'
 import { FORMATS, type Format, bytesOf, bytesRequest, decodeBase64, exportPath, writeExports } from '../exporting'
 

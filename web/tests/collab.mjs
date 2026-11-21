@@ -1,5 +1,5 @@
 // Two people co-editing a layout through a real Kition Server (kition-server, in memory), each
-// with the Layout engine's own replica, as the editor's runtime relays it (`@kition/sync`'s relay,
+// with the Layout engine's own replica, as the editor's runtime relays it (`@kition/sdk/sync`'s relay,
 // the one @kition/embed runs): node tests/collab.mjs
 //
 // Cases (Kition One's managed co-editing ids): two editors converge (MC-17/18), a viewer's push is
@@ -88,8 +88,8 @@ async function startServer() {
 
 // --- The engine and the sync client ------------------------------------------------------------
 const vite = await createServer({ root: web, configFile: false, logLevel: 'error', server: { middlewareMode: true, hmr: false }, appType: 'custom' })
-const { SyncClient, startRelay, SyncRpcError } = await vite.ssrLoadModule('@kition/sync')
-const { LORO_REPLICA_VERSIONS: versions } = await vite.ssrLoadModule('@kition/sync/replicaVersions')
+const { SyncClient, startRelay, SyncRpcError } = await vite.ssrLoadModule('@kition/sdk/sync')
+const { LORO_REPLICA_VERSIONS: versions } = await vite.ssrLoadModule('@kition/sdk/sync/replicaVersions')
 const engine = await import(path.join(engineDir, 'kition_layout_kit.js'))
 await engine.default({ module_or_path: readFileSync(path.join(engineDir, 'kition_layout_kit_bg.wasm')) })
 const { LayoutDocument } = engine

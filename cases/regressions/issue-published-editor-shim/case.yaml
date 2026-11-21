@@ -2,9 +2,9 @@ format: 1
 id: regressions/issue-published-editor-shim
 feature: layout.editor.display-modes
 intent: >-
-  The development page opens the editor on the published @kition/kit-editor installed from the
+  The development page opens the editor on the published @kition/sdk installed from the
   lockfile, as GitHub CI does: Vite converts the CommonJS use-sync-external-store shim the editor's
-  UI library reaches, which it does not scan while @kition/kit-editor is excluded from
+  UI library reaches, which it does not scan while @kition/sdk is excluded from
   pre-bundling, so the page loads and every display mode shows. Before, the browser refused the shim
   ("does not provide an export named 'useSyncExternalStore'"), the page never opened, and
   test:flow, test:export, test:modes and test:focus timed out on CI (run 44864089864). A linked

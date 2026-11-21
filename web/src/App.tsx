@@ -18,7 +18,7 @@ import {
   type Phrases,
   type RasterView,
   useFrameMode,
-} from '@kition/kit-editor'
+} from '@kition/sdk/editor'
 import { engineManifest } from './engine'
 import { useEngineBackdrop } from './backdrop'
 import { CATALOGS } from './strings'

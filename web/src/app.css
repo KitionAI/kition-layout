@@ -1,4 +1,4 @@
-/* The Layout editor's own layout; colors and shapes come from @kition/kit-editor's tokens. */
+/* The Layout editor's own layout; colors and shapes come from @kition/sdk/editor's tokens. */
 
 .layout-spreads {
   display: flex;

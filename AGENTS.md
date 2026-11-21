@@ -34,7 +34,7 @@
 This repository is Kition's `kit.layout` kit, not upstream. These rules come first; the
 upstream rules below still apply to the engine.
 
-- The kit draws **its own editor**: `web/` is a React app on `@kition/kit-editor` (kition-sdk's
+- The kit draws **its own editor**: `web/` is a React app on `@kition/sdk/editor` (kition-sdk's
   shared kit UI library) with Kition Layout's menu bar, tool rail with flyouts, spread canvas, and the Pages, Layers, Swatches, and Styles panels; a host (Kition, or `web/dev.html` for development) shows it
   in an iframe and talks to it over the Kit UI protocol (`kition-kit-ui/1`, kition-sdk
   `docs/ui-protocol.md`). Style it only with the host's theme tokens and kit-editor components;

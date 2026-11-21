@@ -1,5 +1,5 @@
-import { ArrowLeftRightIcon as ArrowLeftRight, ArrowUpDownIcon as ArrowUpDown, TextAlignCenterIcon as TextAlignCenter, TextAlignEndIcon as TextAlignEnd, TextAlignJustifyIcon as TextAlignJustify, TextAlignStartIcon as TextAlignStart } from '@kition/tessera-icons/react'
-import { Button, Choice, NumberField, PanelSection, Segmented, useEngineQuery, useKitEditor, useReadOnly } from '@kition/kit-editor'
+import { ArrowLeftRightIcon as ArrowLeftRight, ArrowUpDownIcon as ArrowUpDown, TextAlignCenterIcon as TextAlignCenter, TextAlignEndIcon as TextAlignEnd, TextAlignJustifyIcon as TextAlignJustify, TextAlignStartIcon as TextAlignStart } from '@kition/tessera/icons/react'
+import { Button, Choice, NumberField, PanelSection, Segmented, useEngineQuery, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import { findItem, type DocumentInfo, type Item } from '../layout'
 
 type Measured = { x: number; y: number; width: number; height: number; rotation: number }

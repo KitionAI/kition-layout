@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { PlusIcon as Plus, TrashIcon as Trash } from '@kition/tessera-icons/react'
-import { Button, Dialog, IconButton, NumberField, PanelFooter, PanelSection, Segmented, useKitEditor, useReadOnly } from '@kition/kit-editor'
-import { SquareIcon as Square, SquareDashedIcon as SquareDashed } from '@kition/tessera-icons/react'
+import { PlusIcon as Plus, TrashIcon as Trash } from '@kition/tessera/icons/react'
+import { Button, Dialog, IconButton, NumberField, PanelFooter, PanelSection, Segmented, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { SquareIcon as Square, SquareDashedIcon as SquareDashed } from '@kition/tessera/icons/react'
 import type { DocumentInfo, SwatchInfo } from '../layout'
 
 type Target = 'fill' | 'stroke'

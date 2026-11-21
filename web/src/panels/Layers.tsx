@@ -1,6 +1,6 @@
 import { useMemo, useState, type MouseEvent } from 'react'
-import { ArrowDownIcon as ArrowDown, ArrowUpIcon as ArrowUp, ChevronDownIcon as ChevronDown, ChevronRightIcon as ChevronRight, CopyIcon as Copy, EyeIcon as Eye, EyeOffIcon as EyeOff, GroupIcon as Group, LockIcon as Lock, LockOpenIcon as LockOpen, PlusIcon as Plus, TrashIcon as Trash, UngroupIcon as Ungroup } from '@kition/tessera-icons/react'
-import { IconButton, PanelFooter, PanelSection, RenameField, useKitEditor, useReadOnly } from '@kition/kit-editor'
+import { ArrowDownIcon as ArrowDown, ArrowUpIcon as ArrowUp, ChevronDownIcon as ChevronDown, ChevronRightIcon as ChevronRight, CopyIcon as Copy, EyeIcon as Eye, EyeOffIcon as EyeOff, GroupIcon as Group, LockIcon as Lock, LockOpenIcon as LockOpen, PlusIcon as Plus, TrashIcon as Trash, UngroupIcon as Ungroup } from '@kition/tessera/icons/react'
+import { IconButton, PanelFooter, PanelSection, RenameField, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import { flatten, type DocumentInfo, type Item, type Layer, type Spread } from '../layout'
 
 /** Every row is this tall, so the list draws only the rows in view (thousands of objects). */

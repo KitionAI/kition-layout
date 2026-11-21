@@ -3,8 +3,8 @@
  * shared mark: its own vocabulary, by command id. Registered once, when the editor loads
  * (`main.tsx`); ribbons and menus built from engine commands draw them.
  */
-import { registerCommandIcons } from '@kition/kit-editor'
-import { BracesIcon, BringToFrontIcon, CodeXmlIcon, CopyIcon, FeatherIcon, FileCodeIcon, FlagIcon, FrameIcon, GemIcon, ImageIcon, LinkIcon, ListOrderedIcon, PackageIcon, ParallelogramIcon, ScalingIcon, SendToBackIcon, SlidersHorizontalIcon, SquareFunctionIcon, SquareSquareIcon, SquareTerminalIcon, SquaresUniteIcon, SunIcon, SunDimIcon, TagIcon, UnlinkIcon, WavesHorizontalIcon } from '@kition/tessera-icons/react'
+import { registerCommandIcons } from '@kition/sdk/editor'
+import { BracesIcon, BringToFrontIcon, CodeXmlIcon, CopyIcon, FeatherIcon, FileCodeIcon, FlagIcon, FrameIcon, GemIcon, ImageIcon, LinkIcon, ListOrderedIcon, PackageIcon, ParallelogramIcon, ScalingIcon, SendToBackIcon, SlidersHorizontalIcon, SquareFunctionIcon, SquareSquareIcon, SquareTerminalIcon, SquaresUniteIcon, SunIcon, SunDimIcon, TagIcon, UnlinkIcon, WavesHorizontalIcon } from '@kition/tessera/icons/react'
 
 registerCommandIcons({
   "anchored.release": UnlinkIcon,

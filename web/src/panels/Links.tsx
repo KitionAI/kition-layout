@@ -1,5 +1,5 @@
-import { ImagePlusIcon as ImagePlus, Link2Icon as Link2, RefreshCwIcon as RefreshCw } from '@kition/tessera-icons/react'
-import { IconButton, PanelFooter, PanelSection, PICTURE_TYPES, base64, useEngineQuery, useHostPick, useKitEditor, useReadOnly } from '@kition/kit-editor'
+import { ImagePlusIcon as ImagePlus, Link2Icon as Link2, RefreshCwIcon as RefreshCw } from '@kition/tessera/icons/react'
+import { IconButton, PanelFooter, PanelSection, PICTURE_TYPES, base64, useEngineQuery, useHostPick, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import type { DocumentInfo } from '../layout'
 
 type Link = { asset: number; name: string; path: string | null; status: 'ok' | 'modified' | 'missing' | 'embedded'; pixels?: [number, number] | null; uses: Array<{ id: number; page: number | null; ppi: number | null }> }

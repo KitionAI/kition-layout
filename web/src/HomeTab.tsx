@@ -1,5 +1,5 @@
-import { BringToFrontIcon as BringToFront, DownloadIcon as Download, FilePlusCornerIcon as FilePlus2, FrameIcon as Frame, GroupIcon as Group, ImagePlusIcon as ImagePlus, LayoutTemplateIcon as LayoutTemplate, PilcrowIcon as Pilcrow, SendToBackIcon as SendToBack, Settings2Icon as Settings2, TypeIcon as Type, UngroupIcon as Ungroup } from '@kition/tessera-icons/react'
-import { CommandButton, MenuItem, RibbonButton, RibbonGroup, RibbonMenu, RibbonStack, ToolButton, base64, toolIcon, useHostPick, useKitEditor, useKitTools } from '@kition/kit-editor'
+import { BringToFrontIcon as BringToFront, DownloadIcon as Download, FilePlusCornerIcon as FilePlus2, FrameIcon as Frame, GroupIcon as Group, ImagePlusIcon as ImagePlus, LayoutTemplateIcon as LayoutTemplate, PilcrowIcon as Pilcrow, SendToBackIcon as SendToBack, Settings2Icon as Settings2, TypeIcon as Type, UngroupIcon as Ungroup } from '@kition/tessera/icons/react'
+import { CommandButton, MenuItem, RibbonButton, RibbonGroup, RibbonMenu, RibbonStack, ToolButton, base64, toolIcon, useHostPick, useKitEditor, useKitTools } from '@kition/sdk/editor'
 import type { DocumentInfo } from './layout'
 import { PLACE_TYPES } from './panels/Links'
 

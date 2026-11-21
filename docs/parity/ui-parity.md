@@ -9,7 +9,7 @@ InDesign's behaviour comes from `plan/indesign/02-ui-ux.md`, `05-tools.md`, `06-
 
 ## The editor
 
-The kit's own editor is `web/`, a React app on kition-sdk's `@kition/kit-editor` that a host shows
+The kit's own editor is `web/`, a React app on kition-sdk's `@kition/sdk/editor` that a host shows
 in an iframe. It has:
 
 - menu tabs (File, Edit, Layout, Type, Object, Table, View, Window, Help) built from the engine's

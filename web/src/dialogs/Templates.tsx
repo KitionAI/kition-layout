@@ -1,4 +1,4 @@
-import { Button, Dialog, useEngineQuery, useKitEditor } from '@kition/kit-editor'
+import { Button, Dialog, useEngineQuery, useKitEditor } from '@kition/sdk/editor'
 
 type Template = { id: string; name: string; width: number; height: number }
 

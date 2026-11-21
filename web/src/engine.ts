@@ -1,4 +1,4 @@
-import type { KitModuleManifest } from '@kition/kit-editor'
+import type { KitModuleManifest } from '@kition/sdk/editor'
 import { canvasColor } from './backdrop'
 
 /** The package's fonts: a CJK fallback and the four OFL families of Kition's designs. */
