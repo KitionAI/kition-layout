@@ -3,6 +3,10 @@
 Changes to Kition Layout, newest first. A version is the kit package version in `kit.json`;
 each package is published with a `package-v<version>` tag.
 
+## 0.1.4
+
+- The same kit as 0.1.3, built on kition-sdk 6672663 (the replica's undo passes over an undo group whose changes came to nothing): the 0.1.3 package was built on kition-sdk 6b4d471.
+
 ## 0.1.3
 
 - A host tells a layout file's document id (`document.identity`) and makes a copied layout a new document (`document.fork`): the fork keeps the pages, frames, stories, styles and their ids, and carries a new id and none of the source's history (Kit Process Protocol section 5.6, kition-sdk 44d500b). Two copies of the same `.klayout` were one document until now.
