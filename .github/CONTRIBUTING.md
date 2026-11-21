@@ -39,7 +39,7 @@ this repository (or the one `KITION_FONTS_DIR` names).
 Before you open a pull request, run the check; it must exit 0:
 
 ```sh
-cargo xtask ci
+cargo fmt --all -- --check
 ```
 
 ## Rules
