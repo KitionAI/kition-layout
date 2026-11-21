@@ -7,6 +7,7 @@ each package is published with a `package-v<version>` tag.
 
 - A host tells a layout file's document id (`document.identity`) and makes a copied layout a new document (`document.fork`): the fork keeps the pages, frames, stories, styles and their ids, and carries a new id and none of the source's history (Kit Process Protocol section 5.6, kition-sdk 44d500b). Two copies of the same `.klayout` were one document until now.
 - The headless program speaks Kit Process Protocol version 1 (`headless.protocol` is `kition-kit/1`), as hosts on kition-sdk from bb1b07b require.
+- On kition-sdk 6672663: undo and redo pass over a step whose changes came to nothing, so one undo always takes back a visible edit.
 
 ## 0.1.2
 
