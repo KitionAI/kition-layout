@@ -4,7 +4,7 @@ feature: layout.agent.render
 intent: >-
   file.render (kit.json agent.render, Kition platform rule K21) answers a top-level base64 png:
   without a target the whole canvas, pixel for pixel what the engine draws and within the
-  conformance goldens' tolerance at scale 1 and 2; with target a page (from 1), a spread (from 0)
+  conformance expected previews' tolerance at scale 1 and 2; with target a page (from 1), a spread (from 0)
   or a diagnostic's object (item:<id>) alone; maxSize bounds the longer side; what it cannot draw
   (scale above 2, maxSize above 4096, an unknown page, spread or object) is an error, and
   rendering never changes the document.

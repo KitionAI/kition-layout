@@ -2,7 +2,7 @@
 //! KHP A24, A39): `layout_inspect` with `preview: true` draws through it. It takes `scale`,
 //! `maxSize` and `target` (a page, a spread, or an object, in the shape of a diagnostic's target)
 //! and answers a top-level base64 `png`; without a target it draws the whole canvas exactly as the
-//! conformance goldens show it. It never changes the document.
+//! conformance expected previews show it. It never changes the document.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]
 
 use std::path::Path;
@@ -44,11 +44,11 @@ fn render(doc: &mut LayoutDocument, params: Value) -> image::RgbaImage {
     picture
 }
 
-fn golden(name: &str) -> image::RgbaImage {
-    image::open(repo().join("conformance/golden").join(name)).unwrap().to_rgba8()
+fn expected(name: &str) -> image::RgbaImage {
+    image::open(repo().join("conformance/expected").join(name)).unwrap().to_rgba8()
 }
 
-/// The goldens' tolerance (`conformance/golden/tolerance.json`).
+/// The expected previews' tolerance (`conformance/expected/tolerance.json`).
 fn assert_like(what: &str, got: &image::RgbaImage, want: &image::RgbaImage) {
     assert_eq!(got.dimensions(), want.dimensions(), "{what}: size");
     let different = got.pixels().zip(want.pixels()).filter(|(a, b)| a.0.iter().zip(b.0).any(|(x, y)| x.abs_diff(y) > 2)).count();
@@ -69,13 +69,13 @@ fn the_manifest_declares_the_render_command() {
 }
 
 #[test]
-fn without_a_target_it_draws_the_canvas_as_the_goldens() {
+fn without_a_target_it_draws_the_canvas_as_the_expected_previews() {
     let mut doc = open("basic.klayout");
     let whole = render(&mut doc, json!({ "scale": 1 }));
     let canvas = doc.render(0.0, 0.0, 1.0, doc.width(), doc.height()).unwrap();
     assert_eq!(whole.as_raw(), &canvas, "the canvas, exactly");
-    assert_like("scale 1", &whole, &golden("basic.png"));
-    assert_like("scale 2", &render(&mut doc, json!({ "scale": 2 })), &golden("basic-scale-2.png"));
+    assert_like("scale 1", &whole, &expected("basic.png"));
+    assert_like("scale 2", &render(&mut doc, json!({ "scale": 2 })), &expected("basic-scale-2.png"));
     assert!(!doc.dirty());
 }
 

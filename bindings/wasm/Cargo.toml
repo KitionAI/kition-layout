@@ -24,7 +24,7 @@ kition-layout-compose = { workspace = true }
 kition-layout-fonts = { workspace = true }
 kition-layout-idml = { workspace = true }
 kition-layout-kdm = { workspace = true }
-# The PNG `file.render` answers (src/render.rs), and the conformance goldens (src/conformance.rs).
+# The PNG `file.render` answers (src/render.rs), and the conformance expected previews (src/conformance.rs).
 image = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

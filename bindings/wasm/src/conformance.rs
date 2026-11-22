@@ -1,7 +1,7 @@
 //! The KHP conformance fixtures (`conformance/`) and the check catalogue (`agent/checks.json`,
 //! from [`crate::check::CATALOGUE`]): `basic.klayout` (no diagnostics), `edit.json` (steps that
 //! change it), one `check-<code>.klayout` per catalogue code, `overflow.klayout` (a layout kit's
-//! overflowing text, KHP A40), and `golden/` previews of `basic`. Each fixture starts from a new
+//! overflowing text, KHP A40), and the `expected/` previews of `basic`. Each fixture starts from a new
 //! letter-size print document made with the engine's own commands; what a document can hold but the
 //! commands never make (a graphic whose file is gone, a font that is not installed here, a
 //! typography setting the composer does not apply) is made by editing the document, as a document
@@ -138,18 +138,18 @@ fn every_fixture_reports_its_code_and_basic_is_clean() {
     let basic = basic();
     assert_eq!(codes(&basic), Vec::<String>::new(), "basic.klayout is clean");
     if write {
-        std::fs::create_dir_all(out.join("golden")).expect("conformance/golden");
+        std::fs::create_dir_all(out.join("expected")).expect("conformance/expected");
         std::fs::create_dir_all(repo().join("agent")).expect("agent");
         std::fs::write(out.join("basic.klayout"), basic.save(None).expect("save")).expect("basic");
         std::fs::write(out.join("edit.json"), format!("{:#}\n", edit())).expect("edit.json");
-        std::fs::write(out.join("golden/basic.png"), png(&basic, 1.0)).expect("golden");
-        std::fs::write(out.join("golden/basic-scale-2.png"), png(&basic, 2.0)).expect("golden scale 2");
+        std::fs::write(out.join("expected/basic.png"), png(&basic, 1.0)).expect("expected preview");
+        std::fs::write(out.join("expected/basic-scale-2.png"), png(&basic, 2.0)).expect("expected preview at scale 2");
         let tolerance = json!({
             "maxChannelDelta": 2,
             "maxDifferentPixels": 1500,
             "note": "The engine's own renderer draws the preview (the spread on its pasteboard); glyph edges may differ by a step between platforms."
         });
-        std::fs::write(out.join("golden/tolerance.json"), format!("{tolerance:#}\n")).expect("tolerance");
+        std::fs::write(out.join("expected/tolerance.json"), format!("{tolerance:#}\n")).expect("tolerance");
         std::fs::write(repo().join("agent/checks.json"), format!("{:#}\n", catalogue_json())).expect("checks.json");
     }
     let mut failures = Vec::new();

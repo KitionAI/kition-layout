@@ -9,7 +9,7 @@
 //! - `slide`: a page counted from 0, as the host names a part by number, when there is no `target`.
 //!
 //! Without a target it draws the whole canvas, the spreads on their pasteboard, exactly as
-//! [`KitDocument::render`] does (the conformance goldens). It answers `{ png, width, height }`:
+//! [`KitDocument::render`] does (the conformance expected previews). It answers `{ png, width, height }`:
 //! `png` is the base64 PNG, at the top of the result.
 
 use kition_kit::{KitCommand, KitDocument, MAX_RENDER_SIDE};
@@ -128,7 +128,7 @@ pub fn run(doc: &LayoutDocument, params: &Value) -> Result<Value, String> {
     let rect = part.unwrap_or_else(|| Rect::new(0.0, 0.0, f64::from(doc.width()), f64::from(doc.height())));
     let (w, h) = (rect.width().max(1.0), rect.height().max(1.0));
     let scale = scale.min(max_size / w.max(h));
-    // The whole canvas is sized as the goldens are (truncated); a part covers all of its area.
+    // The whole canvas is sized as the expected previews are (truncated); a part covers all of its area.
     let side = |units: f64| -> u32 {
         let px = if whole { (units * scale).floor() } else { (units * scale).ceil() };
         px.clamp(1.0, max_size) as u32
