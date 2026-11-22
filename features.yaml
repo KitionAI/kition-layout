@@ -490,3 +490,12 @@ features:
     gap: "Export, print and previews never take the host's canvas color by design. The page shadow barely shows on a dark pasteboard; the rulers and the pages panel are not checked in the dark scheme yet."
     cases: [regressions/issue-dark-backdrop]
     since: "2026-11-19"
+  - id: layout.editor.canvas-scroll
+    title: "Scrolling the canvas stops at the edge of the pasteboard the engine draws around the spreads; a view larger than the canvas keeps it centred"
+    dimension: [function]
+    priority: P1
+    status: has
+    paths: [web/src/App.tsx, web/src/layout.ts, web/tests/scroll.mjs]
+    gap: "The pasteboard is the engine's fixed 72 pt margin on every side; there are no scrollbars."
+    cases: [regressions/issue-scroll-past-pasteboard]
+    since: "2026-11-22"

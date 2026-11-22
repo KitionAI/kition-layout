@@ -1,0 +1,26 @@
+format: 1
+id: regressions/issue-scroll-past-pasteboard
+feature: layout.editor.canvas-scroll
+intent: >-
+  The wheel scrolls the canvas only as far as the pasteboard the engine draws around the spreads: on every side
+  the view stops at the canvas's edge, at the opening zoom and zoomed in, and a view larger than the canvas keeps
+  it centred. Before, the editor gave the canvas no scroll limits, so the view moved any distance past the
+  spreads and showed hundreds of points of empty canvas above, below and beside the page (owner report,
+  2026-11-22).
+layer: gate
+source:
+  kind: probe
+  from: web/tests/scroll.mjs
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/scroll.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 120
+since: "2026-11-22"

@@ -44,6 +44,8 @@ export type LayoutInfo = { name: string | null; firstPage: number; pages: number
 
 /** What the editor reads from the engine's `inspect()`. */
 export type DocumentInfo = {
+  /** The canvas in document pixels: the spreads and the engine's margin of pasteboard around them. Scrolling stops at it. */
+  canvas: RasterRect
   spreads: Spread[]
   pageCount: number
   selected: number
@@ -86,6 +88,7 @@ export function describe(info: KitEngineInfo): DocumentInfo {
   const inspected = info.inspected as Inspected
   const placed = inspected.canvas?.spreads ?? []
   return {
+    canvas: { x0: 0, y0: 0, x1: info.width, y1: info.height },
     spreads: (inspected.spreads ?? []).map((spread, index) => {
       const at = placed[index] ?? { x: 0, y: 0, width: info.width, height: info.height }
       const pages: Page[] = (spread.pages ?? []).map((page, pageIndex) => ({

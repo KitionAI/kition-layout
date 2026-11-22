@@ -52,6 +52,10 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   const [view, setView] = useState<KitCanvasView | null>(null)
   const [dialog, setDialog] = useState<'setup' | 'export' | 'templates' | null>(null)
   const zoom = view?.zoom ?? 1
+  // Scrolling stops at the pasteboard's edge: past it the engine has nothing to draw.
+  const width = state?.canvas.x1 ?? 0
+  const height = state?.canvas.y1 ?? 0
+  const panBounds = useMemo(() => (width > 0 && height > 0 ? { x0: 0, y0: 0, x1: width, y1: height } : null), [width, height])
   // The spread and page in the middle of the view: the rulers count from it, Layers lists its objects.
   const origin = state && view ? rulerOrigin(state, view) : null
   const spread = origin?.spread ?? state?.spreads[0] ?? null
@@ -115,7 +119,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
               {state ? <Ruler axis="y" info={state} view={view} onGuide={addGuide} /> : <span />}
             </>
           )}>
-            <KitDocumentCanvas canvas={canvas} viewMemory={viewMemory} initialArea={state?.spreads[0]?.area ?? null} framed={false} onView={setView} />
+            <KitDocumentCanvas canvas={canvas} viewMemory={viewMemory} initialArea={state?.spreads[0]?.area ?? null} panBounds={panBounds} framed={false} onView={setView} />
           </CanvasFrame>
         </div>
         {state && dialog === 'setup' ? <DocumentSetupDialog info={state} onClose={() => setDialog(null)} /> : null}
