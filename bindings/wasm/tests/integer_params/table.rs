@@ -2,10 +2,14 @@
 /// look like positions say what they count.
 const TABLE: &[(&str, &str, Class)] = &[
     ("anchored.insert", "ids", Id),
+    ("anchored.insert", "objectPoint", Quantity), // one of the nine reference points, 0 to 8
     ("anchored.insert", "pos", Place),
+    ("anchored.insert", "refPoint", Quantity), // one of the nine reference points, 0 to 8
     ("anchored.insert", "story", Id),
     ("anchored.list", "story", Id),
     ("anchored.options", "index", Place),
+    ("anchored.options", "objectPoint", Quantity), // one of the nine reference points, 0 to 8
+    ("anchored.options", "refPoint", Quantity), // one of the nine reference points, 0 to 8
     ("anchored.options", "story", Id),
     ("anchored.release", "index", Place),
     ("anchored.release", "story", Id),
