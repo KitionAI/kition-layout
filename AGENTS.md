@@ -80,7 +80,7 @@ People trust Kition Layout with their layouts; a crash loses their work. **This 
 - **Layering** is enforced by `cargo xtask layers`.
 - **The UI is thin**: panels read engine state and act through `app.run(id, params)`. Colours come from `theme::Tokens`.
 - **Rust only** (no handwritten JS/TS). **Never break wasm** (`cargo xtask wasm`).
-- **Quality gates** before every commit: `cargo xtask ci` (fmt, clippy -D warnings, tests, assets, layers, wasm). One task id per commit (`M2.1: type tool caret navigation`).
+- **Checks run in the kit's CI run** on GitHub, not on this machine. Locally, run only the fast checks: `cargo fmt --all -- --check`, `cargo check -p <touched crates> --all-targets`, the wasm `cargo check` (`cargo check --target wasm32-unknown-unknown -p <touched crate>`) and `pnpm typecheck` in `web/`. The full checks (clippy, `cargo test --workspace`, `cargo xtask ci` — fmt, clippy -D warnings, tests, assets, layers, wasm — and every `test:*` script of `web/`) run in the CI run that `.github/workflows/ci.yml` starts through Kition's reusable kit CI; add no other workflow, and never start the Package workflow (releasing is the owner's step). A task is done when the CI run of HEAD is green and HEAD is on `origin/main` (Kition's `scripts/kit-ci.sh push`, `wait`, `land`). One task id per commit (`M2.1: type tool caret navigation`).
 
 ## Running and looking at the kit
 - `cargo build --release -p kition-layout` builds the headless kit executable Kition's agent runs.
