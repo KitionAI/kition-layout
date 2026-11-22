@@ -9,4 +9,4 @@
 # kition-quality:end
 
 # Expected results outside cases/ (docs/quality.md, "Expected results in this repository").
-/crates/render/render/tests/golden/ @KitionAI/owners
+/crates/render/render/tests/expected/ @KitionAI/owners

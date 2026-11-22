@@ -1,7 +1,7 @@
-//! Golden images for the soft object effects (drop shadow, outer glow, inner shadow, feather),
+//! Expected images for the soft object effects (drop shadow, outer glow, inner shadow, feather),
 //! plus property checks and a multithreaded == single-threaded check.
 //!
-//! Goldens live in `tests/golden/*.png` and are compared with a tolerance (antialiasing and blur
+//! The expected images live in `tests/expected/*.png` and are compared with a tolerance (antialiasing and blur
 //! rounding may differ by a few levels between SIMD levels). Regenerate them after an intended
 //! change with `KITION_LAYOUT_BLESS=1 cargo test -p kition-layout-render --test effects`.
 
@@ -43,14 +43,14 @@ fn lum(p: [u8; 4]) -> u32 {
 
 const WHITE: u32 = 765;
 
-/// Tolerant comparison with `tests/golden/{name}.png` (written when missing or when blessing).
-fn golden(name: &str, img: &Rendered) {
-    let path = format!("{}/tests/golden/{name}.png", env!("CARGO_MANIFEST_DIR"));
+/// Tolerant comparison with `tests/expected/{name}.png` (written when missing or when blessing).
+fn expected(name: &str, img: &Rendered) {
+    let path = format!("{}/tests/expected/{name}.png", env!("CARGO_MANIFEST_DIR"));
     let bless = std::env::var_os("KITION_LAYOUT_BLESS").is_some();
     let Ok(bytes) = std::fs::read(&path).map_err(|_| ()).and_then(|b| if bless { Err(()) } else { Ok(b) }) else {
-        std::fs::create_dir_all(format!("{}/tests/golden", env!("CARGO_MANIFEST_DIR"))).unwrap();
+        std::fs::create_dir_all(format!("{}/tests/expected", env!("CARGO_MANIFEST_DIR"))).unwrap();
         std::fs::write(&path, img.to_png()).unwrap();
-        eprintln!("wrote golden {path}");
+        eprintln!("wrote expected {path}");
         return;
     };
     let want = image::load_from_memory(&bytes).unwrap().to_rgba8();
@@ -68,7 +68,7 @@ fn golden(name: &str, img: &Rendered) {
     let n = (img.width * img.height) as usize;
     let mean = sum as f64 / n as f64;
     if bad * 200 > n || mean > 1.0 {
-        let out = std::env::temp_dir().join(format!("kition-layout-golden-{name}.png"));
+        let out = std::env::temp_dir().join(format!("kition-layout-expected-{name}.png"));
         let _ = std::fs::write(&out, img.to_png());
         panic!("{name}: {bad} pixels differ by > 8 (worst {worst}, mean {mean:.2}); got {}", out.display());
     }
@@ -90,7 +90,7 @@ fn shadow_doc(spread: f64) -> Document {
 #[test]
 fn drop_shadow_is_soft_offset_and_under_the_object() {
     let img = render(&shadow_doc(0.0));
-    golden("drop-shadow", &img);
+    expected("drop-shadow", &img);
     // The object is unchanged on top.
     let c = img.pixel(60, 60);
     assert!(c[0] < 60 && c[2] > 200, "object on top: {c:?}");
@@ -108,7 +108,7 @@ fn drop_shadow_is_soft_offset_and_under_the_object() {
 fn drop_shadow_spread_hardens_and_grows() {
     let soft = render(&shadow_doc(0.0));
     let hard = render(&shadow_doc(100.0));
-    golden("drop-shadow-spread", &hard);
+    expected("drop-shadow-spread", &hard);
     // Full spread: no blur, the silhouette grows by `size` → solid well past the offset edge.
     let x = 100 + 8 + 6;
     assert!(lum(hard.pixel(x, 80)) < lum(soft.pixel(x, 80)), "spread grows the shadow");
@@ -126,7 +126,7 @@ fn drop_shadow_of_text_follows_the_glyphs() {
     ds.distance = 4.0;
     ds.size = 3.0;
     let img = render(&d);
-    golden("drop-shadow-text", &img);
+    expected("drop-shadow-text", &img);
     // No frame-shaped shadow: the bottom-right of the (unfilled) frame is clear.
     assert_eq!(lum(img.pixel(140, 140)), WHITE);
 }
@@ -141,7 +141,7 @@ fn outer_glow_surrounds_the_object() {
     g.color = "C=0 M=100 Y=0 K=0".into();
     g.opacity = 1.0;
     let img = render(&d);
-    golden("outer-glow", &img);
+    expected("outer-glow", &img);
     for (x, y) in [(46, 80), (114, 80), (80, 46), (80, 114)] {
         let p = img.pixel(x, y);
         assert!(p[1] < 200 && p[0] > p[1] + 40, "magenta glow at {x},{y}: {p:?}");
@@ -159,7 +159,7 @@ fn inner_shadow_darkens_inside_the_lit_edge() {
     s.size = 8.0;
     s.opacity = 1.0;
     let img = render(&d);
-    golden("inner-shadow", &img);
+    expected("inner-shadow", &img);
     // Light from the top-left: the shadow sits inside the top-left edges.
     assert!(lum(img.pixel(33, 80)) + 100 < lum(img.pixel(126, 80)), "{:?} vs {:?}", img.pixel(33, 80), img.pixel(126, 80));
     assert!(lum(img.pixel(80, 33)) + 100 < lum(img.pixel(80, 126)));
@@ -173,7 +173,7 @@ fn feather_fades_the_edge_inward() {
     let id = rect_item(&mut d, Rect::new(30.0, 30.0, 130.0, 130.0), "[Black]");
     d.item_mut(id).unwrap().effects.feather = 16.0;
     let img = render(&d);
-    golden("feather", &img);
+    expected("feather", &img);
     d.item_mut(id).unwrap().effects.feather = 0.0;
     let solid = lum(render(&d).pixel(80, 80));
     let edge = lum(img.pixel(30, 80));

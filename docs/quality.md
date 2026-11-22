@@ -280,7 +280,7 @@ anything it lists goes to the maintainers and is never merged automatically.
 ## Expected results in this repository
 
 Besides `cases/**/expected/`, these are expected results: only a maintainer approves a change
-to them, and kition-sdk's `tools/check-expected.mjs` lists every change (its `**/golden/**`
+to them, and kition-sdk's `tools/check-expected.mjs` lists every change (its `**/expected/**`
 glob covers them).
 
-- `crates/render/render/tests/golden/`: the renderer's reference images.
+- `crates/render/render/tests/expected/`: the renderer's expected images.
