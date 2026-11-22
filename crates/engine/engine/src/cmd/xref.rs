@@ -13,7 +13,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Insert Cross-Reference…",
             ["Type", "Hyperlinks & Cross-References"],
             None,
-            "{anchor? | paragraph?: text to find (first paragraph containing it) | story? + para? (0-based), format?: name (default Full Paragraph & Page Number)} — at the insertion point; the text updates itself as the destination moves",
+            "{anchor?: integer, paragraph?: string (text to find: the first paragraph containing it), story?: integer, para?: integer (0-based, with story), format?: name (default Full Paragraph & Page Number)} — at the insertion point, to `anchor`, `paragraph` or `story` + `para`; the text updates itself as the destination moves",
             in_story_text,
             insert
         ),

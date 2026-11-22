@@ -64,6 +64,39 @@ fn every_command_is_described_and_every_read_command_declares_its_output() {
     }
 }
 
+/// regressions/issue-unreadable-param-notes: every entry of every command's parameter notation is
+/// a key the notation reads. check_commands compares only a schema that is the notation's own, and
+/// this kit adds typed nodes to its schemas (describe.rs, params.rs), so it does not see an entry
+/// such as `xRelative?/yRelative?: …` that converts to no key: the schema then has no such
+/// parameter and a call passing one is refused as unknown.
+#[test]
+fn every_parameter_notation_entry_is_a_key_the_notation_reads() {
+    let mut problems = Vec::new();
+    for command in basic().commands() {
+        let Some(notation) = command.params.as_deref() else { continue };
+        match kition_kit::schema::from_kit_params(notation) {
+            Ok(converted) if converted.unreadable.is_empty() => {}
+            Ok(converted) => problems.push(format!("{}: {:?}", command.id, converted.unreadable)),
+            Err(error) => problems.push(format!("{}: {error}", command.id)),
+        }
+    }
+    assert!(problems.is_empty(), "{} commands:\n{}", problems.len(), problems.join("\n"));
+}
+
+/// regressions/issue-unreadable-param-notes: Insert Anchored Object and Anchored Object Options take
+/// the custom position's reference and points, which the handler reads.
+#[test]
+fn anchored_commands_take_their_custom_position_keys() {
+    let commands = basic().commands();
+    for id in ["anchored.insert", "anchored.options"] {
+        let command = commands.iter().find(|command| command.id == id).unwrap();
+        let schema = command.schema.as_ref().unwrap();
+        for key in ["xRelative", "yRelative", "objectPoint", "refPoint"] {
+            assert!(schema.get(key).is_some(), "{id} has no `{key}`: {schema}");
+        }
+    }
+}
+
 /// `KITION_DUMP_COMMANDS=<file>`: writes the command list and what each read command answers on
 /// `basic.klayout` with no parameters, for writing descriptions and output schemas.
 #[test]

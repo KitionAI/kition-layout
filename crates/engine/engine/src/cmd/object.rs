@@ -613,7 +613,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Move Gap",
             [],
             None,
-            "{at: [x, y] (spread), delta | dx/dy, spread?} — Gap tool: the gap at `at` between objects (or an object and the page edge) moves by `delta`; the objects on both sides resize → {axis, changed}",
+            "{at: [x, y] (spread), delta?: number, dx?: number, dy?: number, spread?} — Gap tool: the gap at `at` between objects (or an object and the page edge) moves by `delta`, or without it by the part of a drag (`dx`, `dy`) along the gap's axis; the objects on both sides resize → {axis, changed}",
             has_doc,
             gap_move
         ),

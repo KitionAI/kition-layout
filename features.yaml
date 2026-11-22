@@ -89,7 +89,7 @@ features:
     priority: P0
     status: has
     requirements: [AX13]
-    cases: [layout.agent.act/retitle, regressions/issue-deterministic-save, regressions/issue-c8-object-params, regressions/issue-c8-context, regressions/issue-c8-places, regressions/issue-c8-saved, regressions/issue-c8-env-schema, regressions/issue-c8-layout-review-content, regressions/issue-c8-layout-review-saved]
+    cases: [layout.agent.act/retitle, regressions/issue-deterministic-save, regressions/issue-c8-object-params, regressions/issue-c8-context, regressions/issue-c8-places, regressions/issue-c8-saved, regressions/issue-c8-env-schema, regressions/issue-c8-layout-review-content, regressions/issue-c8-layout-review-saved, regressions/issue-unreadable-param-notes]
     since: "2026-11-17"
   - id: layout.agent.recover
     title: An agent fixes what the check reports

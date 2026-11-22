@@ -126,7 +126,7 @@ fn table_specs() -> Vec<CommandSpec> {
             "Convert Cell to Graphic Cell",
             ["Table", "Convert Cell Type"],
             None,
-            "{path | base64+name, fit?: proportional|fill (default proportional)} — an image in the target cell (its text is kept but hidden)",
+            "{path | base64: string, name?, fit?: proportional|fill (default proportional)} — an image in the target cell (its text is kept but hidden)",
             in_table,
             place_graphic
         ),

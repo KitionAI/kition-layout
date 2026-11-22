@@ -1,0 +1,26 @@
+format: 1
+id: regressions/issue-unreadable-param-notes
+feature: layout.agent.act
+intent: >-
+  Every entry of a command's parameter notation is a key the notation reads, so the schema offered
+  to agents names every key the handler reads. Insert Anchored Object and Anchored Object Options
+  wrote `xRelative?/yRelative?` and `objectPoint?/refPoint?`, which convert to no key: their schemas
+  had no xRelative, yRelative, objectPoint or refPoint, and a call passing one was refused as
+  unknown. gap.move (`delta | dx/dy`), table.placeGraphic (`path | base64+name`) and xref.insert
+  (`story? + para?`) had the same entries, covered until now by keys added beside the notation.
+  kition_kit::testing::check_commands (kition-sdk e1c9598) does not see them because this kit adds
+  typed nodes to its schemas.
+layer: gate
+dimension: data-safety
+source:
+  kind: synthetic
+  from: kition-sdk e1c9598 (unreadable parameter notation entries)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, test: commands }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-22"

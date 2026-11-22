@@ -60,7 +60,6 @@ const EXTRA: &[(&str, &[(&str, Kind)])] = &[
     ("form.set", &[("autoflow", Kind::Boolean), ("keepLoaded", Kind::Boolean)]),
     ("frame.create", &[("starInset", Kind::Number)]),
     ("frame.thread", &[("position", Kind::String), ("at", Kind::Integer), ("spreadGuide", Kind::Boolean), ("orientation", Kind::String)]),
-    ("gap.move", &[("delta", Kind::Number), ("dx", Kind::Number), ("dy", Kind::Number)]),
     ("guide.list", &[("orientation", Kind::String)]),
     ("index.update", &[("asset", Kind::Integer)]),
     ("ink.options", &[("story", Kind::Integer)]),
@@ -129,18 +128,7 @@ const EXTRA: &[(&str, &[(&str, Kind)])] = &[
     ("table.merge", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
     ("table.moveColumn", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
     ("table.moveRow", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
-    (
-        "table.placeGraphic",
-        &[
-            ("rows", Kind::Integer),
-            ("cols", Kind::Integer),
-            ("table", Kind::Integer),
-            ("story", Kind::Integer),
-            ("path", Kind::String),
-            ("base64", Kind::String),
-            ("name", Kind::String),
-        ],
-    ),
+    ("table.placeGraphic", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
     ("table.setColumnWidth", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
     ("table.setRowHeight", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
     ("table.sortRows", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
@@ -164,7 +152,6 @@ const EXTRA: &[(&str, &[(&str, Kind)])] = &[
     ("type.warichu", &[("edge", Kind::String), ("to", Kind::String), ("text", Kind::String), ("raw", Kind::Boolean)]),
     ("xml.tag", &[("what", Kind::String)]),
     ("xml.tagText", &[("what", Kind::String)]),
-    ("xref.insert", &[("paragraph", Kind::String), ("anchor", Kind::Integer), ("story", Kind::Integer), ("para", Kind::Integer)]),
 ];
 
 /// Adds to `schema` (a command's `ParameterSchemaSpec`) the keys `id` reads that its notation
