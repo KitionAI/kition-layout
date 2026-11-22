@@ -25,6 +25,7 @@ import { CATALOGS } from './strings'
 import { LAYOUT_PRIMARY, HIDDEN_TOOLS, MENU_ORDER, describe } from './layout'
 import { HomeTab } from './HomeTab'
 import { SidePanel } from './SidePanel'
+import { CanvasScrollbars, createViewStore } from './CanvasScrollbars'
 import { RULER, Ruler, rulerOrigin } from './Rulers'
 import { DocumentSetupDialog } from './dialogs/DocumentSetup'
 import { ExportDialog } from './dialogs/Export'
@@ -50,6 +51,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   useEngineBackdrop(doc, canvas)
   const viewMemory = useRef<RasterView | null>(null)
   const [view, setView] = useState<KitCanvasView | null>(null)
+  const views = useMemo(createViewStore, [])
   const [dialog, setDialog] = useState<'setup' | 'export' | 'templates' | null>(null)
   const zoom = view?.zoom ?? 1
   // Scrolling stops at the pasteboard's edge: past it the engine has nothing to draw.
@@ -119,7 +121,13 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
               {state ? <Ruler axis="y" info={state} view={view} onGuide={addGuide} /> : <span />}
             </>
           )}>
-            <KitDocumentCanvas canvas={canvas} viewMemory={viewMemory} initialArea={state?.spreads[0]?.area ?? null} panBounds={panBounds} framed={false} onView={setView} />
+            <KitDocumentCanvas canvas={canvas} viewMemory={viewMemory} initialArea={state?.spreads[0]?.area ?? null} panBounds={panBounds} framed={false} onView={(next) => {
+              setView(next)
+              views.set(next)
+            }}>
+              {/* The scrollbars: there only while the pasteboard is longer than the view. */}
+              <CanvasScrollbars views={views} content={() => panBounds} canvas={canvas} />
+            </KitDocumentCanvas>
           </CanvasFrame>
         </div>
         {state && dialog === 'setup' ? <DocumentSetupDialog info={state} onClose={() => setDialog(null)} /> : null}

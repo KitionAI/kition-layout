@@ -1,7 +1,8 @@
 // Scrolling stops at the pasteboard's edge: node tests/scroll.mjs [chromium|webkit].
 // The engine draws the spreads and a margin of pasteboard around them (the canvas, in document
 // pixels from its top-left). The wheel must not move the view past that canvas on any side, at
-// the opening zoom or zoomed in; a view larger than the canvas keeps it centred.
+// the opening zoom or zoomed in; a view larger than the canvas keeps it centred. A scrollbar is
+// over the canvas's right or bottom edge only while the canvas is longer than the view there.
 import './platform.mjs'
 import assert from 'node:assert/strict'
 import { chromium, webkit } from 'playwright'
@@ -68,7 +69,29 @@ try {
     }
   }
 
+  // The content the scrollbars measure: the whole canvas, from its top-left.
+  const content = { start: () => 0, width: () => canvas.width, height: () => canvas.height }
+  /**
+   * The scrollbars: one along an axis only while the content (the canvas: the spreads and their pasteboard) is longer than
+   * the view there, at the view's position in it.
+   */
+  const bars = async (when) => {
+    const view = await settled()
+    for (const [axis, orientation, shown, length] of [['x', 'horizontal', box.width, content.width(view.zoom)], ['y', 'vertical', box.height, content.height(view.zoom)]]) {
+      const bar = kit.getByTestId('layout-scrollbars').locator(`[role="scrollbar"][aria-orientation="${orientation}"]`)
+      const over = (length - shown / view.zoom) * view.zoom
+      // Within two screen pixels of fitting, either is right.
+      if (Math.abs(over) <= 2) continue
+      assert.equal(await bar.count(), over > 0 ? 1 : 0, `${when}: the ${orientation} scrollbar is there only while the content is longer than the view (content ${length}, view ${shown / view.zoom}, zoom ${view.zoom})`)
+      if (over > 0) {
+        const at = Number(await bar.getAttribute('aria-valuenow'))
+        assert(Math.abs(at - (view[axis] - content.start(view.zoom))) * view.zoom <= 2, `${when}: the ${orientation} scrollbar is at the view's position (${at}, view ${axis} ${view[axis]})`)
+      }
+    }
+  }
+
   await check('at the opening zoom')
+  await bars('at the opening zoom')
 
   // Zoomed in until the canvas is well larger than the view on both axes: now there is room to scroll.
   await page.mouse.move(middle.x, middle.y)
@@ -83,6 +106,20 @@ try {
   const zoomed = await settled()
   assert(canvas.width * zoomed.zoom > box.width * 1.5 && canvas.height * zoomed.zoom > box.height * 1.5, `zoomed in: ${JSON.stringify(zoomed)}`)
   await check('zoomed in')
+
+  // Zoomed in, both are there, and each moves the view: End goes to the content's far edge, Home to its near one.
+  await bars('zoomed in')
+  for (const [axis, orientation, shown, length] of [['x', 'horizontal', box.width, content.width], ['y', 'vertical', box.height, content.height]]) {
+    const bar = kit.getByTestId('layout-scrollbars').locator(`[role="scrollbar"][aria-orientation="${orientation}"]`)
+    assert.equal(await bar.count(), 1, `zoomed in: the ${orientation} scrollbar is there`)
+    await bar.focus()
+    await page.keyboard.press('End')
+    let view = await settled()
+    assert(Math.abs(view[axis] - (content.start(view.zoom) + length(view.zoom) - shown / view.zoom)) * view.zoom <= 2, `End on the ${orientation} scrollbar shows the content's far edge (${axis} ${view[axis]})`)
+    await page.keyboard.press('Home')
+    view = await settled()
+    assert(Math.abs(view[axis] - content.start(view.zoom)) * view.zoom <= 2, `Home on the ${orientation} scrollbar shows the content's near edge (${axis} ${view[axis]})`)
+  }
 
   assert.equal(await kit.getByTestId('layout-unsaved').count(), 0, 'scrolling is not an edit')
   assert.deepEqual(errors, [], 'no page errors')

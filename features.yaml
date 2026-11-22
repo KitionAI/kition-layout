@@ -491,11 +491,11 @@ features:
     cases: [regressions/issue-dark-backdrop]
     since: "2026-11-19"
   - id: layout.editor.canvas-scroll
-    title: "Scrolling the canvas stops at the edge of the pasteboard the engine draws around the spreads; a view larger than the canvas keeps it centred"
+    title: "Scrolling the canvas stops at the edge of the pasteboard the engine draws around the spreads; a view larger than the canvas keeps it centred; a scrollbar is over the canvas's right or bottom edge only while the canvas is longer than the view there"
     dimension: [function]
     priority: P1
     status: has
-    paths: [web/src/App.tsx, web/src/layout.ts, web/tests/scroll.mjs]
-    gap: "The pasteboard is the engine's fixed 72 pt margin on every side; there are no scrollbars."
+    paths: [web/src/App.tsx, web/src/layout.ts, web/src/CanvasScrollbars.tsx, web/tests/scroll.mjs]
+    gap: "The pasteboard is the engine's fixed 72 pt margin on every side."
     cases: [regressions/issue-scroll-past-pasteboard]
     since: "2026-11-22"
