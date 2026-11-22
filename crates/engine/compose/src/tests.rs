@@ -450,7 +450,7 @@ fn optical_margin_hangs_punctuation() {
     assert!(lines.iter().all(|l| l.end_x <= l.x1 + 12.0));
 }
 
-// ---------- golden paragraph corpus ----------
+// ---------- paragraph corpus ----------
 
 /// Original prose (written for this corpus) with a realistic mix of short and long words.
 const CORPUS: &[&str] = &[
@@ -503,7 +503,7 @@ fn corpus_stats(align: Align, measure: f64, size: f64) -> CorpusStats {
 }
 
 #[test]
-fn golden_corpus_spacing() {
+fn paragraph_corpus_spacing() {
     let mut total = CorpusStats::default();
     for &(measure, size) in &[(120.0, 9.0), (170.67, 9.75), (240.0, 10.0), (340.0, 11.0)] {
         for align in [Align::LeftJustified, Align::Left] {
