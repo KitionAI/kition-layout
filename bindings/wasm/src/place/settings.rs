@@ -27,6 +27,11 @@ impl LayoutDocument {
         if let Some(field) = named
             && let Some(name) = params.get("name").and_then(Value::as_str)
         {
+            // A definition kept as an object (`conditions`, `textVariables`, `xrefFormats`) is
+            // also held as that object, whole: its content is what the handler reads.
+            if let Some(object) = self.named_object(field, name)? {
+                under.premises.push(Premise::on(object));
+            }
             let name = serde_json::to_string(name).map_err(crate::engine_error)?;
             under.premises.push(Premise::on("layout").fields([format!("{field}[name={name}]")]).positions(Vec::<String>::new()));
         }
@@ -35,6 +40,9 @@ impl LayoutDocument {
             let format =
                 params.get("format").and_then(Value::as_str).or_else(|| (command == "xref.insert").then_some("Full Paragraph & Page Number"));
             if let Some(format) = format {
+                if let Some(object) = self.named_object("xrefFormats", format)? {
+                    under.premises.push(Premise::on(object).fields(["name"]).positions(Vec::<String>::new()));
+                }
                 let format = serde_json::to_string(format).map_err(crate::engine_error)?;
                 under.premises.push(Premise::on("layout").fields([format!("xrefFormats[name={format}].name")]).positions(Vec::<String>::new()));
             }
@@ -71,5 +79,24 @@ impl LayoutDocument {
             under.premises.push(Premise::on("layout").fields(fields.iter().copied()).positions(Vec::<String>::new()));
         }
         Ok(())
+    }
+}
+
+impl LayoutDocument {
+    /// The tool address of the object named `name` in the root's object list `field`, when
+    /// `field` is one (a `settings.` or `setup.` path is not).
+    fn named_object(&self, field: &str, name: &str) -> Result<Option<String>, String> {
+        if field.contains('.') {
+            return Ok(None);
+        }
+        let Some(kdm) = self.session.kdm() else { return Ok(None) };
+        let replica = kdm.replica();
+        let ids = kition_kit::kdm::tool_ids::ToolIds::of_replica(replica);
+        for object in replica.list(&kition_kit::kdm::ObjectId::from_string("layout"), field).map_err(crate::engine_error)? {
+            if replica.exists(&object) && replica.get(&object, "name").map_err(crate::engine_error)? == name {
+                return Ok(Some(ids.show(&object)));
+            }
+        }
+        Ok(None)
     }
 }

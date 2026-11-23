@@ -178,7 +178,11 @@ pub fn linked() -> Document {
 
 /// The story of `linked()`'s hyperlink sources and placeholders.
 pub fn linked_story(d: &Document) -> StoryId {
-    d.stories.values().find(|s| s.text.starts_with("Visit us")).map(|s| s.id).unwrap()
+    d.stories
+        .values()
+        .find(|s| s.text.contains("<<Name>>"))
+        .map(|s| s.id)
+        .unwrap_or_else(|| panic!("no linked story: {:?}", d.stories.values().map(|s| &s.text).collect::<Vec<_>>()))
 }
 
 /// Table ids are a story's own numbers; any number works for a fixture.

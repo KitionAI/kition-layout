@@ -496,12 +496,9 @@ fn concurrent_named_definitions_keep_both_and_instances_their_variable() {
     }
     sync(&mut a, &mut b);
     let d = a.doc();
-    let names = |list: Vec<&str>| {
-        let mut list = list;
-        list.sort_unstable();
-        list
-    };
-    assert_eq!(names(d.conditions.iter().map(|c| c.name.as_str()).collect()), vec!["Draft", "Final", "Review"]);
+    let mut conditions: Vec<&str> = d.conditions.iter().map(|c| c.name.as_str()).collect();
+    conditions.sort_unstable();
+    assert_eq!(conditions, vec!["Draft", "Final", "Review"]);
     assert!(d.xref_formats.iter().any(|f| f.name == "Title") && d.xref_formats.iter().any(|f| f.name == "Page"));
     let story = &d.stories[&linked_story(&d)];
     let shown: Vec<&str> = story.text.chars().filter_map(var_index).map(|i| d.text_variables[i].name.as_str()).collect();
