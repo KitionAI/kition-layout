@@ -1,7 +1,8 @@
 //! Kition Layout's files.
 //!
-//! - [`container`]: the `.klayout` file, a ZIP holding the document's KDM replica (a snapshot, a
-//!   change log and the blobs), as bytes; `kition-layout-kdm` opens what it holds.
+//! - [`container`]: the `.klayout` file, a ZIP holding the document's content (a KDM content
+//!   snapshot: the state, no history) and its blobs, as bytes; `kition-layout-kdm` opens what it
+//!   holds.
 //! - [`save`] and [`load`]: the engine's own snapshot of one [`Document`], for what never leaves the
 //!   engine (the clipboard, snippets and libraries, crash recovery, packages): a zip holding
 //!   `mimetype`, `meta.json` (`"format": "klayout"`), `document.json` (the serde model in

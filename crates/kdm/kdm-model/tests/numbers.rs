@@ -80,7 +80,7 @@ fn add_rect(d: &mut Document, x: f64) -> ItemId {
 }
 
 fn reopened(s: &LayoutSession) -> LayoutSession {
-    let (bytes, _) = save_file(s, None, "test").unwrap();
+    let bytes = save_file(s, None).unwrap().bytes;
     open_file(&bytes).unwrap().0
 }
 
@@ -99,9 +99,9 @@ fn every_kind_keeps_its_id_through_save_and_reopen() {
         let once = reopened(&s);
         assert_eq!(ids_of(once.document()), want, "{name}: saved and reopened");
         assert_eq!(ids_of(reopened(&once).document()), want, "{name}: saved and reopened twice");
-        let replica = LayoutSession::open(&s.export_changes(&Version::empty()).unwrap(), &[], s.blobs().clone()).unwrap();
+        let replica = LayoutSession::open(&s.export_changes(&Version::empty()).unwrap(), s.blobs().clone()).unwrap();
         assert_eq!(ids_of(replica.document()), want, "{name}: opened from its replica alone");
-        let snapshot = LayoutSession::open(&s.snapshot().unwrap(), &[], s.blobs().clone()).unwrap();
+        let snapshot = LayoutSession::open(&s.snapshot().unwrap(), s.blobs().clone()).unwrap();
         assert_eq!(ids_of(snapshot.document()), want, "{name}: opened from its snapshot");
     }
 }
@@ -149,8 +149,8 @@ fn concurrent_items(a_first: bool) -> (LayoutSession, LayoutSession, (ObjectId, 
     let start = Arc::new(rich());
     let base = LayoutSession::create(&start, &Origin::system("create")).unwrap();
     let snapshot = base.snapshot().unwrap();
-    let mut a = LayoutSession::open(&snapshot, &[], base.blobs().clone()).unwrap();
-    let mut b = LayoutSession::open(&snapshot, &[], base.blobs().clone()).unwrap();
+    let mut a = LayoutSession::open(&snapshot, base.blobs().clone()).unwrap();
+    let mut b = LayoutSession::open(&snapshot, base.blobs().clone()).unwrap();
     let mut minted = 0;
     let a_doc = edited(a.document(), |d| minted = add_rect(d, 100.0).0);
     a.record(&person(), &a_doc).unwrap();
@@ -209,8 +209,8 @@ fn an_object_made_without_a_number_gets_the_next_free_one() {
     let start = Arc::new(rich());
     let a0 = LayoutSession::create(&start, &Origin::system("create")).unwrap();
     let snapshot = a0.snapshot().unwrap();
-    let mut a = LayoutSession::open(&snapshot, &[], a0.blobs().clone()).unwrap();
-    let mut b = LayoutSession::open(&snapshot, &[], a0.blobs().clone()).unwrap();
+    let mut a = LayoutSession::open(&snapshot, a0.blobs().clone()).unwrap();
+    let mut b = LayoutSession::open(&snapshot, a0.blobs().clone()).unwrap();
     let before = a.document().next_id;
     let mut script = Replica::load(LayoutModel::schema(), &a.export_changes(&Version::empty()).unwrap(), ActorId::random()).unwrap();
     let since = script.version();

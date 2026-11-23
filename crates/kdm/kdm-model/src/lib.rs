@@ -64,7 +64,7 @@ use kition_kit::kdm::{ActorId, DocId, KdmError, ObjectId, Origin, Replica, Schem
 use kition_kit::session::{BlobSink, BlobSource, Damage, KitError, KitModel};
 use kition_layout_doc::Document;
 
-pub use file::{FileBase, open_file, save_file};
+pub use file::{FileBase, SavedFile, open_file, save_file};
 pub use ids::{FAMILY_FIELDS, FAMILY_NAMES, IdMap, Ids, Known};
 pub use read::{read_document, read_document_known};
 pub use session::LayoutSession;
@@ -239,37 +239,15 @@ impl KitModel for LayoutModel {
         Ok(replica)
     }
 
-    /// `.idml` when `name` says so, otherwise a `.klayout` file holding `replica` (a fresh
-    /// snapshot, no change entries, and the blobs its assets reference).
+    /// `.idml` when `name` says so, otherwise a `.klayout` file holding `replica`'s content (no
+    /// history, rule M16b) and the blobs its assets reference. Seal the replica first
+    /// ([`LayoutSession::seal`]); a replica that is not sealed saves the content of a sealed copy,
+    /// whose seal stays out of this replica.
     fn export(&self, replica: &Replica, name: &str, blobs: &dyn BlobSource) -> Result<Vec<u8>> {
         if name.to_ascii_lowercase().ends_with(".idml") {
             return Ok(kition_layout_idml::export_idml(&self.document));
         }
-        let mut parts = kition_layout_format::container::Container {
-            meta: kition_layout_format::container::Meta {
-                kdm: kition_kit::kdm::KDM_VERSION,
-                schema_version: replica.schema().schema_version,
-                doc_id: replica.doc_id().to_string(),
-                title: self.document.title.clone(),
-                snapshot: kition_layout_format::container::SnapshotRef {
-                    entry: String::new(),
-                    version: file::base64_encode(&replica.version().encode()),
-                },
-                app: kition_layout_format::container::App { kit: file::KIT.to_owned(), version: env!("CARGO_PKG_VERSION").to_owned() },
-                ..Default::default()
-            },
-            snapshot: replica.snapshot().map_err(kit_err)?,
-            ..Default::default()
-        };
-        for asset in replica.objects_of_type("Asset") {
-            let hash = replica.get(&asset, "blob").ok().and_then(|b| b.get("hash").and_then(serde_json::Value::as_str).map(str::to_owned));
-            if let Some(hash) = hash
-                && let Some(bytes) = blobs.get(&hash)
-            {
-                parts.blobs.insert(hash, bytes.to_vec());
-            }
-        }
-        kition_layout_format::container::write(&parts).map_err(kit_err)
+        file::export_file(replica, blobs)
     }
 }
 

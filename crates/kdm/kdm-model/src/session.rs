@@ -103,21 +103,18 @@ impl LayoutSession {
         Ok(Self { replica, model: LayoutModel::from_parts(document.clone(), ids), blobs, group: None, blob_log: Vec::new() })
     }
 
-    /// Opens a replica from a snapshot (or a full change export) and the changes logged after it,
-    /// in order, as a new replica of a fresh actor; `blobs` holds what they reference. The state
-    /// is repaired once (a `system` transaction, only when there is something to repair), so a
-    /// file a merge left inconsistent opens consistent.
-    pub fn open(snapshot: &[u8], changes: &[Vec<u8>], blobs: MemoryBlobs) -> Result<Self> {
-        Self::open_with_version(snapshot, changes, blobs).map(|(session, _)| session)
+    /// Opens a replica from a snapshot (a full one, a file's content snapshot, or a full change
+    /// export) as a new replica of a fresh actor; `blobs` holds what it references. The state is
+    /// repaired once (a `system` transaction, only when there is something to repair), so a file
+    /// a merge left inconsistent opens consistent.
+    pub fn open(snapshot: &[u8], blobs: MemoryBlobs) -> Result<Self> {
+        Self::open_with_version(snapshot, blobs).map(|(session, _)| session)
     }
 
-    /// [`LayoutSession::open`], also answering the version the snapshot and changes add up to
-    /// (before the repair), which is what the file holds.
-    pub fn open_with_version(snapshot: &[u8], changes: &[Vec<u8>], blobs: MemoryBlobs) -> Result<(Self, Version)> {
+    /// [`LayoutSession::open`], also answering the version the snapshot holds (before the
+    /// repair), which is what the file holds.
+    pub fn open_with_version(snapshot: &[u8], blobs: MemoryBlobs) -> Result<(Self, Version)> {
         let mut replica = Replica::load(LayoutModel::schema(), snapshot, ActorId::random()).map_err(kit_err)?;
-        for change in changes {
-            replica.import_changes(change).map_err(kit_err)?;
-        }
         let loaded = replica.version();
         repair_all(&mut replica)?;
         replica.take_changed();
@@ -307,8 +304,44 @@ impl LayoutSession {
         self.replica.version()
     }
 
+    /// The whole document with its whole history ([`Replica::snapshot`]): for the host's history
+    /// store, a sync server and new replicas, never for a person's file.
     pub fn snapshot(&self) -> Result<Vec<u8>> {
         self.replica.snapshot().map_err(kit_err)
+    }
+
+    /// Seals the replica ([`Replica::seal`], kition-sdk data model 7.3) so a save writes its
+    /// content snapshot ([`LayoutSession::sealed_content`]): a `system` change, no edit, no undo
+    /// step, nothing to repair. Answers whether it committed a seal (none when the replica's last
+    /// change already is one). An open undo group ends first.
+    pub fn seal(&mut self) -> Result<bool> {
+        self.end_undo_group();
+        self.replica.seal().map_err(kit_err)
+    }
+
+    /// Whether the replica's last change is a seal, so [`LayoutSession::sealed_content`] answers.
+    pub fn is_sealed(&self) -> bool {
+        self.replica.is_sealed()
+    }
+
+    /// The document's content for a person's file ([`Replica::sealed_content_snapshot`]): its
+    /// state, and of its history only the seal. Refuses a replica that is not sealed.
+    pub fn sealed_content(&self) -> Result<Vec<u8>> {
+        self.replica.sealed_content_snapshot().map_err(kit_err)
+    }
+
+    /// Takes `file` (a session opened from a `.klayout` file of the same document) into this one,
+    /// the replica the host stored with the document's history (kition-sdk data model 7.3,
+    /// `kition_kit::session::take_file`): nothing when this replica has the file's version; the
+    /// file's changes when its history reaches this replica's version; otherwise the file's state,
+    /// written by object id as one `system` transaction labelled `import`. The file's blobs come
+    /// first. Then the result is repaired and the view patched, as after an import. Refuses a file
+    /// of another document.
+    pub fn take_file(&mut self, file: &LayoutSession) -> Result<Damage> {
+        self.end_undo_group();
+        self.add_blobs(file.blobs())?;
+        kition_kit::session::take_file(&mut self.replica, &file.replica)?;
+        self.settle()
     }
 
     /// SHA-256 of the replicated state: equal on replicas that converged.

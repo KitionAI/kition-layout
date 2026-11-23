@@ -19,8 +19,11 @@
 //! preview.
 //!
 //! The replica is made lazily (the first edit, or when asked for), unless the document came from a
-//! `.klayout` file, which carries its replica: then the file's replica is the document's, and
-//! [`DocState::save_klayout`] appends to the file what changed since ([`kition_layout_kdm::file`]).
+//! `.klayout` file: then the replica the file's content loads as (or the host's stored replica the
+//! file was taken into) is the document's. A `.klayout` file holds the document's content, not its
+//! history (kition-sdk data model 7.3, rule M16b): [`DocState::klayout_file`] seals the replica and
+//! writes its content snapshot ([`kition_layout_kdm::file`]); the history stays with the replica
+//! (and the host's history store).
 //! A replica that refuses a write or an undo is left ([`DocState::kdm_resets`]); the next edit
 //! makes a fresh one, which collaborators must join from its snapshot.
 
@@ -39,9 +42,6 @@ pub fn local_person() -> Origin {
     Origin::person("person:local")
 }
 
-/// The version string a `.klayout` file names its writer with.
-pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-
 fn kdm_error(error: impl std::fmt::Display) -> EngineError {
     EngineError::Other(format!("document replica: {error}"))
 }
@@ -53,7 +53,8 @@ pub struct Link {
     pub(crate) kdm: Option<LayoutSession>,
     /// The document as last written to (or read from) the replica.
     pub(crate) synced: Arc<Document>,
-    /// What the document's `.klayout` file holds (the snapshot and change entries it re-emits).
+    /// What the document's `.klayout` file holds besides its content (its docId and the entries
+    /// this build does not know).
     pub(crate) file: Option<FileBase>,
     /// The labels of the undo and redo steps of the person's scope and of the agents'
     /// ([`slot`]), newest last (for Edit › Undo's name and `document.history`); the replica
@@ -161,9 +162,15 @@ pub(crate) fn prune_selection(selection: &mut Selection, doc: &Document) {
 }
 
 impl DocState {
-    /// The document from a `.klayout` file, with the file's replica as its own.
+    /// The document from a `.klayout` file, with the replica its content loads as as its own.
     pub fn open_klayout(bytes: &[u8], path: Option<String>) -> Result<Self> {
         let (kdm, base) = kition_layout_kdm::open_file(bytes).map_err(|error| EngineError::Other(error.to_string()))?;
+        Ok(Self::with_kdm(kdm, Some(base), path))
+    }
+
+    /// The document `kdm` holds, clean, with `kdm` as its replica and `file` as what its file
+    /// holds (a replica opened from a file, or the host's stored replica a file was taken into).
+    pub fn with_kdm(kdm: LayoutSession, file: Option<FileBase>, path: Option<String>) -> Self {
         let doc = (**kdm.document()).clone();
         let mut st = DocState::new(doc, path);
         st.link.synced = kdm.document().clone();
@@ -171,8 +178,8 @@ impl DocState {
         st.saved_doc = st.doc.clone();
         st.link.saved_hash = kdm.state_hash().ok();
         st.link.kdm = Some(kdm);
-        st.link.file = Some(base);
-        Ok(st)
+        st.link.file = file;
+        st
     }
 
     /// The document's replica, if it has made one.
@@ -343,23 +350,45 @@ impl DocState {
         Ok(())
     }
 
-    /// The document as a `.klayout` file and what the file then holds. Writes nothing; the caller
-    /// records the base with [`DocState::saved_as`] once the bytes are stored.
-    pub fn klayout_file(&mut self) -> Result<(Vec<u8>, FileBase)> {
-        let origin = local_person();
-        let file = self.link.file.clone();
-        let kdm = self.ensure_kdm(&origin)?;
-        kition_layout_kdm::save_file(kdm, file.as_ref(), APP_VERSION).map_err(kdm_error)
+    /// Seals the document's replica (made now if there is none yet) for a save (kition-sdk data
+    /// model 7.3, `KitDocument::prepare_save`): a `system` change, no edit, no undo step, so the
+    /// document stays as dirty or clean as it was. Answers whether it committed a seal.
+    pub fn seal(&mut self) -> Result<bool> {
+        let kdm = self.ensure_kdm(&local_person())?;
+        kdm.seal().map_err(kdm_error)
     }
 
-    /// The bytes [`DocState::klayout_file`] gives, for a document whose replica already exists
-    /// (no write at all): a fresh replica of `doc` otherwise.
+    /// The document as a `.klayout` file and what the file then holds: the replica is sealed
+    /// first ([`DocState::seal`]), so the file holds its own content snapshot. The caller records
+    /// the base with [`DocState::saved_as`] once the bytes are stored.
+    pub fn klayout_file(&mut self) -> Result<(Vec<u8>, FileBase)> {
+        let file = self.link.file.clone();
+        self.seal()?;
+        let kdm = self.ensure_kdm(&local_person())?;
+        kition_layout_kdm::save_file(kdm, file.as_ref()).map(|saved| (saved.bytes, saved.base)).map_err(kdm_error)
+    }
+
+    /// The bytes of the document's content as a `.klayout` file, for a document whose replica
+    /// already exists (no write at all; an unsealed replica saves the content of a sealed copy,
+    /// [`kition_layout_kdm::save_file`]): a fresh replica of `doc` otherwise.
     /// A data-merge preview's filled document is session state: the unfilled template is saved.
     pub fn klayout_bytes(&self) -> Result<Vec<u8>> {
         let content = self.preview_stash.as_ref().unwrap_or(&self.doc);
         match (&self.link.kdm, Arc::ptr_eq(&self.link.synced, content)) {
-            (Some(kdm), true) => kition_layout_kdm::save_file(kdm, self.link.file.as_ref(), APP_VERSION).map(|(bytes, _)| bytes).map_err(kdm_error),
+            (Some(kdm), true) => kition_layout_kdm::save_file(kdm, self.link.file.as_ref()).map(|saved| saved.bytes).map_err(kdm_error),
             _ => klayout_of(content),
+        }
+    }
+
+    /// Takes the seal a save made on a sealed copy (the fallback of
+    /// [`kition_layout_kdm::save_file`]) into the document's replica, once the file is stored: no
+    /// edit, so the state, the revision and the undo histories stay as they are. A seal that does
+    /// not import leaves the replica as it was.
+    pub fn take_seal(&mut self, seal: &[u8]) {
+        if let Some(kdm) = self.link.kdm.as_mut()
+            && let Err(error) = kdm.import_changes(seal)
+        {
+            log::warn!("the save's seal did not import: {error}");
         }
     }
 
@@ -379,18 +408,20 @@ impl DocState {
 
 /// `doc` as a new `.klayout` file (a fresh replica: a copy, with its own document id).
 pub fn klayout_of(doc: &Document) -> Result<Vec<u8>> {
-    let kdm = LayoutSession::create(&Arc::new(doc.clone()), &Origin::system("create")).map_err(kdm_error)?;
-    kition_layout_kdm::save_file(&kdm, None, APP_VERSION).map(|(bytes, _)| bytes).map_err(kdm_error)
+    let mut kdm = LayoutSession::create(&Arc::new(doc.clone()), &Origin::system("create")).map_err(kdm_error)?;
+    kdm.seal().map_err(kdm_error)?;
+    kition_layout_kdm::save_file(&kdm, None).map(|saved| saved.bytes).map_err(kdm_error)
 }
 
-/// `doc` written over the `.klayout` file `existing` (the same document, the change appended to
-/// its log); a new file when `existing` is not a `.klayout` file.
+/// `doc` written over the `.klayout` file `existing` (the same document: its docId and object ids
+/// kept, its content now `doc`'s); a new file when `existing` is not a `.klayout` file.
 pub fn klayout_over(existing: Option<&[u8]>, doc: &Document) -> Result<Vec<u8>> {
     let Some(Ok((mut kdm, base))) = existing.filter(|bytes| kition_layout_kdm::is_klayout(bytes)).map(kition_layout_kdm::open_file) else {
         return klayout_of(doc);
     };
     kdm.record(&local_person(), &Arc::new(doc.clone())).map_err(kdm_error)?;
-    kition_layout_kdm::save_file(&kdm, Some(&base), APP_VERSION).map(|(bytes, _)| bytes).map_err(kdm_error)
+    kdm.seal().map_err(kdm_error)?;
+    kition_layout_kdm::save_file(&kdm, Some(&base)).map(|saved| saved.bytes).map_err(kdm_error)
 }
 
 impl Session {
@@ -534,14 +565,8 @@ impl Session {
     /// Opens a replica (a snapshot or full change export, and the blobs it references) as a new
     /// document of a fresh actor, and makes it active: clean, with an empty history.
     pub fn open_snapshot(&mut self, snapshot: &[u8], blobs: MemoryBlobs) -> Result<usize> {
-        let kdm = LayoutSession::open(snapshot, &[], blobs).map_err(kdm_error)?;
-        let mut st = DocState::new((**kdm.document()).clone(), None);
-        st.link.synced = kdm.document().clone();
-        st.doc = st.link.synced.clone();
-        st.saved_doc = st.doc.clone();
-        st.link.saved_hash = kdm.state_hash().ok();
-        st.link.kdm = Some(kdm);
-        Ok(self.add_document(st))
+        let kdm = LayoutSession::open(snapshot, blobs).map_err(kdm_error)?;
+        Ok(self.add_document(DocState::with_kdm(kdm, None, None)))
     }
 }
 
@@ -719,20 +744,23 @@ mod tests {
     }
 
     #[test]
-    fn a_klayout_file_keeps_its_identity_and_appends_its_changes() {
+    fn a_klayout_file_keeps_its_identity_and_holds_its_content_only() {
         let mut s = session();
         frame(&mut s, [72.0, 72.0, 144.0, 144.0]);
         let (bytes, base) = s.doc_mut().unwrap().klayout_file().unwrap();
         s.doc_mut().unwrap().saved_as(base);
+        assert!(s.doc().unwrap().kdm().unwrap().is_sealed(), "the save sealed the live replica");
         let mut opened = Session::new();
         opened.add_document(DocState::open_klayout(&bytes, None).unwrap());
         assert_eq!(opened.doc_id(), s.doc_id());
+        assert_eq!(opened.version().unwrap(), s.version().unwrap(), "the file holds the live replica's version");
         assert!(!opened.doc().unwrap().is_dirty());
         frame(&mut opened, [200.0, 200.0, 250.0, 250.0]);
         let (again, base) = opened.doc_mut().unwrap().klayout_file().unwrap();
-        assert_eq!(base.change_entries(), 1);
+        assert_eq!(base.version(), &opened.version().unwrap());
         let parts = kition_layout_format::container::read(&again).unwrap();
-        assert_eq!(parts.snapshot, kition_layout_format::container::read(&bytes).unwrap().snapshot);
+        let origins = kition_layout_kdm::kition_kit::kdm::Replica::snapshot_origins(&parts.content).unwrap();
+        assert_eq!(origins, vec![Some(Origin::system("content-seal"))], "of the history, the file holds the seal");
         // The engine's paths read it too.
         assert_eq!(crate::cmd::from_bytes(&again).unwrap().spreads[0].items.len(), 2);
         // A direct write between commands is no part of the next command's step.

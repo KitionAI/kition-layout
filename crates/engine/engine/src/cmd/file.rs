@@ -264,8 +264,7 @@ fn file_save(s: &mut Session, p: &Value) -> Result<Value> {
             st.revision = st.revision.saturating_add(1);
         }
     }
-    // The replica is the file: its snapshot and change entries re-emitted, this save's changes
-    // appended.
+    // The file holds the replica's content (sealed first), not its history.
     let (bytes, base) = st.klayout_file()?;
     #[cfg(not(target_arch = "wasm32"))]
     crate::disk::write(&path, &bytes).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;

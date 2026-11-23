@@ -1,6 +1,6 @@
 format: 1
 kit: layout
-updated: "2026-11-20"
+updated: "2026-11-23"
 gate_budget_s: 600
 protected: []
 features:
@@ -482,6 +482,15 @@ features:
     paths: [bindings/headless/src/lib.rs, bindings/headless/tests/identity.rs, crates/kdm/kdm-model/src/file.rs, kit.json]
     cases: [layout.platform.document-identity/fork, layout.platform.document-identity/no-replica]
     since: "2026-11-20"
+  - id: layout.file.content-only
+    title: "A .klayout holds the layout's content, not its history: a sealed content snapshot and the blobs the state references, no change log, no deleted content, no origins (kition-sdk rule M16b); it opens as the same document alone or on the host's stored replica"
+    dimension: [platform, data-safety]
+    priority: P0
+    status: has
+    paths: [crates/formats/format/src/container.rs, crates/kdm/kdm-model/src/file.rs, crates/kdm/kdm-model/src/session.rs, crates/engine/engine/src/replica.rs, bindings/wasm/src/lib.rs, bindings/wasm/src/collab.rs, bindings/wasm/tests/content_file.rs, bindings/headless/tests/content_file.rs]
+    gap: "The kit editor's @kition/* packages do not call prepareSave yet: until a release that does is in web/pnpm-lock.yaml, the editor's saves take the fallback (the content of a sealed copy; markSaved takes the seal in)."
+    cases: [layout.file.content-only/no-history, layout.file.content-only/reopen-and-converge]
+    since: "2026-11-23"
   - id: layout.editor.host-theme
     title: "The editor follows the host's light or dark theme, live: the pasteboard the engine paints around the spreads is the host's canvas color, and the pages stay white"
     dimension: [platform]

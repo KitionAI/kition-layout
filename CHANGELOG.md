@@ -3,6 +3,10 @@
 Changes to Kition Layout, newest first. A version is the kit package version in `kit.json`;
 each package is published with a `package-v<version>` tag.
 
+## Unreleased
+
+- A `.klayout` holds the layout's content, not its history (kition-sdk data model 7.3, rule M16b): `content.bin` is the replica's sealed content snapshot (the state, and of the history only one `system` seal), with the blobs the state references; no `snapshot.bin`, no change log, no compaction, no deleted or overwritten content, no person's or agent's origin. `meta.json` names format, formatVersion, kit, kdm, schemaVersion and docId only (no title copy, no writer version). Files of the old shape do not open. The history stays with the host's history store: `prepareSave` seals the live replica before a save, and a file opens on the host's stored replica through `take_file` (its changes, or its state by object id). Until the kit editor's packages call `prepareSave`, a save nobody sealed for writes the content of a sealed copy and `markSaved` takes the seal in. The fixtures, case inputs, sample and templates are rewritten as content files with their docIds and ids kept. kition-sdk 82a3224.
+
 ## 0.1.4
 
 - The same kit as 0.1.3, built on kition-sdk 6672663 (the replica's undo passes over an undo group whose changes came to nothing): the 0.1.3 package was built on kition-sdk 6b4d471.

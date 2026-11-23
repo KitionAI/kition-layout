@@ -59,8 +59,9 @@ pub struct LayoutDocument {
     /// The canvas around the spreads (an editor's canvas color).
     pasteboard: [u8; 4],
     /// What the file holds after the last `save`, taken as the document's file by `mark_saved`
-    /// once the host has stored those bytes (edits made in between stay unsaved).
-    saving: Mutex<Option<FileBase>>,
+    /// once the host has stored those bytes (edits made in between stay unsaved), with the seal
+    /// the save made on a copy (the fallback of `save`), which `mark_saved` takes into the replica.
+    saving: Mutex<Option<(FileBase, Option<Vec<u8>>)>>,
     /// This document's own mark in the editor states it answers: a state it answered itself is
     /// put back as it is, while one of another document (the session a file reread replaces, the
     /// one a premise plan forks) must name only what this document has.
@@ -328,8 +329,9 @@ impl KitDocument for LayoutDocument {
         check::check(&self.session)
     }
 
-    /// Opens a `.klayout` file (its replica: identity and history travel with the file), or an
-    /// IDML package (imported into a new replica, never written in place).
+    /// Opens a `.klayout` file (its content: the document's identity and object ids travel with
+    /// the file, its history stays with the host, rule M16b), or an IDML package (imported into a
+    /// new replica, never written in place).
     fn open(name: &str, bytes: &[u8]) -> Result<Self, String> {
         let mut session = files::session();
         if kition_layout_kdm::is_klayout(bytes) {
@@ -500,27 +502,50 @@ impl KitDocument for LayoutDocument {
             .collect()
     }
 
-    /// The layout as a `.klayout` file: the snapshot and change entries it was opened from (or
-    /// last saved as) byte for byte, one entry with the changes since, and the images' blobs; or
-    /// as an IDML package when `name` says so.
+    /// Seals the replica (rule M16b) so `save` writes its content snapshot, and the seal is in the
+    /// replica the host stores and syncs: a `system` change, no edit, no undo step, no revision.
+    fn prepare_save(&mut self) -> Result<(), String> {
+        self.session.active_mut().ok_or_else(|| "no document is open".to_owned())?.seal().map_err(engine_error)?;
+        Ok(())
+    }
+
+    /// The layout as a `.klayout` file: the document's content (no history, rule M16b) and the
+    /// images' blobs its state references, the same bytes while the document stays at the version
+    /// saved; or as an IDML package when `name` says so.
+    ///
+    /// The content is sealed (kition-sdk data model 7.3): hosts call [`KitDocument::prepare_save`]
+    /// first, which seals the replica, and the file holds the replica's own content snapshot. The
+    /// one fallback, for an editor that does not call `prepareSave` yet: a replica nobody sealed
+    /// saves the content of a sealed copy, and [`KitDocument::mark_saved`] takes that seal into the
+    /// replica (`kition_layout_kdm::file::save_file`).
     fn save(&self, name: Option<&str>) -> Result<Vec<u8>, String> {
         let state = self.active()?;
         if name.is_some_and(|name| name.to_ascii_lowercase().ends_with(".idml")) {
             return Ok(kition_layout_idml::export_idml(&state.doc));
         }
         let kdm = state.kdm().ok_or_else(|| "the layout has no replica".to_owned())?;
-        let (bytes, base) = kition_layout_kdm::save_file(kdm, state.file_base(), kition_layout_engine::replica::APP_VERSION).map_err(engine_error)?;
+        let saved = kition_layout_kdm::save_file(kdm, state.file_base()).map_err(engine_error)?;
         if let Ok(mut saving) = self.saving.lock() {
-            *saving = Some(base);
+            *saving = Some((saved.base, saved.seal));
         }
-        Ok(bytes)
+        Ok(saved.bytes)
     }
 
+    /// Records the last save as what the file holds, and takes the seal that save made on a copy
+    /// into the replica (no edit: the state, the revision and the undo histories stay as they
+    /// are).
     fn mark_saved(&mut self) {
-        let base = self.saving.get_mut().ok().and_then(Option::take);
+        let saving = self.saving.get_mut().ok().and_then(Option::take);
         if let Some(state) = self.session.active_mut() {
-            match base {
-                Some(base) => state.saved_as(base),
+            match saving {
+                Some((base, seal)) => {
+                    // The fallback's seal (see `save`; delete with it once a kit-editor release
+                    // that calls prepareSave is in web/pnpm-lock.yaml).
+                    if let Some(seal) = seal {
+                        state.take_seal(&seal);
+                    }
+                    state.saved_as(base);
+                }
                 None => state.mark_saved(),
             }
         }
@@ -728,8 +753,8 @@ pub mod web {
             self.0.author_schema_version()
         }
 
-        /// Opens a file with the replica a host stored for it; a `.klayout` file's own replica
-        /// wins, and empty `bytes` open the replica alone.
+        /// Opens a file with the replica a host stored for it: a `.klayout` file of the same
+        /// document is taken into the stored replica, and empty `bytes` open the replica alone.
         #[wasm_bindgen(js_name = openWithReplica)]
         pub fn open_with_replica(name: &str, bytes: &[u8], snapshot: &[u8], blobs: &[u8]) -> Result<WebDocument, JsError> {
             crate::LayoutDocument::open_with_replica(name, bytes, snapshot, blobs).map(Self).map_err(error)

@@ -7,9 +7,11 @@
 //! names and shapes of `kition-sdk`'s `session::web`, so Kition's host code is the same for every
 //! kit. The wasm bindings live in [`crate::web`].
 //!
-//! A `.klayout` file carries its replica (design note 3.1): opening one opens its replica, and
-//! saving one appends to it. The members below still answer `replica/*` so a host can relay
-//! changes between people editing the same file. Placed images are blobs, encoded for transfer as
+//! A `.klayout` file holds the document's content, not its history (design note 3.1, kition-sdk
+//! data model 7.3, rule M16b): opening one alone opens a replica of its content (same docId, same
+//! object ids), and opening it with the replica the host stored takes the file into that replica.
+//! The members below answer `replica/*` so a host can store the history and relay changes between
+//! people editing the same file. Placed images are blobs, encoded for transfer as
 //! `(64-char ASCII-hex sha256, u64 LE length, bytes) * N`, as every kit does.
 
 use std::collections::HashMap;
@@ -24,15 +26,37 @@ use serde_json::Value;
 use crate::{LayoutDocument, engine_error};
 
 impl LayoutDocument {
-    /// Opens a file with the replica a host stored for it (the Kit UI protocol's `replica`
-    /// capability). A `.klayout` file holds its own replica, which wins: the file is what the
-    /// person saved. Empty `bytes` mean there is no file yet, only the replica (a host opening a
-    /// shared layout from its sync room): the layout is the replica's alone, and a replica that
-    /// does not open is an error. For any other file (IDML) a replica that does not open is
-    /// ignored and the file opens as [`KitDocument::open`] opens it.
+    /// Opens a file with the replica a host stored for it (`snapshot`, its history; the Kit UI
+    /// protocol's `replica` capability) and that replica's blobs (a blob bundle). A `.klayout`
+    /// file of the same document (which holds the content and no history) is taken into the
+    /// stored replica ([`kition_layout_kdm::LayoutSession::take_file`]): nothing when the replica
+    /// has the file's version; the changes the file holds beyond it when the file's history
+    /// starts at a version the replica has; and otherwise (the file was saved elsewhere, from
+    /// changes the store never saw) the file's state, as one `system` transaction keyed by object
+    /// id. Edits the replica has and the file lacks are kept. A `.klayout` file of another
+    /// document, or a replica that does not open, leaves the file as [`KitDocument::open`] opens
+    /// it. Empty `bytes` mean there is no file yet, only the replica (a host opening a shared
+    /// layout from its sync room): the layout is the replica's alone, and a replica that does not
+    /// open is an error. For any other file (IDML) a replica that does not open is ignored and the
+    /// file opens as [`KitDocument::open`] opens it.
     pub fn open_with_replica(name: &str, bytes: &[u8], snapshot: &[u8], blobs: &[u8]) -> Result<Self, String> {
         if kition_layout_kdm::is_klayout(bytes) {
-            return Self::open(name, bytes);
+            let (file, base) = kition_layout_kdm::open_file(bytes).map_err(engine_error)?;
+            let stored = decode_blobs(blobs).and_then(|blobs| kition_layout_kdm::LayoutSession::open(snapshot, blobs).map_err(engine_error));
+            let Ok(mut stored) = stored else {
+                return Self::open(name, bytes);
+            };
+            if stored.doc_id() != file.doc_id() {
+                return Self::open(name, bytes);
+            }
+            stored.take_file(&file).map_err(|error| format!("damaged: {error}"))?;
+            let mut session = crate::files::session();
+            session.add_document(kition_layout_engine::DocState::with_kdm(stored, Some(base), None));
+            let document = Self::from_session(session);
+            if let Ok(state) = document.active() {
+                crate::place::history::remember(&state.doc);
+            }
+            return Ok(document);
         }
         let restored = (|| -> Result<Session, String> {
             let blobs = decode_blobs(blobs)?;

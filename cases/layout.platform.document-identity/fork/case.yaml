@@ -5,10 +5,10 @@ intent: >-
   Through the real kition-layout process: document.identity answers the docId a .klayout carries
   (the one meta.json's copy names), and a byte copy answers the same one; document.fork writes a
   new document to a new file: a new docId in the replica and in meta.json, the same objects, ids
-  and values, no change entries, only the blobs the layout references (a stray one stays behind),
-  the title, app and unknown entries as they were; the fork exports and opens as a draft; the text
-  of a frame deleted before the fork is in the source's bytes and not the fork's; a fork of the
-  fork is a third document; a fork never replaces an existing file.
+  and values, of the history one change (its birth), only the blobs the layout references (a
+  stray one stays behind), the kit and unknown entries as they were; the fork exports and opens as
+  a draft; the text of a frame deleted before the save is in neither file (a .klayout holds no
+  history); a fork of the fork is a third document; a fork never replaces an existing file.
 layer: gate
 tags: [headless]
 source:

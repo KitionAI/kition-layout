@@ -8,7 +8,7 @@ use std::sync::Arc;
 use common::*;
 use kition_layout_doc::geom::{Rect, shapes};
 use kition_layout_doc::{Document, Item, ItemId, ParaFormat, Shape, SpreadRef};
-use kition_layout_kdm::kition_kit::kdm::{Origin, UndoScope, Version};
+use kition_layout_kdm::kition_kit::kdm::{Origin, Replica, UndoScope, Version};
 use kition_layout_kdm::{LayoutSession, compare::normalize, open_file, save_file};
 
 fn person() -> Origin {
@@ -75,7 +75,7 @@ fn an_undo_group_is_one_step_and_ends_at_another_author() {
 fn two_sessions_converge_through_their_changes() {
     let start = Arc::new(rich());
     let mut a = LayoutSession::create(&start, &Origin::system("create")).unwrap();
-    let mut b = LayoutSession::open(&a.snapshot().unwrap(), &[], a.blobs().clone()).unwrap();
+    let mut b = LayoutSession::open(&a.snapshot().unwrap(), a.blobs().clone()).unwrap();
     let a_doc = edited(a.document(), |d| d.title = "From A".into());
     a.record(&person(), &a_doc).unwrap();
     let b_doc = edited(b.document(), |d| {
@@ -95,51 +95,60 @@ fn two_sessions_converge_through_their_changes() {
 }
 
 #[test]
-fn the_file_reopens_appends_one_entry_and_keeps_its_snapshot_bytes() {
+fn the_file_holds_the_content_and_of_the_history_only_the_seal() {
     let start = Arc::new(rich());
     let mut s = LayoutSession::create(&start, &Origin::system("create")).unwrap();
-    let (bytes, base) = save_file(&s, None, "test").unwrap();
-    assert_eq!(base.change_entries(), 0);
+    s.seal().unwrap();
+    let saved = save_file(&s, None).unwrap();
+    assert!(saved.seal.is_none(), "a sealed session saves its own content");
+    let bytes = saved.bytes;
     let (opened, base) = open_file(&bytes).unwrap();
     assert_eq!(opened.doc_id(), s.doc_id());
+    assert_eq!(&opened.version(), base.version());
+    assert_eq!(opened.version(), s.version(), "the file holds the session's version, seal included");
     assert_eq!(normalize(opened.document()), normalize(&start));
     assert!(!opened.can_undo());
     let parts = kition_layout_format::container::read(&bytes).unwrap();
+    assert_eq!(Replica::snapshot_origins(&parts.content).unwrap(), vec![Some(Origin::system("content-seal"))]);
+    assert!(!parts.blobs.is_empty(), "the image's blob is in the file");
 
     let after = edited(s.document(), |d| d.title = "Edited".into());
     s.record(&person(), &after).unwrap();
-    let (saved, next) = save_file(&s, Some(&base), "test").unwrap();
-    assert_eq!(next.change_entries(), 1, "one entry appended");
-    let again = kition_layout_format::container::read(&saved).unwrap();
-    assert_eq!(again.snapshot, parts.snapshot, "the snapshot is re-emitted byte for byte");
-    assert_eq!(again.blobs, parts.blobs, "the image's blob is in the file");
-    let (reopened, _) = open_file(&saved).unwrap();
+    assert!(!s.is_sealed(), "an edit after the seal");
+    s.seal().unwrap();
+    let again = save_file(&s, Some(&base)).unwrap().bytes;
+    let (reopened, _) = open_file(&again).unwrap();
     assert_eq!(reopened.document().title, "Edited");
     assert_eq!(reopened.state_hash().unwrap(), s.state_hash().unwrap());
-    // Nothing new: nothing appended.
-    let (_, same) = save_file(&s, Some(&next), "test").unwrap();
-    assert_eq!(same.change_entries(), 1);
-    // Another document's base is not appended to.
-    let other = LayoutSession::create(&start, &Origin::system("create")).unwrap();
-    let (_, fresh) = save_file(&other, Some(&next), "test").unwrap();
-    assert_eq!(fresh.change_entries(), 0);
+    let parts = kition_layout_format::container::read(&again).unwrap();
+    assert_eq!(Replica::snapshot_origins(&parts.content).unwrap().len(), 1, "still one change");
+    // Nothing new: the same bytes, from the session and from the file opened again.
+    assert!(!s.seal().unwrap(), "a sealed session seals nothing more");
+    assert_eq!(save_file(&s, Some(&base)).unwrap().bytes, again);
+    assert_eq!(save_file(&reopened, None).unwrap().bytes, again, "the reopened file saves the same bytes");
 }
 
+/// The fallback (delete with it once a kit-editor release that calls prepareSave is in
+/// web/pnpm-lock.yaml): a session nobody sealed saves the content of a sealed copy, the same bytes
+/// for the same version, and the seal imports into the session.
 #[test]
-fn a_long_log_compacts_into_a_fresh_snapshot() {
-    let start = Arc::new(blank());
+fn an_unsealed_session_saves_the_content_of_a_sealed_copy() {
+    let start = Arc::new(rich());
     let mut s = LayoutSession::create(&start, &Origin::system("create")).unwrap();
-    let (_, mut base) = save_file(&s, None, "test").unwrap();
-    let mut compacted = false;
-    for n in 0..40 {
-        let after = edited(s.document(), |d| d.title = format!("Title {n} {}", "x".repeat(200)));
-        s.record(&person(), &after).unwrap();
-        let (bytes, next) = save_file(&s, Some(&base), "test").unwrap();
-        compacted |= next.change_entries() == 0;
-        assert_eq!(open_file(&bytes).unwrap().0.state_hash().unwrap(), s.state_hash().unwrap());
-        base = next;
-    }
-    assert!(compacted, "the change entries outgrew a quarter of the snapshot");
+    let after = edited(s.document(), |d| d.title = "Edited".into());
+    s.record(&person(), &after).unwrap();
+    let version = s.version();
+    let first = save_file(&s, None).unwrap();
+    assert_eq!(s.version(), version, "the save sealed a copy, not the session");
+    assert_eq!(save_file(&s, None).unwrap().bytes, first.bytes, "the same version seals the same way");
+    let parts = kition_layout_format::container::read(&first.bytes).unwrap();
+    assert_eq!(Replica::snapshot_origins(&parts.content).unwrap(), vec![Some(Origin::system("content-seal"))]);
+    s.import_changes(first.seal.as_deref().unwrap()).unwrap();
+    assert_eq!(&s.version(), first.base.version(), "the session took the seal in");
+    assert!(s.is_sealed());
+    assert!(s.can_undo(), "the seal is no undo step and clears none");
+    s.undo().unwrap();
+    assert_ne!(s.document().title, "Edited", "the undo took back the last edit");
 }
 
 #[test]
@@ -148,9 +157,9 @@ fn damaged_and_foreign_files_are_refused() {
     let engine_snapshot = kition_layout_format::save(&blank()).unwrap();
     assert!(open_file(&engine_snapshot).is_err(), "the engine's own snapshot is not a .klayout file");
     let s = LayoutSession::create(&Arc::new(blank()), &Origin::system("create")).unwrap();
-    let (bytes, _) = save_file(&s, None, "test").unwrap();
+    let bytes = save_file(&s, None).unwrap().bytes;
     let mut parts = kition_layout_format::container::read(&bytes).unwrap();
-    parts.snapshot = b"garbage".to_vec();
+    parts.content = b"garbage".to_vec();
     let broken = kition_layout_format::container::write(&parts).unwrap();
     assert!(open_file(&broken).unwrap_err().to_string().starts_with("damaged"));
 }
@@ -182,7 +191,7 @@ fn concurrent_overrides_on_one_page_keep_both() {
     let (one, two) = (parent_items[0], extra);
     let start = Arc::new(start);
     let mut a = LayoutSession::create(&start, &Origin::system("create")).unwrap();
-    let mut b = LayoutSession::open(&a.snapshot().unwrap(), &[], a.blobs().clone()).unwrap();
+    let mut b = LayoutSession::open(&a.snapshot().unwrap(), a.blobs().clone()).unwrap();
     let override_on = |doc: &Arc<Document>, item: ItemId| {
         edited(doc, |d| {
             let spread = Arc::make_mut(&mut d.spreads[0]);
@@ -209,8 +218,8 @@ fn concurrent_overrides_on_one_page_keep_both() {
 fn concurrently(start: Document, a_edit: impl FnOnce(&mut Document), b_edit: impl FnOnce(&mut Document)) -> (LayoutSession, LayoutSession) {
     let base = LayoutSession::create(&Arc::new(start), &Origin::system("create")).unwrap();
     let snapshot = base.snapshot().unwrap();
-    let mut a = LayoutSession::open(&snapshot, &[], base.blobs().clone()).unwrap();
-    let mut b = LayoutSession::open(&snapshot, &[], base.blobs().clone()).unwrap();
+    let mut a = LayoutSession::open(&snapshot, base.blobs().clone()).unwrap();
+    let mut b = LayoutSession::open(&snapshot, base.blobs().clone()).unwrap();
     let a_doc = edited(a.document(), a_edit);
     a.record(&person(), &a_doc).unwrap();
     let b_doc = edited(b.document(), b_edit);

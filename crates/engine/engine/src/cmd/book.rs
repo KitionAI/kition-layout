@@ -52,7 +52,7 @@ fn load(path: &str) -> Result<kition_layout_doc::Document> {
 
 fn store(path: &str, d: &kition_layout_doc::Document) -> Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
-    // The chapter's own replica goes on: the change is appended to its file.
+    // The chapter's own document goes on: its docId and ids kept, its content now `d`'s.
     return crate::replica::klayout_over(crate::disk::read(path).ok().as_deref(), d)
         .and_then(|bytes| crate::disk::write(path, bytes).map_err(|e| EngineError::Other(format!("{path}: {e}"))));
     #[cfg(target_arch = "wasm32")]

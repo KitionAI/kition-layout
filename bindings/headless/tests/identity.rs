@@ -1,10 +1,10 @@
 //! `document.identity` and `document.fork` (Kit Process Protocol section 5.6, KitModel M7a)
-//! through the real `kition-layout` process: a `.klayout` embeds its replica (`snapshot.bin` and
-//! the change entries after it), so a byte copy of a file is the same document. A host reads the
-//! identity a file carries without opening the layout, and forks a file into a new document: a new
-//! docId (in the replica and in `meta.json`'s copy), the same objects, ids and values, no change
-//! entries, no history, only the blobs the layout references, and everything else in the file as
-//! it was.
+//! through the real `kition-layout` process: a `.klayout` holds the layout's content
+//! (`content.bin`, a content snapshot: the state, no history), so a byte copy of a file is the same
+//! document. A host reads the identity a file carries without opening the layout, and forks a file
+//! into a new document: a new docId (in the replica and in `meta.json`'s copy), the same objects,
+//! ids and values, no history, only the blobs the layout references, and everything else in the
+//! file as it was.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]
 
@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 
 const LIMIT: Duration = Duration::from_secs(60);
 
-/// Text of a frame deleted before the fork: in the source's bytes (its snapshot), not the fork's.
+/// Text of a frame deleted before the fork: in neither file (a file holds no history).
 const SECRET: &str = "SECRET-DELETED-BEFORE-THE-FORK";
 
 /// A 1x1 PNG.
@@ -41,21 +41,25 @@ async fn launch(dir: &Path) -> HeadlessKit {
     HeadlessKit::launch(options).await.unwrap()
 }
 
-/// A layout saved twice: first with two text frames, the secret one and a placed picture (the
-/// snapshot), then with the secret frame deleted (one change entry); plus a stray blob and an
-/// entry this build does not know.
+/// A layout saved twice: first with two text frames, the secret one and a placed picture, then,
+/// opened from that file, with the secret frame deleted; plus a stray blob and an entry this build
+/// does not know.
 fn layout() -> Vec<u8> {
     let mut doc = LayoutDocument::create("Plan.klayout", 612, 792).unwrap();
     doc.execute("frame.create", json!({ "rect": [72, 72, 300, 200], "content": "text", "text": "Kept" })).unwrap();
     doc.execute("frame.create", json!({ "rect": [72, 220, 300, 340], "content": "text", "text": "Also kept" })).unwrap();
     let secret = doc.execute("frame.create", json!({ "rect": [72, 360, 300, 480], "content": "text", "text": SECRET })).unwrap()["id"].clone();
     doc.execute("file.place", json!({ "base64": PICTURE, "name": "dot.png", "x": 320, "y": 72, "width": 100 })).unwrap();
+    doc.prepare_save().unwrap();
     let first = doc.save(None).unwrap();
+    assert!(holds(&first, SECRET), "the control: the first file holds the frame's text");
     let mut doc = LayoutDocument::open("Plan.klayout", &first).unwrap();
     doc.execute("edit.clear", json!({ "ids": [secret] })).unwrap();
+    doc.prepare_save().unwrap();
     let saved = doc.save(None).unwrap();
     let mut parts = container::read(&saved).unwrap();
-    assert_eq!(parts.changes.len(), 1, "the deletion is a change entry after the snapshot");
+    let origins = kition_kit::kdm::Replica::snapshot_origins(&parts.content).unwrap();
+    assert_eq!(origins, vec![Some(kition_kit::kdm::Origin::system("content-seal"))], "of the history, the file holds the seal");
     assert_eq!(parts.blobs.len(), 1, "the picture");
     parts.blobs.insert(container::sha256_hex(STRAY), STRAY.to_vec());
     parts.extra.push(("notes/kept.txt".into(), b"an entry another program wrote".to_vec()));
@@ -129,14 +133,13 @@ async fn a_layout_tells_its_identity_and_forks_into_a_new_document_without_histo
     assert_ne!(draft["documentId"], state["documentId"], "{draft}");
     kit.request("document.close", json!({ "documentId": state["documentId"] }), LIMIT).await.unwrap();
 
-    // The fork's file: the new id in meta.json too, no change entries, only the referenced blobs,
-    // everything else kept.
+    // The fork's file: the new id in meta.json too, of the history only its birth, only the
+    // referenced blobs, everything else kept.
     let (source_bytes, fork_bytes) = (std::fs::read(dir.join("Plan.klayout")).unwrap(), std::fs::read(dir.join("Fork.klayout")).unwrap());
     let (source, forked) = (container::read(&source_bytes).unwrap(), container::read(&fork_bytes).unwrap());
     assert_eq!(forked.meta.doc_id, fork_id, "meta.json's copy of the docId is the fork's");
-    assert!(forked.changes.is_empty() && forked.meta.changes.is_empty(), "a fork has no change log");
-    assert_eq!(forked.meta.title, source.meta.title);
-    assert_eq!(forked.meta.app, source.meta.app);
+    assert_eq!(kition_kit::kdm::Replica::snapshot_origins(&forked.content).unwrap().len(), 1, "a fork holds one change, its birth");
+    assert_eq!(forked.meta.kit, source.meta.kit);
     let stray = container::sha256_hex(STRAY);
     assert!(source.blobs.contains_key(&stray), "the source keeps what it held");
     let mut referenced = source.blobs.clone();
@@ -148,13 +151,14 @@ async fn a_layout_tells_its_identity_and_forks_into_a_new_document_without_histo
     let mut opened = LayoutDocument::open("Fork.klayout", &fork_bytes).unwrap();
     assert_eq!(opened.doc_id().as_deref(), Some(fork_id.as_str()));
     opened.execute("frame.create", json!({ "rect": [72, 500, 300, 600], "content": "text", "text": "New" })).unwrap();
+    opened.prepare_save().unwrap();
     let edited = opened.save(None).unwrap();
     let reopened = LayoutDocument::open("Fork.klayout", &edited).unwrap();
     assert_eq!(reopened.doc_id().as_deref(), Some(fork_id.as_str()));
     assert_eq!(items(&reopened), items(&opened));
 
-    // No history: the deleted frame's text is in the source's bytes and not in the fork's.
-    assert!(holds(&source_bytes, SECRET), "the source keeps its history");
+    // No history: the deleted frame's text is in neither file.
+    assert!(!holds(&source_bytes, SECRET), "the source's file holds no deleted content");
     assert!(!holds(&fork_bytes, SECRET), "deleted content does not travel");
 
     // A fork of a fork is a third document with the same content.

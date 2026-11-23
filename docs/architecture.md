@@ -25,9 +25,9 @@ pnpm project. Pure Rust, no C dependencies by default, `unsafe_code = "forbid"` 
 | L3 | `idml` | IDML import and export (designmap, spreads, parents, stories, styles, graphics, preferences; CJK and Arabic attributes) |
 | L3 | `epub` | EPUB 3 reflowable and fixed-layout export |
 | L3 | `textimport` | Word (.docx), RTF, Excel (.xlsx), Tagged Text import; text export |
-| L3 | `format` | the `.klayout` container (a ZIP holding the replica: `snapshot.bin`, `changes/`, `blobs/`, `meta.json`) and the engine's own document snapshot (`document.json`) for the clipboard, libraries and recovery |
+| L3 | `format` | the `.klayout` container (a ZIP holding the document's content, not its history: `content.bin`, the replica's sealed content snapshot; `blobs/` the state references; `meta.json` with format, formatVersion, kit, kdm, schemaVersion and docId only) and the engine's own document snapshot (`document.json`) for the clipboard, libraries and recovery |
 | L4 | `tools` | tool state machines: pointer events and modifiers to commands and overlays; snapping and smart guides |
-| L4 | `kdm` | `kition-layout-kdm`: the `kit.layout` KDM schema, the bridge between the engine's `Document` and a replica, the replica session (undo, change exchange, repair) and the `.klayout` file as a replica |
+| L4 | `kdm` | `kition-layout-kdm`: the `kit.layout` KDM schema, the bridge between the engine's `Document` and a replica, the replica session (undo, change exchange, repair, the seal a save writes) and the `.klayout` file as the document's content: opened alone or taken into the host's stored replica, which keeps the history |
 | L5 | `engine` | `Session`: documents and their replicas (undo is the replica's, `replica.rs`), selection, the command registry (`cmd/`), compose cache, preflight, find/change, scripts, recovery, links |
 | L6 | `kition-layout-kit` | Kition's in-page Layout engine: the engine and its tools behind the Kition SDK's `KitDocument` contract, compiled to WebAssembly for the in-page editor and linked into `bindings/headless` for the headless agent executable |
 

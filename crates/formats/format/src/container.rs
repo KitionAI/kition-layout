@@ -5,17 +5,18 @@
 //! | --- | --- | --- |
 //! | `mimetype` | STORE, first, no extra field | the ASCII bytes `application/vnd.kition.layout+zip` |
 //! | `meta.json` | DEFLATE | [`Meta`] |
-//! | `snapshot.bin` | STORE | a KDM snapshot envelope of the document at the last compaction |
-//! | `changes/<seq>.bin` | STORE | KDM change envelopes, in replay order (`000001`, `000002`, …) |
+//! | `content.bin` | STORE | the document's content: a KDM content snapshot (its state, and of its history only the seal) |
 //! | `blobs/<sha256>` | STORE | one blob's bytes, named by the lower-case hex SHA-256 its KDM value carries |
 //!
+//! The file holds no history (kition-sdk data model 7.3, rule M16b): no change log, no deleted
+//! content, no person's or agent's origin. The history lives in the host's history store.
 //! Any other entry with a safe name is kept byte for byte and written back ([`Container::extra`]).
-//! This module knows bytes only: what the snapshot and changes hold is the KDM's business
-//! (`kition-layout-kdm` opens them).
+//! This module knows bytes only: what `content.bin` holds is the KDM's business
+//! (`kition-layout-kdm` opens it).
 //!
 //! The reader refuses, opening nothing and never panicking: a missing or wrong `mimetype` first
-//! entry ([`ContainerError::NotALayout`]); a missing `meta.json` or `snapshot.bin`, a listed change
-//! entry that is missing, an entry name with `..`, `\`, a leading `/` or a drive letter, duplicate
+//! entry ([`ContainerError::NotALayout`]); a missing `meta.json` or `content.bin`, an entry name
+//! with `..`, `\`, a leading `/` or a drive letter, duplicate
 //! names, encrypted entries, ZIP64, more than [`MAX_ENTRIES`] entries, an entry over
 //! [`MAX_ENTRY_BYTES`] or a whole archive over [`MAX_TOTAL_BYTES`] uncompressed, a `meta.json`
 //! deflated more than [`MAX_META_RATIO`]:1, and a blob whose bytes do not hash to its name
@@ -42,7 +43,7 @@ pub const MAX_TOTAL_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 /// The largest deflate ratio `meta.json` may have.
 pub const MAX_META_RATIO: u64 = 100;
 
-const SNAPSHOT: &str = "snapshot.bin";
+const CONTENT: &str = "content.bin";
 const META: &str = "meta.json";
 
 /// Why a file is not a readable `.klayout`.
@@ -59,51 +60,29 @@ pub enum ContainerError {
     TooNew(u32),
 }
 
-/// `meta.json`.
+/// `meta.json`: what identifies and describes the content, nothing that changes with a save (no
+/// time, no counter, no title copy, no version of the writer).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Meta {
     pub format: String,
     pub format_version: u32,
+    /// The kit the file is for (`kit.layout`).
+    pub kit: String,
     /// The KDM version, a copy for hosts that do not load the KDM.
     pub kdm: u32,
     /// The `kit.layout` schema version, a copy.
     pub schema_version: u32,
     /// The KDM document id, a copy (so a host can index the file without the engine).
     pub doc_id: String,
-    /// The document's title, a copy for file lists.
-    #[serde(default)]
-    pub title: String,
-    pub snapshot: SnapshotRef,
-    /// The change entries in replay order.
-    #[serde(default)]
-    pub changes: Vec<String>,
-    #[serde(default)]
-    pub app: App,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct SnapshotRef {
-    pub entry: String,
-    /// Base64 of the KDM version the snapshot holds.
-    #[serde(default)]
-    pub version: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct App {
-    pub kit: String,
-    #[serde(default)]
-    pub version: String,
 }
 
 /// The parts of a `.klayout` file.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Container {
     pub meta: Meta,
-    pub snapshot: Vec<u8>,
-    /// The listed change entries' bytes, in replay order.
-    pub changes: Vec<Vec<u8>>,
+    /// `content.bin`: the KDM content snapshot.
+    pub content: Vec<u8>,
     /// Blob bytes by their SHA-256 (lower-case hex).
     pub blobs: BTreeMap<String, Vec<u8>>,
     /// Entries this build does not know, by name, kept byte for byte.
@@ -113,11 +92,6 @@ pub struct Container {
 /// SHA-256 as lower-case hex.
 pub fn sha256_hex(bytes: &[u8]) -> String {
     Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect()
-}
-
-/// The name of change entry `seq` (from 1).
-pub fn change_entry(seq: usize) -> String {
-    format!("changes/{seq:06}.bin")
 }
 
 /// Whether `bytes` start like a `.klayout` container: a ZIP whose first local entry is a stored
@@ -215,8 +189,7 @@ pub fn read(bytes: &[u8]) -> Result<Container, ContainerError> {
         entries.push((name, data));
     }
     let mut meta_bytes = None;
-    let mut snapshot = None;
-    let mut by_name: BTreeMap<String, Vec<u8>> = BTreeMap::new();
+    let mut content = None;
     let mut blobs = BTreeMap::new();
     let mut extra = Vec::new();
     for (name, data) in entries {
@@ -225,15 +198,13 @@ pub fn read(bytes: &[u8]) -> Result<Container, ContainerError> {
         }
         if name == META {
             meta_bytes = Some(data);
-        } else if name == SNAPSHOT {
-            snapshot = Some(data);
+        } else if name == CONTENT {
+            content = Some(data);
         } else if let Some(hash) = name.strip_prefix("blobs/") {
             if sha256_hex(&data) != hash {
                 return Err(damaged(format!("{name}: the bytes do not match their hash")));
             }
             blobs.insert(hash.to_owned(), data);
-        } else if name.starts_with("changes/") {
-            by_name.insert(name, data);
         } else {
             extra.push((name, data));
         }
@@ -249,29 +220,19 @@ pub fn read(bytes: &[u8]) -> Result<Container, ContainerError> {
         return Err(ContainerError::TooNew(u32::try_from(version).unwrap_or(u32::MAX)));
     }
     let meta: Meta = serde_json::from_value(raw).map_err(|error| damaged(format!("meta.json: {error}")))?;
-    if meta.snapshot.entry != SNAPSHOT {
-        return Err(damaged(format!("the snapshot entry is {}, not {SNAPSHOT}", meta.snapshot.entry)));
-    }
-    let snapshot = snapshot.ok_or_else(|| damaged("no snapshot.bin"))?;
-    let mut changes = Vec::with_capacity(meta.changes.len());
-    for name in &meta.changes {
-        // An entry on disk but not listed is ignored (and dropped at the next save); a listed one
-        // that is missing makes the file damaged.
-        changes.push(by_name.remove(name).ok_or_else(|| damaged(format!("{name} is listed but missing")))?);
-    }
-    Ok(Container { meta, snapshot, changes, blobs, extra })
+    let content = content.ok_or_else(|| damaged("no content.bin"))?;
+    Ok(Container { meta, content, blobs, extra })
 }
 
-/// Writes a `.klayout` file: the entries in the order of the module docs. `meta.changes` and
-/// `meta.snapshot.entry` are set from [`Container::changes`] here.
+/// Writes a `.klayout` file: the entries in the order of the module docs, unknown entries last.
+/// `meta.format` and `meta.formatVersion` are set here. The same parts give the same bytes (no
+/// entry carries a time).
 pub fn write(container: &Container) -> Result<Vec<u8>, ContainerError> {
     let io = |error: std::io::Error| damaged(error.to_string());
     let zip_io = |error: zip::result::ZipError| damaged(error.to_string());
     let mut meta = container.meta.clone();
     meta.format = FORMAT.to_owned();
     meta.format_version = FORMAT_VERSION;
-    meta.snapshot.entry = SNAPSHOT.to_owned();
-    meta.changes = (1..=container.changes.len()).map(change_entry).collect();
     let mut out = Cursor::new(Vec::new());
     {
         let mut zip = zip::ZipWriter::new(&mut out);
@@ -282,17 +243,13 @@ pub fn write(container: &Container) -> Result<Vec<u8>, ContainerError> {
         zip.start_file(META, deflate).map_err(zip_io)?;
         let json = serde_json::to_vec_pretty(&meta).map_err(|error| damaged(error.to_string()))?;
         zip.write_all(&json).map_err(io)?;
-        zip.start_file(SNAPSHOT, stored).map_err(zip_io)?;
-        zip.write_all(&container.snapshot).map_err(io)?;
-        for (name, bytes) in meta.changes.iter().zip(&container.changes) {
-            zip.start_file(name.as_str(), stored).map_err(zip_io)?;
-            zip.write_all(bytes).map_err(io)?;
-        }
+        zip.start_file(CONTENT, stored).map_err(zip_io)?;
+        zip.write_all(&container.content).map_err(io)?;
         for (hash, bytes) in &container.blobs {
             zip.start_file(format!("blobs/{hash}"), stored).map_err(zip_io)?;
             zip.write_all(bytes).map_err(io)?;
         }
-        let known = |name: &str| name == "mimetype" || name == META || name == SNAPSHOT || name.starts_with("changes/") || name.starts_with("blobs/");
+        let known = |name: &str| name == "mimetype" || name == META || name == CONTENT || name.starts_with("blobs/");
         for (name, bytes) in &container.extra {
             if !safe_name(name) || known(name) {
                 continue;
@@ -305,14 +262,6 @@ pub fn write(container: &Container) -> Result<Vec<u8>, ContainerError> {
     Ok(out.into_inner())
 }
 
-/// Whether a save should write a fresh snapshot instead of appending: the change entries
-/// together exceed a quarter of the snapshot, or there are more than 200 of them (the board's
-/// proposed thresholds).
-pub fn wants_compaction(snapshot_len: usize, changes: &[Vec<u8>]) -> bool {
-    let total: usize = changes.iter().map(Vec::len).sum();
-    changes.len() > 200 || total.saturating_mul(4) > snapshot_len
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -320,16 +269,8 @@ mod tests {
     fn sample() -> Container {
         let blob = b"\x89PNG fake".to_vec();
         Container {
-            meta: Meta {
-                kdm: 1,
-                schema_version: 1,
-                doc_id: "doc-1".into(),
-                title: "Flyer".into(),
-                app: App { kit: "kit.layout".into(), version: "0.0.0".into() },
-                ..Default::default()
-            },
-            snapshot: b"snapshot bytes".to_vec(),
-            changes: vec![b"one".to_vec(), b"two".to_vec()],
+            meta: Meta { kit: "kit.layout".into(), kdm: 1, schema_version: 1, doc_id: "doc-1".into(), ..Default::default() },
+            content: b"content bytes".to_vec(),
             blobs: BTreeMap::from([(sha256_hex(&blob), blob)]),
             extra: vec![("later/thing.json".into(), b"{}".to_vec())],
         }
@@ -342,13 +283,27 @@ mod tests {
         assert_eq!(&bytes[30..38], b"mimetype");
         assert_eq!(&bytes[38..38 + MIME.len()], MIME.as_bytes());
         let back = read(&bytes).unwrap();
-        assert_eq!(back.snapshot, b"snapshot bytes");
-        assert_eq!(back.changes, vec![b"one".to_vec(), b"two".to_vec()]);
-        assert_eq!(back.meta.changes, vec!["changes/000001.bin", "changes/000002.bin"]);
+        assert_eq!(back.content, b"content bytes");
         assert_eq!(back.meta.format, FORMAT);
+        assert_eq!(back.meta.kit, "kit.layout");
         assert_eq!(back.blobs, sample().blobs);
         assert_eq!(back.extra, sample().extra, "an unknown entry survives");
         assert_eq!(write(&back).unwrap(), bytes, "writing what was read gives the same bytes");
+    }
+
+    /// `meta.json` holds what identifies the content and nothing that changes with a save.
+    #[test]
+    fn meta_json_names_the_content_only() {
+        let bytes = write(&sample()).unwrap();
+        let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
+        let mut json = String::new();
+        zip.by_name(META).unwrap().read_to_string(&mut json).unwrap();
+        let meta: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let mut keys: Vec<&str> = meta.as_object().unwrap().keys().map(String::as_str).collect();
+        keys.sort_unstable();
+        assert_eq!(keys, ["docId", "format", "formatVersion", "kdm", "kit", "schemaVersion"]);
+        let names: Vec<String> = zip.file_names().map(str::to_owned).collect();
+        assert!(names.iter().all(|name| !name.starts_with("changes/") && name != "snapshot.bin"), "{names:?}");
     }
 
     /// A ZIP built entry by entry, for damaged files.
@@ -366,17 +321,16 @@ mod tests {
         out.into_inner()
     }
 
-    fn meta_json(changes: &[&str]) -> Vec<u8> {
+    fn meta_json() -> Vec<u8> {
         serde_json::to_vec(&serde_json::json!({
-            "format": FORMAT, "formatVersion": 1, "kdm": 1, "schemaVersion": 1, "docId": "d",
-            "snapshot": { "entry": "snapshot.bin", "version": "" }, "changes": changes
+            "format": FORMAT, "formatVersion": 1, "kit": "kit.layout", "kdm": 1, "schemaVersion": 1, "docId": "d"
         }))
         .unwrap()
     }
 
     #[test]
     fn refuses_damaged_and_foreign_files() {
-        let meta = meta_json(&[]);
+        let meta = meta_json();
         let mime = MIME.as_bytes();
         let not = |bytes: &[u8]| matches!(read(bytes), Err(ContainerError::NotALayout(_)));
         let bad = |bytes: &[u8]| matches!(read(bytes), Err(ContainerError::Damaged(_)));
@@ -384,43 +338,33 @@ mod tests {
         assert!(not(&zip_of(&[("meta.json", &meta, true), ("mimetype", mime, false)])), "mimetype not first");
         assert!(not(&zip_of(&[("mimetype", mime, true), ("meta.json", &meta, true)])), "mimetype compressed");
         assert!(not(&zip_of(&[("mimetype", b"application/zip", false)])), "another MIME");
-        assert!(bad(&zip_of(&[("mimetype", mime, false), ("snapshot.bin", b"s", false)])), "no meta.json");
-        assert!(bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &meta, true)])), "no snapshot");
-        let listed = meta_json(&["changes/000001.bin"]);
-        assert!(bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &listed, true), ("snapshot.bin", b"s", false)])), "listed change missing");
+        assert!(bad(&zip_of(&[("mimetype", mime, false), ("content.bin", b"s", false)])), "no meta.json");
+        assert!(bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &meta, true)])), "no content");
+        assert!(
+            bad(&zip_of(&[
+                ("mimetype", mime, false),
+                ("meta.json", &meta, true),
+                ("snapshot.bin", b"s", false),
+                ("changes/000001.bin", b"c", false)
+            ])),
+            "a file with a change log and no content entry"
+        );
         for name in ["../evil", "/abs", "a\\b", "C:/x", "a/../b"] {
             assert!(
-                bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &meta, true), ("snapshot.bin", b"s", false), (name, b"x", false)])),
+                bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &meta, true), ("content.bin", b"s", false), (name, b"x", false)])),
                 "{name}"
             );
         }
         let wrong_hash = format!("blobs/{}", sha256_hex(b"other"));
-        assert!(bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &meta, true), ("snapshot.bin", b"s", false), (&wrong_hash, b"x", false)])));
-        let bomb = serde_json::to_vec(&serde_json::json!({ "format": FORMAT, "formatVersion": 1, "kdm": 1, "schemaVersion": 1, "docId": "d", "snapshot": { "entry": "snapshot.bin" }, "pad": " ".repeat(200_000) })).unwrap();
-        assert!(bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &bomb, true), ("snapshot.bin", b"s", false)])), "deflate bomb");
-        let newer =
-            serde_json::to_vec(&serde_json::json!({ "format": FORMAT, "formatVersion": 9, "snapshot": { "entry": "snapshot.bin" } })).unwrap();
+        assert!(bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &meta, true), ("content.bin", b"s", false), (&wrong_hash, b"x", false)])));
+        let bomb = serde_json::to_vec(&serde_json::json!({ "format": FORMAT, "formatVersion": 1, "kit": "kit.layout", "kdm": 1, "schemaVersion": 1, "docId": "d", "pad": " ".repeat(200_000) })).unwrap();
+        assert!(bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &bomb, true), ("content.bin", b"s", false)])), "deflate bomb");
+        let newer = serde_json::to_vec(&serde_json::json!({ "format": FORMAT, "formatVersion": 9 })).unwrap();
         assert_eq!(
-            read(&zip_of(&[("mimetype", mime, false), ("meta.json", &newer, true), ("snapshot.bin", b"s", false)])),
+            read(&zip_of(&[("mimetype", mime, false), ("meta.json", &newer, true), ("content.bin", b"s", false)])),
             Err(ContainerError::TooNew(9))
         );
         let other = serde_json::to_vec(&serde_json::json!({ "format": "klayout", "version": 1 })).unwrap();
         assert!(not(&zip_of(&[("mimetype", mime, false), ("meta.json", &other, true), ("document.json", b"{}", true)])), "the engine's own snapshot");
-        // A change entry on disk that meta.json does not list is ignored.
-        let ok = read(&zip_of(&[
-            ("mimetype", mime, false),
-            ("meta.json", &meta, true),
-            ("snapshot.bin", b"s", false),
-            ("changes/000009.bin", b"c", false),
-        ]))
-        .unwrap();
-        assert!(ok.changes.is_empty());
-    }
-
-    #[test]
-    fn compaction_follows_the_thresholds() {
-        assert!(!wants_compaction(1000, &[vec![0; 100]]));
-        assert!(wants_compaction(1000, &[vec![0; 251]]));
-        assert!(wants_compaction(1_000_000, &vec![vec![0; 1]; 201]));
     }
 }

@@ -49,6 +49,14 @@ upstream rules below still apply to the engine.
   and `kit.json` must pass kition-sdk's `tools/check-manifest.mjs`.
 - Tools run in the engine (`KitTools`); what upstream's canvas draws over the pages is returned as
   engine overlays (`src/chrome.rs`). Never draw editor chrome into the rendered pixels.
+- A `.klayout` file holds the document's **content, not its history** (kition-sdk data model 7.3,
+  rule M16b): `content.bin` is the replica's sealed content snapshot. Never write
+  `LayoutSession::snapshot()` (the whole history) into a file: it is for the host's history store
+  and new replicas. Hosts call `prepare_save` (which seals the replica) before `save`; the unsealed
+  fallback in `kition_layout_kdm::file::save_file` (a sealed copy, its seal taken in by
+  `mark_saved`) goes once a kit-editor release that calls prepareSave is in `web/pnpm-lock.yaml`.
+  Anything that needs earlier versions (premises, a fork at a version) reads them from the live
+  replica's history, never from a file.
 - The whole repository is Apache-2.0 ([LICENSE](LICENSE)); third-party notices are listed in `NOTICE`.
   Upstream is credited only in `NOTICE`; never write upstream names anywhere else.
 
