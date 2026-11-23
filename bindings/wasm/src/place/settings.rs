@@ -29,8 +29,14 @@ impl LayoutDocument {
         {
             // A definition kept as an object (`conditions`, `textVariables`, `xrefFormats`) is
             // also held as that object, whole: its content is what the handler reads.
-            if let Some(object) = self.named_object(field, name)? {
-                under.premises.push(Premise::on(object));
+            match self.named_object(field, name)? {
+                Some(object) => under.premises.push(Premise::on(object)),
+                // Gone by that name (renamed or deleted by another writer since): the list,
+                // whose members' content a list premise holds.
+                None if !field.contains('.') => {
+                    under.premises.push(Premise::on("layout").fields([field]).positions(Vec::<String>::new()));
+                }
+                None => {}
             }
             let name = serde_json::to_string(name).map_err(crate::engine_error)?;
             under.premises.push(Premise::on("layout").fields([format!("{field}[name={name}]")]).positions(Vec::<String>::new()));
@@ -40,8 +46,10 @@ impl LayoutDocument {
             let format =
                 params.get("format").and_then(Value::as_str).or_else(|| (command == "xref.insert").then_some("Full Paragraph & Page Number"));
             if let Some(format) = format {
-                if let Some(object) = self.named_object("xrefFormats", format)? {
-                    under.premises.push(Premise::on(object).fields(["name"]).positions(Vec::<String>::new()));
+                match self.named_object("xrefFormats", format)? {
+                    Some(object) => under.premises.push(Premise::on(object).fields(["name"]).positions(Vec::<String>::new())),
+                    // Not there by that name now: another writer may have renamed it since.
+                    None => under.premises.push(Premise::on("layout").fields(["xrefFormats"]).positions(Vec::<String>::new())),
                 }
                 let format = serde_json::to_string(format).map_err(crate::engine_error)?;
                 under.premises.push(Premise::on("layout").fields([format!("xrefFormats[name={format}].name")]).positions(Vec::<String>::new()));
