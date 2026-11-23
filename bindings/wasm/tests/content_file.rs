@@ -153,7 +153,8 @@ fn a_replica_from_the_file_and_one_with_the_whole_history_converge() {
     set_title(&mut file, "From the file");
     for _ in 0..4 {
         let (to_file, to_full) = (full.export_changes(&file.version().unwrap()).unwrap(), file.export_changes(&full.version().unwrap()).unwrap());
-        full.add_blobs(&file.blobs_since(&full.version().unwrap()).unwrap()).unwrap();
+        let at = full.version().unwrap();
+        full.add_blobs(&file.blobs_since(&at).unwrap()).unwrap();
         full.import_changes(&to_full).unwrap();
         file.import_changes(&to_file).unwrap();
         if full.version().unwrap() == file.version().unwrap() {
