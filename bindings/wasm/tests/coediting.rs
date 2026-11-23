@@ -220,7 +220,9 @@ fn a_fresh_page_reads_the_rooms_edits_from_the_file_or_the_replica() {
     let mut from_replica = LayoutDocument::open_with_replica(NAME, &[], &snapshot, &blobs).unwrap();
     assert_eq!(from_replica.doc_id(), ann.doc.doc_id());
     assert_converged(&mut ann.doc, &mut from_replica);
-    // The room's save writes the file; reopened, it is the same layout, under the same id.
+    // The room's save writes the file (sealed first, as a host saves); reopened, it is the same
+    // layout, under the same id.
+    ann.doc.prepare_save().unwrap();
     let saved = ann.doc.save(None).unwrap();
     let mut reopened = LayoutDocument::open(NAME, &saved).unwrap();
     assert_eq!(reopened.doc_id(), ann.doc.doc_id());

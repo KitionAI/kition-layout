@@ -42,13 +42,32 @@ fn content(bytes: &[u8]) -> Vec<u8> {
 }
 
 /// The version a file's content holds.
-fn file_version(bytes: &[u8]) -> Vec<u8> {
-    Replica::load(kition_layout_kdm::schema(), &content(bytes), ActorId::random()).unwrap().version().encode()
+fn file_version(bytes: &[u8]) -> Version {
+    Replica::load(kition_layout_kdm::schema(), &content(bytes), ActorId::random()).unwrap().version()
 }
 
 /// The replicated state of `doc`, as its replica answers it.
 fn state(doc: &mut LayoutDocument) -> Value {
     Replica::load(kition_layout_kdm::schema(), &doc.snapshot().unwrap(), ActorId::random()).unwrap().state_json().unwrap()
+}
+
+/// [`state`] without the nodes of `Layout.items` that name a deleted item: the KDM keeps a
+/// deleted item's node (an undo of the delete brings the item back into it), and no reader of the
+/// layout sees it. A file's state written over a stored replica by object id
+/// (`kition_kit::session::write_state`) adds a node of its own for such an item when the file
+/// names it, so the two states differ in those nodes only.
+fn live_state(doc: &mut LayoutDocument) -> Value {
+    fn prune(nodes: &mut Value, live: &serde_json::Map<String, Value>) {
+        let Some(list) = nodes.as_array_mut() else { return };
+        list.retain(|node| node["object"].as_str().is_some_and(|object| live.contains_key(object)));
+        for node in list {
+            prune(&mut node["children"], live);
+        }
+    }
+    let mut state = state(doc);
+    let live = state["objects"].as_object().unwrap().clone();
+    prune(&mut state["objects"]["layout"]["items"], &live);
+    state
 }
 
 fn version(doc: &mut LayoutDocument) -> Version {
@@ -100,7 +119,7 @@ fn the_file_holds_the_content_and_of_the_history_only_the_seal() {
     assert_eq!(origin.kind, OriginKind::System);
     assert!(Replica::snapshot_origins(&full).unwrap().len() > 1, "the control: the history holds every change");
     // The direct path: the seal is the session's own, before the host marks the file saved.
-    assert_eq!(doc.version().unwrap(), file_version(&bytes));
+    assert_eq!(version(&mut doc), file_version(&bytes));
     // The state is all there.
     let mut back = LayoutDocument::open(FILE, &bytes).unwrap();
     assert_eq!(state(&mut back), state(&mut doc));
@@ -111,9 +130,9 @@ fn the_file_holds_the_content_and_of_the_history_only_the_seal() {
 fn an_unchanged_layout_saves_to_the_same_bytes() {
     let (mut doc, _) = layout_with_history();
     let first = host_save(&mut doc);
-    let at = doc.version().unwrap();
+    let at = version(&mut doc);
     assert_eq!(host_save(&mut doc), first, "two saves with nothing between");
-    assert_eq!(doc.version().unwrap(), at, "a sealed layout seals nothing more");
+    assert_eq!(version(&mut doc), at, "a sealed layout seals nothing more");
     doc.mark_saved();
     assert_eq!(host_save(&mut doc), first, "and after the host stored the first");
     let mut opened = LayoutDocument::open(FILE, &first).unwrap();
@@ -128,7 +147,7 @@ fn a_file_opened_without_a_store_is_the_same_document_and_edits() {
     let mut back = LayoutDocument::open(FILE, &bytes).unwrap();
     assert_eq!(back.doc_id(), doc.doc_id());
     assert_eq!(items(&back), items(&doc), "the same object ids");
-    assert_eq!(back.version().unwrap(), doc.version().unwrap(), "the same version: the seal is the session's");
+    assert_eq!(version(&mut back), version(&mut doc), "the same version: the seal is the session's");
     assert!(!back.dirty() && !back.can_undo());
     back.execute("object.opacity", json!({ "ids": [kept], "opacity": 0.5 })).unwrap();
     let made = back.execute("frame.create", json!({ "rect": [72, 500, 300, 600], "content": "text", "text": "New" })).unwrap()["id"].clone();
@@ -157,7 +176,7 @@ fn a_replica_from_the_file_and_one_with_the_whole_history_converge() {
         full.add_blobs(&file.blobs_since(&at).unwrap()).unwrap();
         full.import_changes(&to_full).unwrap();
         file.import_changes(&to_file).unwrap();
-        if full.version().unwrap() == file.version().unwrap() {
+        if version(&mut full) == version(&mut file) {
             break;
         }
     }
@@ -192,7 +211,7 @@ fn a_file_opens_on_the_stored_replica_that_holds_its_version() {
     doc.mark_saved();
     let stored = doc.snapshot().unwrap();
     let mut opened = LayoutDocument::open_with_replica(FILE, &bytes, &stored, &doc.blobs().unwrap()).unwrap();
-    assert_eq!(opened.version().unwrap(), doc.version().unwrap(), "the stored replica, as it was");
+    assert_eq!(version(&mut opened), version(&mut doc), "the stored replica, as it was");
     for needle in NEEDLES {
         assert!(contains(&opened.snapshot().unwrap(), needle), "the history keeps {needle}");
     }
@@ -213,7 +232,7 @@ fn a_file_saved_elsewhere_opens_on_the_stored_replica_by_its_state() {
     let edited = host_save(&mut elsewhere);
     let mut opened = LayoutDocument::open_with_replica(FILE, &edited, &stored, &blobs).unwrap();
     assert_eq!(opened.doc_id(), doc.doc_id());
-    assert_eq!(state(&mut opened), state(&mut elsewhere), "the file's state, by object id");
+    assert_eq!(live_state(&mut opened), live_state(&mut elsewhere), "the file's state, by object id");
     assert_eq!(items(&opened), items(&elsewhere));
     assert!(contains(&opened.snapshot().unwrap(), DELETED_ELEMENT), "on top of the stored history, which it keeps");
 }
@@ -225,9 +244,9 @@ fn a_file_saved_elsewhere_opens_on_the_stored_replica_by_its_state() {
 #[test]
 fn a_save_nobody_sealed_for_seals_a_copy_and_mark_saved_takes_the_seal_in() {
     let (mut doc, _) = layout_with_history();
-    let at = doc.version().unwrap();
+    let at = version(&mut doc);
     let first = doc.save(Some(FILE)).unwrap();
-    assert_eq!(doc.version().unwrap(), at, "the session is not sealed by a save");
+    assert_eq!(version(&mut doc), at, "the session is not sealed by a save");
     assert_eq!(doc.save(Some(FILE)).unwrap(), first, "the same version seals the same way");
     for needle in NEEDLES {
         assert!(!contains(&first, needle), "the file holds {needle}");
@@ -235,7 +254,7 @@ fn a_save_nobody_sealed_for_seals_a_copy_and_mark_saved_takes_the_seal_in() {
     assert_eq!(Replica::snapshot_origins(&content(&first)).unwrap(), vec![Some(Origin::system("content-seal"))]);
     doc.mark_saved();
     assert!(!doc.dirty());
-    assert_eq!(doc.version().unwrap(), file_version(&first), "mark_saved took the seal in");
+    assert_eq!(version(&mut doc), file_version(&first), "mark_saved took the seal in");
     assert!(doc.can_undo(), "and kept the undo history");
     // A replica of the file and the session exchange changes made after the save.
     let mut file = LayoutDocument::open(FILE, &first).unwrap();

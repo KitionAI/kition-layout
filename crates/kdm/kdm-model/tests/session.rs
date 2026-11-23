@@ -117,14 +117,14 @@ fn the_file_holds_the_content_and_of_the_history_only_the_seal() {
     assert!(!s.is_sealed(), "an edit after the seal");
     s.seal().unwrap();
     let again = save_file(&s, Some(&base)).unwrap().bytes;
+    // Nothing new: the same bytes.
+    assert!(!s.seal().unwrap(), "a sealed session seals nothing more");
+    assert_eq!(save_file(&s, Some(&base)).unwrap().bytes, again);
     let (reopened, _) = open_file(&again).unwrap();
     assert_eq!(reopened.document().title, "Edited");
     assert_eq!(reopened.state_hash().unwrap(), s.state_hash().unwrap());
     let parts = kition_layout_format::container::read(&again).unwrap();
     assert_eq!(Replica::snapshot_origins(&parts.content).unwrap().len(), 1, "still one change");
-    // Nothing new: the same bytes, from the session and from the file opened again.
-    assert!(!s.seal().unwrap(), "a sealed session seals nothing more");
-    assert_eq!(save_file(&s, Some(&base)).unwrap().bytes, again);
     assert_eq!(save_file(&reopened, None).unwrap().bytes, again, "the reopened file saves the same bytes");
 }
 
