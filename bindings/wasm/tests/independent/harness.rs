@@ -47,7 +47,9 @@ pub fn class(command: &str, field: &str) -> &'static str {
             | "style.table.edit"
     ) {
         "two paths"
-    } else if matches!(command, "xref.insert" | "xref.setFormat" | "variables.insert" | "condition.apply") && field.contains("settings.") {
+    } else if matches!(command, "xref.insert" | "xref.setFormat" | "variables.insert" | "condition.apply")
+        && matches!(field.split(['.', '[']).next(), Some("xrefFormats" | "textVariables" | "conditions"))
+    {
         "value naming another object"
     } else {
         "read"
@@ -789,24 +791,21 @@ impl<'a> Guard<'a> {
         if required {
             let named = match (command, field) {
                 ("style.compositeFont.set", "settings.compositeFonts")
-                | ("xref.defineFormat", "settings.xrefFormats")
-                | ("condition.options" | "condition.delete", "settings.conditions")
+                | ("xref.defineFormat", "xrefFormats")
+                | ("condition.options" | "condition.delete", "conditions")
                 | ("swatch.ungroupColorGroup", "settings.colorGroups")
                 | ("list.define" | "list.delete", "setup.lists") => Some(("name", "")),
-                ("variables.define", "settings.textVariables")
+                ("variables.define", "textVariables")
                     if self.params.get("name").and_then(Value::as_str).is_some_and(|name| {
-                        self.replica.map_entries(id, "settings").ok().is_some_and(|settings| {
-                            settings.iter().any(|(key, value)| {
-                                key == "textVariables"
-                                    && value.as_array().is_some_and(|vars| vars.iter().any(|v| v.get("name").and_then(Value::as_str) == Some(name)))
-                            })
+                        self.replica.list(id, "textVariables").ok().is_some_and(|vars| {
+                            vars.iter().any(|v| self.replica.get(v, "name").ok().and_then(|n| n.as_str().map(str::to_owned)).as_deref() == Some(name))
                         })
                     }) =>
                 {
                     Some(("name", ""))
                 }
-                ("condition.apply", "settings.conditions") => Some(("name", ".name")),
-                ("xref.insert" | "xref.setFormat", "settings.xrefFormats") => Some(("format", ".name")),
+                ("condition.apply", "conditions") => Some(("name", ".name")),
+                ("xref.insert" | "xref.setFormat", "xrefFormats") => Some(("format", ".name")),
                 _ => None,
             };
             if let Some((key, suffix)) = named {

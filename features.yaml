@@ -352,6 +352,7 @@ features:
     status: partial
     commands: [list.define, list.delete, toc.generate, toc.update, toc.entries, xref.insert, anchor.create, xref.list, anchor.list, xref.formats, xref.defineFormat, xref.setFormat, index.addReference, index.list, index.generate, index.update, hyperlink.create, hyperlink.delete, hyperlink.list, hyperlink.edit, hyperlink.goToSource, bookmark.rename, bookmark.add, bookmark.delete, bookmark.list]
     paths: [crates/engine/engine/src/cmd/interactive.rs, crates/engine/engine/src/cmd/xref.rs, crates/engine/engine/src/cmd/index.rs, crates/engine/engine/src/cmd/toc.rs]
+    cases: [regressions/issue-schema-freeze-text-ranges]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
     since: "2026-11-17"

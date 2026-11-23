@@ -4,9 +4,9 @@
 //!   stored JSON value, a string under a colour key ([`is_swatch_key`]) that names a swatch is
 //!   written as `{"ref": <swatch object id>, "name": <name>}`: it follows a rename by another
 //!   person, and reads back as the name it had if the swatch is gone.
-//! - **Local ids** inside settings (articles, hyperlink and data merge sources, the TOC, index,
-//!   endnote and primary stories) are written as the object ids they name; a reference to nothing
-//!   is not written.
+//! - **Local ids** inside settings (articles, the TOC, index and endnote stories, the pages PDF
+//!   bookmarks go to) are written as the object ids they name; a reference to nothing is not
+//!   written (a bookmark whose page is gone is dropped with the bookmarks under it).
 
 use std::collections::HashMap;
 
@@ -105,15 +105,16 @@ pub(crate) fn drop_gone_swatches(v: &mut Value, live: &dyn Fn(&str) -> bool) -> 
     rec(v, live, 0)
 }
 
-/// How local ids translate: item and story ids to object ids (writing) or back (reading); `None`
-/// drops the reference.
+/// How local ids translate: item and story ids, and absolute page indexes, to object ids (writing)
+/// or back (reading); `None` drops the reference.
 pub(crate) struct Mapper<'a> {
     pub item: &'a dyn Fn(&Value) -> Option<Value>,
     pub story: &'a dyn Fn(&Value) -> Option<Value>,
+    pub page: &'a dyn Fn(&Value) -> Option<Value>,
 }
 
 /// The settings keys that hold local ids (see [`map_setting`]).
-pub(crate) const SETTINGS_WITH_IDS: &[&str] = &["articles", "hyperlinks", "dataMerge", "toc", "index", "endnoteStory"];
+pub(crate) const SETTINGS_WITH_IDS: &[&str] = &["articles", "bookmarks", "toc", "index", "endnoteStory"];
 
 fn map_field(obj: &mut Map<String, Value>, key: &str, f: &dyn Fn(&Value) -> Option<Value>) {
     if let Some(v) = obj.get(key) {
@@ -128,21 +129,21 @@ fn map_field(obj: &mut Map<String, Value>, key: &str, f: &dyn Fn(&Value) -> Opti
     }
 }
 
-/// A source (`{kind: "item", id}` or `{kind: "text", story, …}`) with its ids mapped; `false` if
-/// what it names is gone.
-fn map_source(v: &mut Value, m: &Mapper<'_>) -> bool {
-    let Some(obj) = v.as_object_mut() else { return true };
-    match obj.get("kind").and_then(Value::as_str) {
-        Some("item") => {
-            map_field(obj, "id", m.item);
-            obj.contains_key("id")
-        }
-        Some("text") => {
-            map_field(obj, "story", m.story);
-            obj.contains_key("story")
-        }
-        _ => true,
+/// The bookmarks of `list` (and of their `children`) with their `page` mapped; a bookmark whose
+/// page is gone is dropped with the bookmarks under it.
+fn map_bookmarks(list: &mut Vec<Value>, m: &Mapper<'_>, depth: usize) {
+    if depth > MAX_DEPTH {
+        list.clear();
+        return;
     }
+    list.retain_mut(|bookmark| {
+        let Some(obj) = bookmark.as_object_mut() else { return false };
+        map_field(obj, "page", m.page);
+        if let Some(children) = obj.get_mut("children").and_then(Value::as_array_mut) {
+            map_bookmarks(children, m, depth + 1);
+        }
+        obj.contains_key("page")
+    });
 }
 
 /// Translates the local ids inside settings entry `key` (the engine's serialized form) by `m`.
@@ -159,14 +160,9 @@ pub(crate) fn map_setting(key: &str, v: &mut Value, m: &Mapper<'_>) {
                 }
             }
         }
-        "hyperlinks" => {
+        "bookmarks" => {
             if let Some(list) = v.as_array_mut() {
-                list.retain_mut(|link| link.get_mut("source").is_none_or(|s| map_source(s, m)));
-            }
-        }
-        "dataMerge" => {
-            if let Some(list) = v.get_mut("placeholders").and_then(Value::as_array_mut) {
-                list.retain_mut(|p| p.get_mut("anchor").is_none_or(|a| map_source(a, m)));
+                map_bookmarks(list, m, 0);
             }
         }
         "toc" | "index" => {
@@ -182,7 +178,7 @@ pub(crate) fn map_setting(key: &str, v: &mut Value, m: &Mapper<'_>) {
 }
 
 /// The largest integer under an `id` key anywhere in `v` (ids the bridge keeps as data, such as
-/// hyperlink and placeholder ids), so the view's id counter stays above them.
+/// data merge source ids), so the view's id counter stays above them.
 pub(crate) fn max_id(v: &Value) -> u64 {
     fn rec(v: &Value, depth: usize) -> u64 {
         if depth > MAX_DEPTH * 4 {

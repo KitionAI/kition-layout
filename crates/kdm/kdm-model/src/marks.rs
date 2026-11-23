@@ -8,6 +8,10 @@
 //!   paragraph's terminating `\n` and are `expand: "none"`: typing never extends them.
 //! - `table` (on a paragraph's `\n`: the table anchored there) and `inline` (on an inline
 //!   object's placeholder character) are `expand: "none"` too.
+//! - `variable` (on a text variable instance: the `TextVariable` object it shows), and on a
+//!   top-level story's text `hyperlink` (the text a `Hyperlink` object starts from) and
+//!   `placeholder` (the text a data merge `Placeholder` object fills): `expand: "none"`, so typing
+//!   next to them never extends them, while typing inside one stays inside it.
 
 use std::collections::BTreeMap;
 
@@ -24,6 +28,14 @@ pub const P_STYLE: &str = "pStyle";
 pub const TABLE: &str = "table";
 /// The inline-object mark (on its placeholder character).
 pub const INLINE: &str = "inline";
+/// The text variable mark (on an instance's character): the `TextVariable` object it shows.
+pub const VARIABLE: &str = "variable";
+/// The hyperlink source mark (top-level stories): the `Hyperlink` object the text starts.
+pub const HYPERLINK: &str = "hyperlink";
+/// The data merge placeholder mark (top-level stories): the `Placeholder` object the text is.
+pub const PLACEHOLDER: &str = "placeholder";
+/// The marks naming an object over a range of a top-level story's text.
+pub const RANGE_MARKS: [&str; 2] = [HYPERLINK, PLACEHOLDER];
 
 /// The 61 character attribute marks, as `CharAttrs` serializes its fields.
 pub const CHAR_KEYS: &[&str] = &[
@@ -286,10 +298,15 @@ mod tests {
             for key in CHAR_KEYS.iter().chain([&C_STYLE]) {
                 assert_eq!(marks.get(*key).and_then(|m| m["expand"].as_str()), Some("after"), "{ty}.{field} {key}");
             }
-            for key in PARA_GROUPS.iter().map(|(g, _)| g).chain([&P_STYLE, &TABLE, &INLINE]) {
+            for key in PARA_GROUPS.iter().map(|(g, _)| g).chain([&P_STYLE, &TABLE, &INLINE, &VARIABLE]) {
                 assert_eq!(marks.get(*key).and_then(|m| m["expand"].as_str()), Some("none"), "{ty}.{field} {key}");
             }
-            assert_eq!(marks.len(), 61 + 1 + 13 + 1 + 2, "{ty}.{field}");
+            let ranges = if ty == "Story" { RANGE_MARKS.len() } else { 0 };
+            for key in RANGE_MARKS {
+                let declared = marks.get(key).and_then(|m| m["expand"].as_str());
+                assert_eq!(declared, (ty == "Story").then_some("none"), "{ty}.{field} {key}");
+            }
+            assert_eq!(marks.len(), 61 + 1 + 13 + 1 + 3 + ranges, "{ty}.{field}");
         }
     }
 

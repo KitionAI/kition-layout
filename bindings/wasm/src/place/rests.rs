@@ -139,24 +139,23 @@ fn rules(command: &str, params: &Value) -> Vec<Rule> {
         "footnote.goToReference" => vec![rule(On::SelectedStory, &["text", "inlines"], &[])],
         "endnote.insert" => vec![rule(On::Root, &["spreads"], &[])],
         "changes.acceptAll" | "changes.rejectAll" | "condition.delete" => vec![rule(On::StoriesText, &["text"], &[])],
-        // An instance stores the variable's index in the list (cmd/variables.rs:81): the order of
-        // the variables before it, not just its own entry ("value naming another object").
-        "variables.insert" => vec![rule(On::Root, &["settings.textVariables"], &[])],
-        "variables.delete" => vec![rule(On::StoriesText, &["text"], &[]), rule(On::Root, &["settings.textVariables"], &[])],
+        // The engine's instance stores the variable's index in the list (cmd/variables.rs:81): the
+        // order of the variables before it, not just its own entry ("value naming another
+        // object"). The model's instance names the variable's object (its `variable` mark).
+        "variables.insert" => vec![rule(On::Root, &["textVariables"], &[])],
+        "variables.delete" => vec![rule(On::StoriesText, &["text"], &[]), rule(On::Root, &["textVariables"], &[])],
         // Misc family (C8-layout-read-3): settings registers the handlers read whole (names for
         // uniqueness and defaults, counts, the records they patch and shift).
         "article.new" | "article.add" | "article.remove" | "article.options" | "article.delete" => {
             vec![rule(On::Root, &["settings.articles"], &[])]
         }
         "data.source.select" | "data.source.update" => vec![rule(On::Root, &["settings.dataMerge.sources"], &[])],
-        "data.placeholder.add" => vec![rule(On::Root, &["settings.dataMerge.placeholders", "settings.hyperlinks"], &[])],
-        "data.placeholder.remove" => {
-            vec![rule(On::Root, &["settings.dataMerge.placeholders", "settings.hyperlinks"], &[]), rule(On::StoriesText, &["text"], &[])]
-        }
+        "data.placeholder.add" => vec![rule(On::Root, &["placeholders", "hyperlinks"], &[])],
+        "data.placeholder.remove" => vec![rule(On::Root, &["placeholders", "hyperlinks"], &[]), rule(On::StoriesText, &["text"], &[])],
         "data.options" => vec![rule(On::Root, &["settings.dataMerge.options"], &[])],
         // A merge copies the whole template; a script's steps name nothing fixed.
         "data.merge" | "script.run" => vec![rule(On::Root, WHOLE, &[])],
-        "hyperlink.create" | "hyperlink.delete" | "hyperlink.edit" | "hyperlink.goToSource" => vec![rule(On::Root, &["settings.hyperlinks"], &[])],
+        "hyperlink.create" | "hyperlink.delete" | "hyperlink.edit" | "hyperlink.goToSource" => vec![rule(On::Root, &["hyperlinks"], &[])],
         "bookmark.rename" | "bookmark.add" | "bookmark.delete" => vec![rule(On::Root, &["settings.bookmarks"], &[])],
         "links.goTo" => vec![rule(On::AllItems, &["content", "graphic"], &[])],
         // A new frame without x/y goes on the spread's first page margins, on the active layer.
@@ -197,7 +196,7 @@ fn rules(command: &str, params: &Value) -> Vec<Rule> {
             vec![rule(On::SelectedStory, &["text"], &[]), rule(On::SelectedStoryFrames, &["path", "textOptions"], &["xf"])]
         }
         // A new condition's default color counts the conditions there are.
-        "condition.new" => vec![rule(On::Root, &["settings.conditions"], &[])],
+        "condition.new" => vec![rule(On::Root, &["conditions"], &[])],
         // A new parent copies the setup's size and facing pages and the first page's margins and
         // columns (cmd/layout.rs:185, doc/src/build.rs:233); without a prefix, the next free one.
         "layout.parents.new" => {

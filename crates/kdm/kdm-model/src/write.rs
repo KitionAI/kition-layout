@@ -2,9 +2,10 @@
 //! engine command bridge, later) that writes only what changed. Both run the same passes, a full
 //! write being a diff from nothing:
 //!
-//! 1. every new layer, spread, page, asset and story gets its object (by local id), every new
-//!    swatch and style its object (named lists are paired with their previous version by content,
-//!    then by name), and what `after` no longer holds is deleted with what it owns;
+//! 1. every new layer, spread, page, asset, story, hyperlink and data merge placeholder gets its
+//!    object (by local id), every new swatch, style, condition, text variable and cross-reference
+//!    format its object (named lists are paired with their previous version by content, then by
+//!    name), and what `after` no longer holds is deleted with what it owns;
 //! 2. every new item gets its object, every item `after` no longer holds is deleted; each story's
 //!    inline objects and tables are paired by key (rows and columns of a table by content);
 //! 3. the `items` tree is made to hold `after`'s items (top-level items of every spread and parent
@@ -12,8 +13,8 @@
 //!    the longest run of children already in place stays and the rest are moved after it in
 //!    order; an item whose `Arc` did not change is skipped whole;
 //! 4. every field that differs is set, story text is written as a difference
-//!    (`kition_kit::session::write_rich_text`), every list is made to hold `after`'s order, and the
-//!    settings map gets the keys that changed.
+//!    (`kition_kit::session::write_rich_text`, hyperlink sources and placeholders as marks on it),
+//!    every list is made to hold `after`'s order, and the settings map gets the keys that changed.
 
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
@@ -26,7 +27,9 @@ use serde_json::{Map, Value, json};
 
 use crate::cells::{cell_id, cell_key};
 use crate::fields::{self, Fields, Out, to_map};
-use crate::ids::{FAMILIES, FAMILY_FIELDS, IdMap, Ids, InlineKey, InlineKind, TableIds, check_unique, has_own_id, index};
+use crate::ids::{
+    FAMILIES, FAMILY_FIELDS, IdMap, Ids, InlineKey, InlineKind, NAMED, NAMED_LISTS, TableIds, VARIABLES, check_unique, has_own_id, index,
+};
 use crate::inline::{InlineRef, inline_fields, inline_list, placeholder_objects, same_inline};
 use crate::list::{align, sync_list, sync_set};
 use crate::refs::{Mapper, SETTINGS_WITH_IDS, map_setting, swatches_out};
@@ -34,8 +37,23 @@ use crate::text::{Anchors, NamesOut, story_runs};
 use crate::{KdmResult, MAX_DEPTH, kdm_err, root_id};
 
 /// The keys of a serialized `Document` that are objects or fields of their own, not settings.
-pub(crate) const MODELLED: &[&str] =
-    &["title", "settings", "spreads", "parents", "layers", "stories", "styles", "swatches", "sections", "assets", "nextId"];
+pub(crate) const MODELLED: &[&str] = &[
+    "title",
+    "settings",
+    "spreads",
+    "parents",
+    "layers",
+    "stories",
+    "styles",
+    "swatches",
+    "sections",
+    "assets",
+    "hyperlinks",
+    "conditions",
+    "textVariables",
+    "xrefFormats",
+    "nextId",
+];
 
 /// The `styles` keys that are settings (the rest are the five style lists).
 pub(crate) const STYLE_SETTINGS: &[(&str, &str)] =
@@ -66,6 +84,8 @@ pub(crate) fn placeholder(ty: &str) -> Map<String, Value> {
         "Page" => json!({ "size": {} }),
         "Item" => json!({ "shape": "rectangle", "content": "unassigned", "xf": [1, 0, 0, 1, 0, 0] }),
         "Inline" => json!({ "kind": "footnote" }),
+        "Hyperlink" | "Condition" | "TextVariable" | "XrefFormat" => json!({ "name": "" }),
+        "Placeholder" => json!({ "source": 0, "field": "", "role": "text" }),
         "Asset" => json!({ "blob": { "hash": kition_kit::session::sha256_hex(b""), "mime": "application/octet-stream", "size": 0 } }),
         _ => json!({}),
     };
@@ -116,7 +136,17 @@ pub(crate) fn out_of<'a>(doc: &Document, ids: &'a Ids) -> Out<'a> {
         }
     }
     let page_at = doc.spreads.iter().flat_map(|s| s.pages.iter()).filter_map(|p| ids.pages.object(p.id.0).cloned()).collect();
-    Out { ids, names: NamesOut { styles, swatches }, anchors, page_at }
+    let variables = ids.named[VARIABLES].clone();
+    Out { ids, names: NamesOut { styles, swatches, variables }, anchors, page_at, ranges: fields::text_ranges(doc, ids) }
+}
+
+/// The document's conditions, text variables and cross-reference formats (see [`NAMED`]), each as
+/// (serialized value, name), for pairing.
+fn named_values(doc: &Document) -> KdmResult<[Vec<(Value, String)>; NAMED_LISTS]> {
+    fn list<T: Serialize>(items: &[T], name: impl Fn(&T) -> &String) -> KdmResult<Vec<(Value, String)>> {
+        items.iter().map(|x| Ok((serde_json::to_value(x).map_err(kit)?, name(x).clone()))).collect()
+    }
+    Ok([list(&doc.conditions, |c| &c.name)?, list(&doc.text_variables, |v| &v.name)?, list(&doc.xref_formats, |f| &f.name)?])
 }
 
 /// The document's settings: every key of its serialization that is not modelled, the style
@@ -142,9 +172,17 @@ pub(crate) fn settings(doc: &Document, out: &Out<'_>) -> KdmResult<Map<String, V
     }
     let defaults: Map<String, Value> = STYLE_DEFAULTS.iter().filter_map(|k| styles.get(*k).map(|v| ((*k).to_owned(), v.clone()))).collect();
     map.insert("styleDefaults".into(), Value::Object(defaults));
+    // The placeholders are objects of their own; the sources and the merge options stay here.
+    if let Some(Value::Object(merge)) = map.get_mut("dataMerge") {
+        merge.remove("placeholders");
+        if merge.is_empty() {
+            map.remove("dataMerge");
+        }
+    }
     let item = |v: &Value| v.as_u64().and_then(|n| out.ids.items.object(ItemId(n))).map(oid);
     let story = |v: &Value| v.as_u64().and_then(|n| out.ids.stories.object(StoryId(n))).map(oid);
-    let m = Mapper { item: &item, story: &story };
+    let page = |v: &Value| v.as_u64().and_then(|n| usize::try_from(n).ok()).and_then(|n| out.page_at.get(n)).map(oid);
+    let m = Mapper { item: &item, story: &story, page: &page };
     for key in SETTINGS_WITH_IDS {
         if let Some(v) = map.get_mut(*key) {
             map_setting(key, v, &m);
@@ -250,6 +288,20 @@ impl<'w, 'tx> Writer<'w, 'tx> {
         self.plan_keyed("Page", |ids| &mut ids.pages, |k| k, &keys(before, &page_keys), &page_keys(after))?;
         let assets = self.plan_keyed("Asset", |ids| &mut ids.assets, |k| k, &keys(before, &asset_keys), &asset_keys(after))?;
         let stories = self.plan_keyed("Story", |ids| &mut ids.stories, |k| k.0, &before.map(story_keys).unwrap_or_default(), &story_keys(after))?;
+        let link_keys = |d: &Document| d.hyperlinks.iter().map(|h| h.id).collect::<Vec<_>>();
+        let placeholder_keys = |d: &Document| d.data_merge.placeholders.iter().map(|p| p.id).collect::<Vec<_>>();
+        let hyperlinks = self.plan_keyed("Hyperlink", |ids| &mut ids.hyperlinks, |k| k, &keys(before, &link_keys), &link_keys(after))?;
+        let placeholders =
+            self.plan_keyed("Placeholder", |ids| &mut ids.placeholders, |k| k, &keys(before, &placeholder_keys), &placeholder_keys(after))?;
+        let named_before = before.map(named_values).transpose()?;
+        let named_after = named_values(after)?;
+        let mut named_plans = Vec::with_capacity(NAMED_LISTS);
+        for (k, (_, ty)) in NAMED.iter().enumerate() {
+            let b = named_before.as_ref().map_or(&[][..], |n| &n[k][..]);
+            let plan = self.plan(ty, b, &ids_before.named[k].clone(), &named_after[k], |(_, name)| name)?;
+            self.ids.named[k] = plan.objects.clone();
+            named_plans.push(plan);
+        }
 
         let swatches =
             self.plan("Swatch", before.map_or(&[][..], |b| &b.swatches[..]), &ids_before.swatches.clone(), &after.swatches, |s| &s.name)?;
@@ -419,15 +471,59 @@ impl<'w, 'tx> Writer<'w, 'tx> {
             }
         }
 
-        // Stories.
+        // Stories: one whose text, hyperlink sources, placeholders and variables are as they were
+        // is skipped.
+        let marks_kept = |id: &StoryId| {
+            out_before.as_ref().is_some_and(|ob| ob.ranges.get(id) == out_after.ranges.get(id) && ob.names.variables == out_after.names.variables)
+        };
         for (story, object) in after.stories.values().zip(&stories) {
             let old = before.and_then(|b| b.stories.get(&story.id)).filter(|_| !self.fresh.contains(object));
-            if old.is_some_and(|o| std::sync::Arc::ptr_eq(o, story)) {
+            if old.is_some_and(|o| std::sync::Arc::ptr_eq(o, story)) && marks_kept(&story.id) {
                 continue;
             }
             self.write_story(object, old.map(|s| &**s), story, &ids_before, out_before.as_ref(), &out_after)?;
         }
         self.order_set(&root, "stories", &stories)?;
+
+        // Hyperlinks and data merge placeholders.
+        let before_links: HashMap<u64, &kition_layout_doc::Hyperlink> =
+            before.map(|b| b.hyperlinks.iter().map(|h| (h.id, h)).collect()).unwrap_or_default();
+        for (link, object) in after.hyperlinks.iter().zip(&hyperlinks) {
+            let old = before_links.get(&link.id).filter(|_| !self.fresh.contains(object));
+            let old_fields = match (old, &out_before) {
+                (Some(o), Some(ob)) => Some(fields::hyperlink_fields(o, ob)),
+                _ => None,
+            };
+            self.set_fields(object, old_fields, fields::hyperlink_fields(link, &out_after))?;
+        }
+        self.order(&root, "hyperlinks", &hyperlinks)?;
+        let before_placeholders: HashMap<u64, &kition_layout_doc::Placeholder> =
+            before.map(|b| b.data_merge.placeholders.iter().map(|p| (p.id, p)).collect()).unwrap_or_default();
+        for (p, object) in after.data_merge.placeholders.iter().zip(&placeholders) {
+            let old = before_placeholders.get(&p.id).filter(|_| !self.fresh.contains(object));
+            let old_fields = match (old, &out_before) {
+                (Some(o), Some(ob)) => Some(fields::placeholder_fields(o, ob)),
+                _ => None,
+            };
+            self.set_fields(object, old_fields, fields::placeholder_fields(p, &out_after))?;
+        }
+        self.order(&root, "placeholders", &placeholders)?;
+
+        // Conditions, text variables, cross-reference formats.
+        for (k, plan) in named_plans.iter().enumerate() {
+            for (j, (value, _)) in named_after[k].iter().enumerate() {
+                let Some(object) = plan.objects.get(j).cloned() else { continue };
+                let old = plan
+                    .partner
+                    .get(j)
+                    .copied()
+                    .flatten()
+                    .and_then(|i| named_before.as_ref().and_then(|n| n[k].get(i)))
+                    .filter(|_| !self.fresh.contains(&object));
+                self.set_fields(&object, old.map(|(v, _)| fields::named_fields(v)), fields::named_fields(value))?;
+            }
+            self.order(&root, NAMED[k].0, &plan.objects)?;
+        }
 
         // Sections.
         let mut sections = Vec::with_capacity(after.sections.len());
@@ -1054,11 +1150,14 @@ impl<'w, 'tx> Writer<'w, 'tx> {
         self.order_set(object, "tables", &table_order)?;
         // Text.
         let new_table = |n: u64| out_after.ids.table(story.id, n).map(oid);
-        let new_runs = story_runs(story, &out_after.names, &Anchors { table: &new_table, inlines: Some(&placed) })?;
+        let ranges = |out: &Out<'_>, id: StoryId| out.ranges.get(&id).cloned().unwrap_or_default();
+        let new_ranges = ranges(out_after, story.id);
+        let new_runs = story_runs(story, &out_after.names, &Anchors { table: &new_table, inlines: Some(&placed), ranges: &new_ranges })?;
         let old_runs = match (old, out_before) {
             (Some(o), Some(ob)) => {
                 let old_table = |n: u64| ob.ids.table(o.id, n).map(oid);
-                story_runs(o, &ob.names, &Anchors { table: &old_table, inlines: Some(&before_placed) })?
+                let old_ranges = ranges(ob, o.id);
+                story_runs(o, &ob.names, &Anchors { table: &old_table, inlines: Some(&before_placed), ranges: &old_ranges })?
             }
             _ => Vec::new(),
         };

@@ -16,11 +16,32 @@ fn setting(f: &Fixture, name: &str) -> Value {
 }
 
 fn colleague_setting(f: &Fixture, name: &str, value: Value) {
+    colleague_batch(f, json!([{"op":"map.set","target":"layout","field":"settings","key":name,"value":value}]));
+}
+
+/// The object of the cross-reference format named `name`.
+fn xref_format(f: &Fixture, name: &str) -> Value {
+    let mut doc = f.disk();
+    let mut exchange = Exchange::new();
+    let root = exchange.batch(&mut doc, &json!({"ops":[],"load":[{"target":"layout","fields":["xrefFormats"]}]}), true).unwrap();
+    let loads: Vec<Value> =
+        root["loaded"][0]["fields"]["xrefFormats"].as_array().unwrap().iter().map(|id| json!({"target":id,"fields":["name"]})).collect();
+    let formats = exchange.batch(&mut doc, &json!({"ops":[],"load":loads}), true).unwrap();
+    formats["loaded"].as_array().unwrap().iter().find(|format| format["fields"]["name"] == name).unwrap()["id"].clone()
+}
+
+/// A colleague renames a cross-reference format through the object model.
+fn colleague_rename_format(f: &Fixture, format: Value, name: &str) {
+    colleague_batch(f, json!([{"op":"set","target":format,"field":"name","value":name}]));
+}
+
+/// A colleague's object-model edit `ops`, saved to the file as an older change.
+fn colleague_batch(f: &Fixture, ops: Value) {
     let path = f.root.join(FILE);
     let modified = std::fs::metadata(&path).unwrap().modified().unwrap();
     let mut doc = f.disk();
     let before = doc.save(None).unwrap();
-    Exchange::new().batch(&mut doc, &json!({"ops":[{"op":"map.set","target":"layout","field":"settings","key":name,"value":value}]}), false).unwrap();
+    Exchange::new().batch(&mut doc, &json!({ "ops": ops }), false).unwrap();
     let saved = doc.save(None).unwrap();
     assert_ne!(before, saved, "the independent writer must really change the file");
     std::fs::write(&path, saved).unwrap();
@@ -99,9 +120,8 @@ async fn xref_format_reference(command: &str, default: bool) {
         let format = if default { "Full Paragraph & Page Number" } else { "Read" };
         let basis = f.basis().await;
         if change == "renamed" {
-            let mut formats = setting(&f, "xrefFormats");
-            formats.as_array_mut().unwrap().iter_mut().find(|record| record["name"] == format).unwrap()["name"] = json!("Gone");
-            colleague_setting(&f, "xrefFormats", formats);
+            let object = xref_format(&f, format);
+            colleague_rename_format(&f, object, "Gone");
         } else {
             f.colleague(&[("xref.defineFormat", json!({"name":if change == "definition" {format} else {"Other"},"definition":"Colleague"}))]);
         }

@@ -4,7 +4,11 @@
 //! - `Inline` and `Table` objects a story lists that no character of its text marks (the anchor
 //!   character was deleted): they are deleted;
 //! - placeholder characters whose `inline` mark names an object that is gone (a merge deleted the
-//!   inline object): they are deleted;
+//!   inline object), and text variable instances whose `variable` mark names a variable that is
+//!   gone (one person deleted the variable while another inserted it), in any text: they are
+//!   deleted;
+//! - `Hyperlink` and `Placeholder` objects that start from no item and that no character of a
+//!   story marks (their text was deleted): they are deleted;
 //!
 //! and [`apply`] writes them in one `system` transaction (not an undo step), after an import,
 //! undo or redo and when a replica opens. Both are deterministic and idempotent (deleting an
@@ -16,7 +20,7 @@ use std::collections::HashSet;
 use kition_kit::kdm::{ObjectId, Replica, Tx};
 use serde_json::Value;
 
-use crate::marks::{INLINE, TABLE};
+use crate::marks::{INLINE, RANGE_MARKS, TABLE, VARIABLE};
 use crate::validate::delete_table;
 use crate::{KdmResult, root_id};
 
@@ -24,7 +28,22 @@ use crate::{KdmResult, root_id};
 /// Written in the same transaction as creation, including model batches and derived cells.
 pub(crate) fn store_addresses(tx: &mut Tx<'_>) -> KdmResult<bool> {
     let mut wrote = false;
-    for ty in ["Guide", "Section", "Inline", "Table", "TableRow", "TableColumn", "Cell", "Style", "Swatch", "Opaque", "CommentThread", "Comment"] {
+    for ty in [
+        "Guide",
+        "Section",
+        "Inline",
+        "Table",
+        "TableRow",
+        "TableColumn",
+        "Cell",
+        "Style",
+        "Swatch",
+        "Condition",
+        "TextVariable",
+        "XrefFormat",
+        "CommentThread",
+        "Comment",
+    ] {
         for object in tx.objects_of_type(ty) {
             let address = Value::String(object.as_str().to_owned());
             if tx.get(&object, "address")? != address {
@@ -43,15 +62,35 @@ pub struct Repairs {
     pub inlines: Vec<(ObjectId, ObjectId)>,
     /// `(story, table)`: tables no paragraph anchors.
     pub tables: Vec<(ObjectId, ObjectId)>,
-    /// `(story, character index)`: anchor characters naming a deleted inline object, in
-    /// descending index order per story.
+    /// `(object, character index)` in the object's `text`: anchor characters naming a deleted
+    /// inline object and variable instances naming a deleted variable, in descending index order
+    /// per object.
     pub chars: Vec<(ObjectId, usize)>,
+    /// `(Layout list, object)`: hyperlinks and placeholders that start from nothing.
+    pub unanchored: Vec<(&'static str, ObjectId)>,
 }
 
 impl Repairs {
     pub fn is_empty(&self) -> bool {
-        self.inlines.is_empty() && self.tables.is_empty() && self.chars.is_empty()
+        self.inlines.is_empty() && self.tables.is_empty() && self.chars.is_empty() && self.unanchored.is_empty()
     }
+}
+
+/// The indexes of the characters of `object`'s text that are variable instances naming a variable
+/// that is gone.
+fn gone_variables(replica: &Replica, object: &ObjectId) -> KdmResult<Vec<usize>> {
+    let mut out = Vec::new();
+    let mut index = 0usize;
+    for run in replica.text_delta(object, "text")? {
+        let gone = run.attributes.get(VARIABLE).and_then(Value::as_str).is_some_and(|v| !replica.exists(&ObjectId::from_string(v)));
+        for c in run.insert.chars() {
+            if gone && kition_layout_doc::vars::var_index(c).is_some() {
+                out.push(index);
+            }
+            index += 1;
+        }
+    }
+    Ok(out)
 }
 
 /// Finds the V6 repairs of `replica`.
@@ -61,6 +100,7 @@ pub fn read_repairs(replica: &Replica) -> KdmResult<Repairs> {
     if !replica.exists(&root) {
         return Ok(out);
     }
+    let mut ranged = HashSet::new();
     for story in replica.list(&root, "stories")? {
         if !replica.exists(&story) {
             continue;
@@ -68,9 +108,14 @@ pub fn read_repairs(replica: &Replica) -> KdmResult<Repairs> {
         let mut marked_inlines = HashSet::new();
         let mut marked_tables = HashSet::new();
         let mut index = 0usize;
-        let mut gone = Vec::new();
+        let mut gone = gone_variables(replica, &story)?;
         for run in replica.text_delta(&story, "text")? {
             let len = run.insert.chars().count();
+            for mark in RANGE_MARKS {
+                if let Some(Value::String(object)) = run.attributes.get(mark) {
+                    ranged.insert(ObjectId::from_string(object.as_str()));
+                }
+            }
             if let Some(Value::String(inline)) = run.attributes.get(INLINE) {
                 let inline = ObjectId::from_string(inline.as_str());
                 if replica.exists(&inline) {
@@ -94,7 +139,22 @@ pub fn read_repairs(replica: &Replica) -> KdmResult<Repairs> {
                 out.tables.push((story.clone(), table));
             }
         }
+        gone.sort_unstable();
+        gone.dedup();
         out.chars.extend(gone.into_iter().rev().map(|i| (story.clone(), i)));
+    }
+    for ty in ["Cell", "Inline"] {
+        for object in replica.objects_of_type(ty) {
+            let gone = gone_variables(replica, &object)?;
+            out.chars.extend(gone.into_iter().rev().map(|i| (object.clone(), i)));
+        }
+    }
+    for field in ["hyperlinks", "placeholders"] {
+        for object in replica.list(&root, field)? {
+            if replica.exists(&object) && replica.get(&object, "item")?.is_null() && !ranged.contains(&object) {
+                out.unanchored.push((field, object));
+            }
+        }
     }
     Ok(out)
 }
@@ -135,9 +195,18 @@ pub fn apply(tx: &mut Tx<'_>, repairs: &Repairs) -> KdmResult<bool> {
             wrote = true;
         }
     }
-    for (story, index) in &repairs.chars {
-        if tx.exists(story) && *index < tx.text_len(story, "text")? {
-            tx.text_delete(story, "text", *index, 1)?;
+    for (object, index) in &repairs.chars {
+        if tx.exists(object) && *index < tx.text_len(object, "text")? {
+            tx.text_delete(object, "text", *index, 1)?;
+            wrote = true;
+        }
+    }
+    for (field, object) in &repairs.unanchored {
+        if tx.exists(object) {
+            if let Some(i) = tx.list_items(&root_id(), field)?.iter().position(|o| o == object) {
+                tx.list_remove(&root_id(), field, i)?;
+            }
+            tx.delete(object)?;
             wrote = true;
         }
     }

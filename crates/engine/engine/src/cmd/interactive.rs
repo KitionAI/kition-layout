@@ -113,6 +113,16 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
     if sources.is_empty() {
         return Err(bad("hyperlink.create", "select text or frames first"));
     }
+    // The document keeps a hyperlink's source text as a mark on it: one hyperlink per character.
+    let taken = |story: kition_layout_doc::StoryId, start: usize, end: usize| {
+        st.doc
+            .hyperlinks
+            .iter()
+            .any(|h| matches!(h.source, HyperlinkSource::Text { story: s, start: a, end: b } if s == story && a < end && start < b))
+    };
+    if sources.iter().any(|src| matches!(*src, HyperlinkSource::Text { story, start, end } if taken(story, start, end))) {
+        return Err(bad("hyperlink.create", "the selected text already starts a hyperlink"));
+    }
     let name = str_param(p, "name").map(str::to_string);
     s.edit(|d, _| {
         let mut ids = vec![];

@@ -1,7 +1,7 @@
 {
   "kdm": 1,
   "kit": "kit.layout",
-  "schemaVersion": 2,
+  "schemaVersion": 1,
   "root": "Layout",
   "types": {
     "Layout": {
@@ -33,7 +33,11 @@
         "swatches": { "kind": "list", "of": "Swatch" },
         "assets": { "kind": "list", "of": "Asset" },
         "sections": { "kind": "list", "of": "Section" },
-        "opaque": { "kind": "list", "of": "Opaque" }
+        "hyperlinks": { "kind": "list", "of": "Hyperlink" },
+        "placeholders": { "kind": "list", "of": "Placeholder" },
+        "conditions": { "kind": "list", "of": "Condition" },
+        "textVariables": { "kind": "list", "of": "TextVariable" },
+        "xrefFormats": { "kind": "list", "of": "XrefFormat" }
       }
     },
     "Spread": {
@@ -234,7 +238,10 @@
             "pCjk": { "expand": "none" },
             "pDecor": { "expand": "none" },
             "table": { "expand": "none" },
-            "inline": { "expand": "none" }
+            "inline": { "expand": "none" },
+            "variable": { "expand": "none" },
+            "hyperlink": { "expand": "none" },
+            "placeholder": { "expand": "none" }
           }
         },
         "frames": { "kind": "list", "of": "Item" },
@@ -249,7 +256,7 @@
       "fields": {
         "address": { "kind": "string", "optional": true, "readOnly": true },
         "number": { "kind": "integer", "optional": true, "readOnly": true },
-        "kind": { "kind": "enum", "values": [ "anchoredObject", "footnote", "endnote", "crossReference", "textAnchor", "indexEntry", "editorialNote", "hyperlinkSource" ] },
+        "kind": { "kind": "enum", "values": [ "anchoredObject", "footnote", "endnote", "crossReference", "textAnchor", "indexEntry", "editorialNote" ] },
         "item": { "kind": "ref", "of": "Item", "optional": true },
         "data": { "kind": "json", "optional": true },
         "text": {
@@ -332,7 +339,8 @@
             "pCjk": { "expand": "none" },
             "pDecor": { "expand": "none" },
             "table": { "expand": "none" },
-            "inline": { "expand": "none" }
+            "inline": { "expand": "none" },
+            "variable": { "expand": "none" }
           }
         }
       }
@@ -458,7 +466,8 @@
             "pCjk": { "expand": "none" },
             "pDecor": { "expand": "none" },
             "table": { "expand": "none" },
-            "inline": { "expand": "none" }
+            "inline": { "expand": "none" },
+            "variable": { "expand": "none" }
           }
         }
       }
@@ -508,15 +517,59 @@
         "link": { "kind": "string", "optional": true }
       }
     },
-    "Opaque": {
+    "Hyperlink": {
       "batchOps": { "*": { "direct": true } },
+      "label": "name",
+      "toolId": { "field": "number" },
+      "fields": {
+        "number": { "kind": "integer", "optional": true, "readOnly": true },
+        "name": { "kind": "string" },
+        "item": { "kind": "ref", "of": "Item", "optional": true },
+        "url": { "kind": "string", "optional": true },
+        "email": { "kind": "string", "optional": true },
+        "page": { "kind": "ref", "of": "Page", "optional": true }
+      }
+    },
+    "Placeholder": {
+      "batchOps": { "*": { "direct": true } },
+      "label": "field",
+      "toolId": { "field": "number" },
+      "fields": {
+        "number": { "kind": "integer", "optional": true, "readOnly": true },
+        "source": { "kind": "integer", "minimum": 0 },
+        "field": { "kind": "string" },
+        "role": { "kind": "enum", "values": [ "text", "image", "qr", "hyperlink" ] },
+        "item": { "kind": "ref", "of": "Item", "optional": true }
+      }
+    },
+    "Condition": {
+      "batchOps": { "*": { "direct": true } },
+      "label": "name",
       "toolId": { "field": "address" },
       "fields": {
         "address": { "kind": "string", "optional": true, "readOnly": true },
-        "source": { "kind": "enum", "values": [ "idml" ] },
-        "place": { "kind": "json" },
-        "depends": { "kind": "json", "optional": true },
-        "body": { "kind": "blob" }
+        "name": { "kind": "string" },
+        "value": { "kind": "json", "optional": true }
+      }
+    },
+    "TextVariable": {
+      "batchOps": { "*": { "direct": true } },
+      "label": "name",
+      "toolId": { "field": "address" },
+      "fields": {
+        "address": { "kind": "string", "optional": true, "readOnly": true },
+        "name": { "kind": "string" },
+        "value": { "kind": "json", "optional": true }
+      }
+    },
+    "XrefFormat": {
+      "batchOps": { "*": { "direct": true } },
+      "label": "name",
+      "toolId": { "field": "address" },
+      "fields": {
+        "address": { "kind": "string", "optional": true, "readOnly": true },
+        "name": { "kind": "string" },
+        "value": { "kind": "json", "optional": true }
       }
     },
     "CommentThread": {

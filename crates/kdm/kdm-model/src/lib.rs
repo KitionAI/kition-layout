@@ -13,13 +13,16 @@
 //!   spread, a group, an ungroup and a reorder are each one tree move. Coupled values sit in one
 //!   `json` register each ([`COUPLED_VALUES`], the M3 record);
 //! - spreads and parent spreads, pages, guides, layers, stories, the five style families,
-//!   swatches, assets (bytes as blobs) and sections are objects in lists of the `Layout`;
+//!   swatches, assets (bytes as blobs), sections, hyperlinks, data merge placeholders, conditions,
+//!   text variables and cross-reference formats are objects in lists of the `Layout`;
 //! - a story's text is one `text` field with rich-text marks ([`marks`]): 61 character marks, the
-//!   paragraph style and 13 grouped paragraph marks on each paragraph's terminating `\n`, and
-//!   `inline`/`table` anchors. Threading is the story's ordered `frames` list;
+//!   paragraph style and 13 grouped paragraph marks on each paragraph's terminating `\n`,
+//!   `inline`/`table` anchors, `variable` on text variable instances, and `hyperlink` and
+//!   `placeholder` over the text a hyperlink starts from or a placeholder fills. Threading is the
+//!   story's ordered `frames` list;
 //! - a table's rows and columns are objects; its cells are objects under derived ids ([`cells`]);
-//! - every other key of the document (about 20 long-tail collections) is one entry of the
-//!   `Layout.settings` map.
+//! - every other key of the document (about 20 long-tail collections and options) is one entry
+//!   of the `Layout.settings` map.
 //!
 //! **Ids.** Every object the engine numbers stores its engine id in its read-only `number` field
 //! (written when the bridge creates it), so every read gives it the same id: agents and
@@ -28,7 +31,7 @@
 //! replica) and [`Ids`] maps them to object ids. Every id stored as data is written as the object
 //! id it names; swatch names as `{"ref", "name"}`.
 //!
-//! **Repair.** [`KitModel::validate`] applies the rules V1–V10 and V12 of section 2.6 in a
+//! **Repair.** [`KitModel::validate`] applies the rules V1–V10, V12 and V13 of section 2.6 in a
 //! transaction; V6 needs the replica's text marks, which a transaction cannot read, so
 //! [`repair::read_repairs`] finds those and [`repair::apply`] writes them; V11 (a story text not
 //! ending with `\n`) is refused at read. Then [`repair::store_numbers`] numbers the objects that

@@ -14,9 +14,9 @@ impl LayoutDocument {
             under.premises.push(Premise::on("layout").fields(fields).positions(Vec::<String>::new()));
         }
         let named = match command {
-            "condition.options" | "condition.delete" | "condition.apply" => Some("settings.conditions"),
-            "variables.define" | "variables.delete" | "variables.insert" => Some("settings.textVariables"),
-            "xref.defineFormat" => Some("settings.xrefFormats"),
+            "condition.options" | "condition.delete" | "condition.apply" => Some("conditions"),
+            "variables.define" | "variables.delete" | "variables.insert" => Some("textVariables"),
+            "xref.defineFormat" => Some("xrefFormats"),
             "style.compositeFont.set" => Some("settings.compositeFonts"),
             "swatch.ungroupColorGroup" => Some("settings.colorGroups"),
             "list.define" | "list.delete" => Some("setup.lists"),
@@ -36,9 +36,7 @@ impl LayoutDocument {
                 params.get("format").and_then(Value::as_str).or_else(|| (command == "xref.insert").then_some("Full Paragraph & Page Number"));
             if let Some(format) = format {
                 let format = serde_json::to_string(format).map_err(crate::engine_error)?;
-                under
-                    .premises
-                    .push(Premise::on("layout").fields([format!("settings.xrefFormats[name={format}].name")]).positions(Vec::<String>::new()));
+                under.premises.push(Premise::on("layout").fields([format!("xrefFormats[name={format}].name")]).positions(Vec::<String>::new()));
             }
         }
         if command == "swatch.renameColorGroup" {

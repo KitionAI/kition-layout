@@ -15,7 +15,11 @@ use kition_layout_kdm::kition_kit::kdm::Origin;
 /// Writes `rich()`, applies `edit` to a copy, writes the difference, and checks the replica reads
 /// back as the edited document with the view's ids. Answers the edited document.
 fn check(what: &str, edit: impl FnOnce(&mut Document)) -> Document {
-    let before = rich();
+    check_from(rich(), what, edit)
+}
+
+/// [`check`] from `before`.
+fn check_from(before: Document, what: &str, edit: impl FnOnce(&mut Document)) -> Document {
     let (mut replica, mut blobs, mut ids) = replica_of(&before);
     let mut after = before.clone();
     edit(&mut after);
@@ -243,5 +247,70 @@ fn swatches_styles_layers_and_settings() {
         d.user_words.push("Kition".into());
         d.settings.facing_pages = !d.settings.facing_pages;
         d.title = "Renamed".into();
+    });
+}
+
+/// Hyperlinks, data merge placeholders, conditions, text variables, cross-reference formats and
+/// bookmarks: each edit writes what changed and reads back as made.
+#[test]
+fn hyperlinks_placeholders_and_named_definitions() {
+    use kition_layout_doc::vars::{TextVariable, VarKind, var_char};
+    use kition_layout_doc::{Hyperlink, HyperlinkDest, HyperlinkSource, PlaceholderAnchor};
+    check_from(linked(), "a text hyperlink added", |d| {
+        let story = linked_story(d);
+        let id = d.alloc();
+        d.hyperlinks.push(Hyperlink {
+            id,
+            name: "Mail".into(),
+            source: HyperlinkSource::Text { story, start: 13, end: 14 },
+            dest: HyperlinkDest::Email("a@b.c".into()),
+        });
+    });
+    check_from(linked(), "a hyperlink renamed and sent elsewhere", |d| {
+        d.hyperlinks[0].name = "Home".into();
+        d.hyperlinks[1].dest = HyperlinkDest::Page(0);
+    });
+    check_from(linked(), "a hyperlink deleted", |d| {
+        d.hyperlinks.remove(0);
+    });
+    let back = check_from(linked(), "typing before a hyperlink and a placeholder", |d| {
+        let story = linked_story(d);
+        d.story_mut(story).unwrap().insert(0, "Please ");
+        if let HyperlinkSource::Text { start, end, .. } = &mut d.hyperlinks[0].source {
+            *start += 7;
+            *end += 7;
+        }
+        if let PlaceholderAnchor::Text { start, end, .. } = &mut d.data_merge.placeholders[0].anchor {
+            *start += 7;
+            *end += 7;
+        }
+    });
+    let story = &back.stories[&linked_story(&back)];
+    let HyperlinkSource::Text { start, end, .. } = back.hyperlinks[0].source else { panic!("a text source") };
+    assert_eq!(&story.text[start..end], "Visit us");
+    check_from(linked(), "a placeholder removed", |d| {
+        d.data_merge.placeholders.remove(1);
+    });
+    check_from(linked(), "a condition, a variable and a format added", |d| {
+        d.conditions.push(kition_layout_doc::Condition { name: "Review".into(), color: [0, 0, 255], visible: false });
+        d.text_variables.push(TextVariable::new("Year", VarKind::Custom { text: "2026".into() }));
+        d.xref_formats.push(kition_layout_doc::XrefFormat { name: "Title".into(), definition: "<paraText />".into() });
+    });
+    let back = check_from(linked(), "a variable deleted: its instances shift", |d| {
+        // What `variables.delete` does: the first variable's instances become text, later ones
+        // name one place lower.
+        let story = linked_story(d);
+        let client = var_char(d.text_variables.len() - 1).unwrap();
+        let lower = var_char(d.text_variables.len() - 2).unwrap();
+        let s = d.story_mut(story).unwrap();
+        let at = s.text.find(client).unwrap();
+        s.replace(at..at + client.len_utf8(), &lower.to_string());
+        d.text_variables.remove(0);
+    });
+    let story = &back.stories[&linked_story(&back)];
+    let index = story.text.chars().find_map(kition_layout_doc::vars::var_index).unwrap();
+    assert_eq!(back.text_variables[index].name, "Client", "the instance still names its variable");
+    check_from(linked(), "a bookmark added", |d| {
+        d.bookmarks.push(kition_layout_doc::Bookmark { name: "End".into(), page: 2, children: vec![] });
     });
 }

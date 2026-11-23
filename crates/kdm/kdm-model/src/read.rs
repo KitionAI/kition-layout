@@ -8,21 +8,26 @@
 //! repair them in the replica; the reader never fails on them): an item whose layer is gone reads
 //! on the first layer, a style reference to a deleted style reads as the family default, a swatch
 //! reference to a deleted swatch as the name it had, a top-level item on no live spread that no
-//! inline object anchors is not read, a text frame no story threads reads with story 0. A story
-//! text that does not end with `\n` is refused (V11).
+//! inline object anchors is not read, a text frame no story threads reads with story 0, a
+//! hyperlink or data merge placeholder whose item or text is gone (or a hyperlink whose page is
+//! gone) is not read, nor is a condition, text variable or cross-reference format a script wrote in
+//! another shape. A story text that does not end with `\n` is refused (V11).
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use kition_kit::kdm::{KdmError, ObjectId, Replica, TreeEntry};
 use kition_kit::session::{BlobSource, TextRun};
-use kition_layout_doc::{Content, Document, Item, ItemId, ParentInfo, Spread, SpreadId, StoryId, Styles};
+use kition_layout_doc::{Condition, Content, Document, Item, ItemId, ParentInfo, Spread, SpreadId, StoryId, Styles, XrefFormat};
 use serde_json::{Map, Value, json};
 
 use crate::cells::{cell_id, cell_key};
 use crate::fields::{self, In, as_object};
-use crate::ids::{Domain, FAMILIES, FAMILY_FIELDS, Ids, InlineKey, InlineKind, Known, Minter, TableIds, has_own_id, stored_number};
+use crate::ids::{
+    Domain, FAMILIES, FAMILY_FIELDS, Ids, InlineKey, InlineKind, Known, Minter, NAMED, NAMED_LISTS, TableIds, has_own_id, stored_number,
+};
 use crate::inline::{InlineValue, inline_from, push_inline};
+use crate::marks::{HYPERLINK, PLACEHOLDER};
 use crate::refs::{Mapper, SETTINGS_WITH_IDS, map_setting, max_id, swatches_in};
 use crate::text::decode;
 use crate::write::{STYLE_DEFAULTS, STYLE_SETTINGS};
@@ -75,6 +80,9 @@ struct Walk {
     style_objects: [Vec<ObjectId>; FAMILIES],
     swatches: Vec<ObjectId>,
     sections: Vec<ObjectId>,
+    hyperlinks: Vec<ObjectId>,
+    placeholders: Vec<ObjectId>,
+    named: [Vec<ObjectId>; NAMED_LISTS],
     story_frames: HashMap<ObjectId, Vec<ObjectId>>,
     story_inlines: HashMap<ObjectId, Vec<ObjectId>>,
     story_tables: HashMap<ObjectId, Vec<ObjectId>>,
@@ -113,6 +121,14 @@ fn walk<'r>(replica: &'r Replica, root: &ObjectId) -> KdmResult<(Reader<'r>, Wal
     }
     let swatches = r.live(root, "swatches")?;
     let sections = r.live(root, "sections")?;
+    let hyperlinks = r.live(root, "hyperlinks")?;
+    numbered.extend(hyperlinks.iter().map(|o| (Domain::Hyperlink, o.clone())));
+    let placeholders = r.live(root, "placeholders")?;
+    numbered.extend(placeholders.iter().map(|o| (Domain::Placeholder, o.clone())));
+    let mut named: [Vec<ObjectId>; NAMED_LISTS] = Default::default();
+    for (k, (field, _)) in NAMED.iter().enumerate() {
+        named[k] = r.live(root, field)?;
+    }
 
     // Frames, inline objects and tables of every story.
     let mut story_frames: HashMap<ObjectId, Vec<ObjectId>> = HashMap::new();
@@ -172,6 +188,9 @@ fn walk<'r>(replica: &'r Replica, root: &ObjectId) -> KdmResult<(Reader<'r>, Wal
         style_objects,
         swatches,
         sections,
+        hyperlinks,
+        placeholders,
+        named,
         story_frames,
         story_inlines,
         story_tables,
@@ -245,6 +264,9 @@ pub(crate) fn read_with(replica: &Replica, blobs: &dyn BlobSource, known: &Known
         style_objects,
         swatches,
         sections,
+        hyperlinks,
+        placeholders,
+        named,
         story_frames,
         story_inlines,
         story_tables,
@@ -299,6 +321,34 @@ pub(crate) fn read_with(replica: &Replica, blobs: &dyn BlobSource, known: &Known
     }
     for object in &swatches {
         inn.names.swatches.insert(object.clone(), string(replica.get(object, "name")?));
+    }
+    // Conditions, text variables, cross-reference formats: a text variable instance names its
+    // variable's object, read as its place in the list.
+    let named_list = |k: usize| -> (Vec<Value>, Vec<ObjectId>) {
+        let mut values = Vec::new();
+        let mut objects = Vec::new();
+        for object in &named[k] {
+            let get = |field: &str| replica.get(object, field).unwrap_or(Value::Null);
+            let value = match k {
+                0 => fields::named_from::<Condition>(&get).and_then(|v| serde_json::to_value(v).ok()),
+                1 => fields::named_from::<kition_layout_doc::vars::TextVariable>(&get).and_then(|v| serde_json::to_value(v).ok()),
+                _ => fields::named_from::<XrefFormat>(&get).and_then(|v| serde_json::to_value(v).ok()),
+            };
+            if let Some(value) = value {
+                values.push(value);
+                objects.push(object.clone());
+            }
+        }
+        (values, objects)
+    };
+    let mut named_values: Vec<Value> = Vec::with_capacity(NAMED_LISTS);
+    for (k, slot) in ids.named.iter_mut().enumerate() {
+        let (values, objects) = named_list(k);
+        if k == crate::ids::VARIABLES {
+            inn.names.variables = objects.iter().enumerate().map(|(i, o)| (o.clone(), i)).collect();
+        }
+        named_values.push(Value::Array(values));
+        *slot = objects;
     }
     let mut inline_locals: HashMap<ObjectId, u64> = HashMap::new();
     for (inline, kind) in &inline_kinds {
@@ -423,6 +473,8 @@ pub(crate) fn read_with(replica: &Replica, blobs: &dyn BlobSource, known: &Known
 
     // Stories.
     let mut doc_stories = BTreeMap::new();
+    // The hyperlink sources and placeholders in the stories' text, by object.
+    let mut text_ranges: HashMap<(&'static str, ObjectId), (StoryId, usize, usize)> = HashMap::new();
     for object in &stories {
         let get = |field: &str| replica.get(object, field).unwrap_or(Value::Null);
         let sid = inn.stories.get(object).copied().unwrap_or(0);
@@ -462,6 +514,9 @@ pub(crate) fn read_with(replica: &Replica, blobs: &dyn BlobSource, known: &Known
         story.text = decoded.text;
         story.chars = decoded.chars;
         story.paras = decoded.paras;
+        for range in decoded.ranges {
+            text_ranges.entry((range.mark, range.object)).or_insert((StoryId(sid), range.start, range.end));
+        }
         // Inline objects, in text order.
         let live_inlines: HashSet<&ObjectId> = story_inlines.get(object).into_iter().flatten().collect();
         let mut used = HashSet::new();
@@ -557,6 +612,24 @@ pub(crate) fn read_with(replica: &Replica, blobs: &dyn BlobSource, known: &Known
         }
     }
     ids.sections = section_ids;
+    let mut doc_hyperlinks = Vec::with_capacity(hyperlinks.len());
+    for object in &hyperlinks {
+        let get = |field: &str| replica.get(object, field).unwrap_or(Value::Null);
+        let text = text_ranges.get(&(HYPERLINK, object.clone()));
+        if let Some(link) = fields::hyperlink_from(local(object), &get, text, &inn) {
+            ids.hyperlinks.insert(object.clone(), link.id);
+            doc_hyperlinks.push(link);
+        }
+    }
+    let mut doc_placeholders = Vec::with_capacity(placeholders.len());
+    for object in &placeholders {
+        let get = |field: &str| replica.get(object, field).unwrap_or(Value::Null);
+        let text = text_ranges.get(&(PLACEHOLDER, object.clone()));
+        if let Some(p) = fields::placeholder_from(local(object), &get, text, &inn) {
+            ids.placeholders.insert(object.clone(), p.id);
+            doc_placeholders.push(p);
+        }
+    }
 
     // The document shell: settings, setup, title.
     let mut doc_json = settings_entries;
@@ -566,7 +639,8 @@ pub(crate) fn read_with(replica: &Replica, blobs: &dyn BlobSource, known: &Known
     doc_json.remove("styleDefaults");
     let item_in = |v: &Value| inn.item(v);
     let story_in = |v: &Value| inn.story(v);
-    let mapper = Mapper { item: &item_in, story: &story_in };
+    let page_in = |v: &Value| as_object(v).and_then(|o| inn.page_index.get(&o)).map(|i| Value::from(*i));
+    let mapper = Mapper { item: &item_in, story: &story_in, page: &page_in };
     for key in SETTINGS_WITH_IDS {
         if let Some(v) = doc_json.get_mut(*key) {
             map_setting(key, v, &mapper);
@@ -604,7 +678,13 @@ pub(crate) fn read_with(replica: &Replica, blobs: &dyn BlobSource, known: &Known
     doc_json.insert("assets".into(), json!({}));
     doc_json.insert("styles".into(), json!({ "paragraph": [], "character": [], "object": [], "defaultParagraph": "", "defaultCharacter": "", "defaultTextFrame": "", "defaultGraphicFrame": "" }));
     doc_json.insert("nextId".into(), json!(0));
+    for ((field, _), values) in NAMED.iter().zip(named_values) {
+        doc_json.insert((*field).to_owned(), values);
+    }
+    doc_json.insert("hyperlinks".into(), json!([]));
     let mut doc: Document = serde_json::from_value(Value::Object(doc_json)).map_err(kdm_err)?;
+    doc.hyperlinks = doc_hyperlinks;
+    doc.data_merge.placeholders = doc_placeholders;
     doc.spreads = doc_spreads;
     doc.parents = doc_parents;
     doc.layers = doc_layers;

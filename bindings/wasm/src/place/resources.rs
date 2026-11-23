@@ -178,14 +178,14 @@ impl LayoutDocument {
             }
         }
         let record = match command {
-            "hyperlink.edit" | "hyperlink.delete" | "hyperlink.goToSource" => Some("settings.hyperlinks"),
-            "data.placeholder.remove" => Some("settings.dataMerge.placeholders"),
+            "hyperlink.edit" | "hyperlink.delete" | "hyperlink.goToSource" => Some("hyperlinks"),
+            "data.placeholder.remove" => Some("placeholders"),
             _ => None,
         };
         if let Some(record) = record
             && let Some(id) = params.get("id").and_then(Value::as_u64)
         {
-            under.premises.push(Premise::on("layout").fields([format!("{record}[id={id}]")]).positions(Vec::<String>::new()));
+            under.premises.push(Premise::on("layout").fields([format!("{record}[number={id}]")]).positions(Vec::<String>::new()));
         }
         if let Some(kdm) = self.session.kdm() {
             let replica = kdm.replica();

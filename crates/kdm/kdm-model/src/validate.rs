@@ -21,6 +21,9 @@
 //! - V9: an empty group is deleted.
 //! - V10: a section starting at a deleted page is deleted.
 //! - V12: an item's `overrides` naming an item that is not on a parent spread is cleared.
+//! - V13: a hyperlink starting from a deleted item or going to a deleted page, and a data merge
+//!   placeholder filling a deleted item, are deleted (one whose source text is gone: see
+//!   [`crate::repair`]).
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
@@ -133,7 +136,7 @@ fn round(tx: &mut Tx<'_>, root: &ObjectId) -> KdmResult<bool> {
             }
         }
     }
-    for field in ["layers", "stories", "swatches", "assets", "sections", "opaque"] {
+    for field in ["layers", "stories", "swatches", "assets", "sections", "hyperlinks", "placeholders", "conditions", "textVariables", "xrefFormats"] {
         wrote |= clean(tx, &root, field, &mut HashSet::new())?;
     }
     let spreads = tx.list_items(&root, "spreads")?;
@@ -385,6 +388,22 @@ fn round(tx: &mut Tx<'_>, root: &ObjectId) -> KdmResult<bool> {
         }
     }
     wrote |= clean(tx, &root, "sections", &mut HashSet::new())?;
+
+    // V13: hyperlinks and placeholders whose item or page is gone.
+    for (field, refs) in [("hyperlinks", &["item", "page"][..]), ("placeholders", &["item"][..])] {
+        for object in tx.list_items(&root, field)? {
+            let mut gone = false;
+            for key in refs {
+                let v = tx.get(&object, key)?;
+                gone |= !v.is_null() && live_ref(tx, &v).is_none();
+            }
+            if gone && tx.exists(&object) {
+                tx.delete(&object)?;
+                wrote = true;
+            }
+        }
+        wrote |= clean(tx, &root, field, &mut HashSet::new())?;
+    }
     Ok(wrote)
 }
 

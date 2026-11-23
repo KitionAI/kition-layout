@@ -10,16 +10,17 @@ use std::sync::Arc;
 use kition_kit::kdm::ObjectId;
 use kition_kit::session::{BlobRef, BlobSink, BlobSource, TextRun};
 use kition_layout_doc::{
-    Asset, AssetId, Cell, CharacterStyle, Content, Guide, Item, ItemId, Layer, ObjectStyle, Page, ParagraphStyle, Section, Story, StoryId,
+    Asset, AssetId, Cell, CharacterStyle, Content, Guide, Hyperlink, HyperlinkDest, HyperlinkSource, Item, ItemId, Layer, ObjectStyle, Page,
+    ParagraphStyle, Placeholder, PlaceholderAnchor, PlaceholderRole, Section, Story, StoryId,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
 
 use crate::ids::{CELL, FAMILIES, Ids, OBJECT, PARAGRAPH, TABLE};
-use crate::marks::{self, CHAR_KEYS};
+use crate::marks::{self, CHAR_KEYS, HYPERLINK, PLACEHOLDER};
 use crate::refs::{swatches_in, swatches_out};
-use crate::text::{NamesIn, NamesOut};
+use crate::text::{NamesIn, NamesOut, TextRange};
 use crate::{KdmResult, kdm_err};
 
 /// The register fields of one object, as written (references already object ids). `null` means
@@ -62,6 +63,9 @@ pub(crate) struct Out<'a> {
     pub anchors: HashMap<u64, ObjectId>,
     /// Page objects by absolute page index (spreads only).
     pub page_at: Vec<ObjectId>,
+    /// Per top-level story, the ranges of its text that are hyperlink sources and data merge
+    /// placeholders, as the marks that name their objects.
+    pub ranges: HashMap<StoryId, Vec<TextRange>>,
 }
 
 impl Out<'_> {
@@ -424,6 +428,118 @@ pub(crate) fn section_from(get: &dyn Fn(&str) -> Value, inn: &In) -> KdmResult<O
 }
 
 // ---------------------------------------------------------------------------------------------
+// Hyperlinks, data merge placeholders, named definitions
+
+/// The ranges of each top-level story's text that `doc`'s hyperlinks and data merge placeholders
+/// start from, as the marks naming their objects (`ids`).
+pub(crate) fn text_ranges(doc: &kition_layout_doc::Document, ids: &Ids) -> HashMap<StoryId, Vec<TextRange>> {
+    let mut out: HashMap<StoryId, Vec<TextRange>> = HashMap::new();
+    for link in &doc.hyperlinks {
+        if let HyperlinkSource::Text { story, start, end } = link.source
+            && let Some(object) = ids.hyperlinks.object(link.id)
+        {
+            out.entry(story).or_default().push(TextRange { mark: HYPERLINK, object: object.clone(), start, end });
+        }
+    }
+    for p in &doc.data_merge.placeholders {
+        if let PlaceholderAnchor::Text { story, start, end } = p.anchor
+            && let Some(object) = ids.placeholders.object(p.id)
+        {
+            out.entry(story).or_default().push(TextRange { mark: PLACEHOLDER, object: object.clone(), start, end });
+        }
+    }
+    out
+}
+
+/// A hyperlink's registers: its name, the item it starts from (a text source is the `hyperlink`
+/// mark on its story's text), and where it goes.
+pub(crate) fn hyperlink_fields(link: &Hyperlink, out: &Out<'_>) -> Fields {
+    let item = match link.source {
+        HyperlinkSource::Item { id } => out.ids.items.object(id).map(oid).unwrap_or(Value::Null),
+        HyperlinkSource::Text { .. } => Value::Null,
+    };
+    let (url, email, page) = match &link.dest {
+        HyperlinkDest::Url(url) => (json!(url), Value::Null, Value::Null),
+        HyperlinkDest::Email(email) => (Value::Null, json!(email), Value::Null),
+        HyperlinkDest::Page(page) => (Value::Null, Value::Null, out.page_at.get(*page).map(oid).unwrap_or(Value::Null)),
+    };
+    vec![("name", json!(link.name)), ("item", item), ("url", url), ("email", email), ("page", page)]
+}
+
+/// A hyperlink read back; `text` is its source text by its `hyperlink` mark. `None` when what it
+/// starts from or goes to is gone.
+pub(crate) fn hyperlink_from(id: u64, get: &dyn Fn(&str) -> Value, text: Option<&(StoryId, usize, usize)>, inn: &In) -> Option<Hyperlink> {
+    let source = match as_object(&get("item")) {
+        Some(item) => HyperlinkSource::Item { id: ItemId(*inn.items.get(&item)?) },
+        None => {
+            let (story, start, end) = *text?;
+            HyperlinkSource::Text { story, start, end }
+        }
+    };
+    let dest = if let Some(url) = get("url").as_str() {
+        HyperlinkDest::Url(url.to_owned())
+    } else if let Some(email) = get("email").as_str() {
+        HyperlinkDest::Email(email.to_owned())
+    } else {
+        HyperlinkDest::Page(*inn.page_index.get(&as_object(&get("page"))?)?)
+    };
+    let name = get("name").as_str().unwrap_or_default().to_owned();
+    Some(Hyperlink { id, name, source, dest })
+}
+
+/// A data merge placeholder's registers: the source and field it takes, its role, and the item it
+/// fills (a text placeholder is the `placeholder` mark on its story's text).
+pub(crate) fn placeholder_fields(p: &Placeholder, out: &Out<'_>) -> Fields {
+    let item = match p.anchor {
+        PlaceholderAnchor::Item { id } => out.ids.items.object(id).map(oid).unwrap_or(Value::Null),
+        PlaceholderAnchor::Text { .. } => Value::Null,
+    };
+    vec![("source", json!(p.source_id)), ("field", json!(p.field)), ("role", json!(p.role.as_str())), ("item", item)]
+}
+
+/// A data merge placeholder read back; `text` is its text by its `placeholder` mark. `None` when
+/// what it fills is gone.
+pub(crate) fn placeholder_from(id: u64, get: &dyn Fn(&str) -> Value, text: Option<&(StoryId, usize, usize)>, inn: &In) -> Option<Placeholder> {
+    let anchor = match as_object(&get("item")) {
+        Some(item) => PlaceholderAnchor::Item { id: ItemId(*inn.items.get(&item)?) },
+        None => {
+            let (story, start, end) = *text?;
+            PlaceholderAnchor::Text { story, start, end }
+        }
+    };
+    let role = PlaceholderRole::parse(get("role").as_str().unwrap_or_default())?;
+    Some(Placeholder {
+        id,
+        source_id: get("source").as_u64().unwrap_or(0),
+        field: get("field").as_str().unwrap_or_default().to_owned(),
+        role,
+        anchor,
+    })
+}
+
+/// A named definition's registers (a condition, a text variable, a cross-reference format, as the
+/// engine serializes it): its `name`, and the rest as `value`.
+pub(crate) fn named_fields(entry: &Value) -> Fields {
+    let mut map = match entry {
+        Value::Object(map) => map.clone(),
+        _ => Map::new(),
+    };
+    let name = take(&mut map, "name");
+    vec![("name", name), ("value", json_or_null(map))]
+}
+
+/// A named definition read back, as the engine serializes it; `None` when its registers do not make
+/// one (a script wrote another shape).
+pub(crate) fn named_from<T: DeserializeOwned>(get: &dyn Fn(&str) -> Value) -> Option<T> {
+    let mut map = match get("value") {
+        Value::Object(map) => map,
+        _ => Map::new(),
+    };
+    map.insert("name".into(), Value::String(get("name").as_str()?.to_owned()));
+    serde_json::from_value(Value::Object(map)).ok()
+}
+
+// ---------------------------------------------------------------------------------------------
 // Swatches, assets
 
 pub(crate) fn swatch_fields(swatch: &kition_layout_doc::color::Swatch, out: &Out<'_>) -> KdmResult<Fields> {
@@ -719,7 +835,8 @@ pub(crate) fn cell_fields(cell: &Cell, out: &Out<'_>) -> KdmResult<Option<(Field
     map.insert("story".into(), crate::text::nested_extras(&cell.text)?);
     let mut props = Value::Object(map);
     out.swatches(&mut props);
-    let runs = crate::text::story_runs(&cell.text, &out.names, &crate::text::Anchors { table: &crate::text::nested_table, inlines: None })?;
+    let runs =
+        crate::text::story_runs(&cell.text, &out.names, &crate::text::Anchors { table: &crate::text::nested_table, inlines: None, ranges: &[] })?;
     Ok(Some((vec![("span", span), ("style", style), ("props", props)], runs)))
 }
 

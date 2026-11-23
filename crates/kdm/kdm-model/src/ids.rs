@@ -1,5 +1,6 @@
 //! Engine id bookkeeping (design note section 2.5). The engine's `u64` ids (items, stories,
-//! spreads, pages, layers, assets, tables, footnotes, endnotes, text anchors, editorial notes) are
+//! spreads, pages, layers, assets, hyperlinks, data merge placeholders, tables, footnotes,
+//! endnotes, text anchors, editorial notes) are
 //! what agents and diagnostics name objects by (KHP A46, A57), so each object stores its own in its
 //! read-only `number` field and every read gives it that id ([`Minter`]). The writer sets the
 //! number when it creates the object; an object that stores none (one a script made through the
@@ -9,9 +10,9 @@
 //! [`Ids`] maps the ids a view holds to their objects; [`Known`] keeps the document's id counter
 //! above every id a view handed out.
 //!
-//! Styles and swatches have no id in the engine (they are named): their objects are kept in the
-//! view's list order and paired between two versions of a list by content, then by name
-//! ([`crate::list::align`]).
+//! Styles, swatches, conditions, text variables and cross-reference formats have no id in the
+//! engine (they are named): their objects are kept in the view's list order and paired between
+//! two versions of a list by content, then by name ([`crate::list::align`]).
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -20,6 +21,16 @@ use kition_kit::kdm::{NodeRef, ObjectId};
 use kition_layout_doc::{Document, Item, ItemId, Story, StoryId};
 
 use crate::{KdmResult, MAX_DEPTH, kdm_err};
+
+/// The named definitions kept as object lists of the `Layout` (besides styles and swatches): the
+/// `Layout` field (also the key of the engine's serialized `Document`) and the object type, in
+/// the order of [`Ids::named`]. Each object holds its `name` and the rest of the definition as
+/// `value`.
+pub(crate) const NAMED: [(&str, &str); NAMED_LISTS] = [("conditions", "Condition"), ("textVariables", "TextVariable"), ("xrefFormats", "XrefFormat")];
+/// How many lists [`NAMED`] has.
+pub(crate) const NAMED_LISTS: usize = 3;
+/// The place of the text variables in [`NAMED`].
+pub(crate) const VARIABLES: usize = 1;
 
 /// The five style families, in the order of [`FAMILY_FIELDS`].
 pub const FAMILIES: usize = 5;
@@ -180,6 +191,12 @@ pub struct Ids {
     pub pages: IdMap<u64>,
     pub layers: IdMap<u64>,
     pub assets: IdMap<u64>,
+    pub hyperlinks: IdMap<u64>,
+    /// Data merge placeholders.
+    pub placeholders: IdMap<u64>,
+    /// Parallel to the document's conditions, text variables and cross-reference formats (see
+    /// [`NAMED`]).
+    pub(crate) named: [Vec<ObjectId>; NAMED_LISTS],
     /// Parallel to each style family's list (see [`FAMILY_FIELDS`]).
     pub(crate) styles: [Vec<ObjectId>; FAMILIES],
     /// Parallel to the document's swatches.
@@ -246,9 +263,9 @@ pub(crate) fn has_own_id(kind: InlineKind) -> bool {
 }
 
 /// Where an engine id must be unique: the engine's own id spaces. Layers, spreads (parent spreads
-/// included), pages, stories, assets and items are numbered from the document's one counter
-/// (`Document::next_id`); a story numbers its tables, and each kind of its inline objects
-/// (footnotes, endnotes, text anchors, editorial notes), itself.
+/// included), pages, stories, assets, items, hyperlinks and data merge placeholders are numbered
+/// from the document's one counter (`Document::next_id`); a story numbers its tables, and each kind
+/// of its inline objects (footnotes, endnotes, text anchors, editorial notes), itself.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum Domain {
     /// All objects numbered by the document counter share this collision domain.
@@ -259,6 +276,8 @@ pub(crate) enum Domain {
     Story,
     Asset,
     Item,
+    Hyperlink,
+    Placeholder,
     /// The tables of the story object.
     Table(ObjectId),
     /// The numbered inline objects of one kind of the story object.
@@ -427,6 +446,8 @@ pub(crate) fn check_unique(doc: &Document) -> KdmResult<()> {
     unique("a spread id", doc.spreads.iter().chain(&doc.parents).map(|s| s.id))?;
     unique("a page id", doc.spreads.iter().chain(&doc.parents).flat_map(|s| s.pages.iter().map(|p| p.id)))?;
     unique("a layer id", doc.layers.iter().map(|l| l.id))?;
+    unique("a hyperlink id", doc.hyperlinks.iter().map(|h| h.id))?;
+    unique("a data merge placeholder id", doc.data_merge.placeholders.iter().map(|p| p.id))?;
     for story in doc.stories.values() {
         let mut frames = HashSet::new();
         for frame in &story.frames {

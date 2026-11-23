@@ -7,7 +7,11 @@ use std::sync::Arc;
 
 use common::*;
 use kition_layout_doc::geom::{Rect, shapes};
-use kition_layout_doc::{CharAttrs, Content, Document, Item, ItemId, ParaFormat, Shape, SpreadRef};
+use kition_layout_doc::vars::{TextVariable, VarKind, var_char, var_index};
+use kition_layout_doc::{
+    CharAttrs, Condition, Content, Document, Hyperlink, HyperlinkDest, HyperlinkSource, Item, ItemId, ParaFormat, Placeholder, PlaceholderAnchor,
+    PlaceholderRole, Shape, SpreadRef, XrefFormat,
+};
 use kition_layout_kdm::kition_kit::kdm::Origin;
 use kition_layout_kdm::kition_kit::session::{KitSession, MemoryBlobs};
 use kition_layout_kdm::{LayoutModel, compare::normalize, write_changes};
@@ -381,4 +385,153 @@ fn random_concurrent_edits_converge() {
         }
         sync(&mut a, &mut b);
     }
+}
+
+/// What the engine does to the hyperlink sources and placeholders of `story` after `by` bytes were
+/// typed at `at`: those after it move.
+fn shift_ranges(d: &mut Document, story: kition_layout_doc::StoryId, at: usize, by: usize) {
+    for link in &mut d.hyperlinks {
+        if let HyperlinkSource::Text { story: s, start, end } = &mut link.source
+            && *s == story
+            && *start >= at
+        {
+            *start += by;
+            *end += by;
+        }
+    }
+    for p in &mut d.data_merge.placeholders {
+        if let PlaceholderAnchor::Text { story: s, start, end } = &mut p.anchor
+            && *s == story
+            && *start >= at
+        {
+            *start += by;
+            *end += by;
+        }
+    }
+}
+
+/// The text of `link`'s source in `d`.
+fn source_text(d: &Document, name: &str) -> String {
+    let link = d.hyperlinks.iter().find(|h| h.name == name).unwrap_or_else(|| panic!("no hyperlink {name}: {:?}", d.hyperlinks));
+    let HyperlinkSource::Text { story, start, end } = link.source else { panic!("{name} starts from an item") };
+    d.story(story).unwrap().text[start..end].to_owned()
+}
+
+/// Two people adding a hyperlink each at once keep both, and text one types before the other's
+/// source moves it with its text: hyperlinks are objects, their sources marks on the text
+/// (schema-freeze).
+#[test]
+fn concurrent_hyperlinks_keep_both_and_follow_their_text() {
+    let (mut a, mut b) = pair(&linked());
+    a.edit(|d| {
+        let story = linked_story(d);
+        let id = d.alloc();
+        let source = HyperlinkSource::Text { story, start: 13, end: 14 };
+        d.hyperlinks.push(Hyperlink { id, name: "Shout".into(), source, dest: HyperlinkDest::Url("https://a.example".into()) });
+    });
+    b.edit(|d| {
+        let story = linked_story(d);
+        d.story_mut(story).unwrap().insert(0, "Please ");
+        shift_ranges(d, story, 0, 7);
+        let oval = d.spreads.iter().flat_map(|s| s.items.iter()).find(|i| i.shape == Shape::Oval).map(|i| i.id).unwrap();
+        let id = d.alloc();
+        d.hyperlinks.push(Hyperlink { id, name: "Oval".into(), source: HyperlinkSource::Item { id: oval }, dest: HyperlinkDest::Page(0) });
+    });
+    sync(&mut a, &mut b);
+    let d = a.doc();
+    let mut names: Vec<&str> = d.hyperlinks.iter().map(|h| h.name.as_str()).collect();
+    names.sort_unstable();
+    assert_eq!(names, vec!["Oval", "Page 3", "Shout", "Site"], "both new hyperlinks and the old ones");
+    assert_eq!(source_text(&d, "Site"), "Visit us");
+    assert_eq!(source_text(&d, "Shout"), "!", "A's source moved with the text B typed before it");
+    let story = &d.stories[&linked_story(&d)];
+    let PlaceholderAnchor::Text { start, end, .. } = d.data_merge.placeholders[0].anchor else { panic!("a text placeholder") };
+    assert_eq!(&story.text[start..end], "<<Name>>");
+}
+
+/// Two people adding a data merge placeholder each at once keep both.
+#[test]
+fn concurrent_placeholders_keep_both() {
+    let (mut a, mut b) = pair(&linked());
+    a.edit(|d| {
+        let oval = d.spreads.iter().flat_map(|s| s.items.iter()).find(|i| i.shape == Shape::Oval).map(|i| i.id).unwrap();
+        let id = d.alloc();
+        let anchor = PlaceholderAnchor::Item { id: oval };
+        d.data_merge.placeholders.push(Placeholder { id, source_id: 0, field: "Code".into(), role: PlaceholderRole::Qr, anchor });
+    });
+    b.edit(|d| {
+        let story = linked_story(d);
+        let id = d.alloc();
+        let anchor = PlaceholderAnchor::Text { story, start: 0, end: 5 };
+        d.data_merge.placeholders.push(Placeholder { id, source_id: 0, field: "Link".into(), role: PlaceholderRole::Hyperlink, anchor });
+    });
+    sync(&mut a, &mut b);
+    let d = a.doc();
+    let mut fields: Vec<&str> = d.data_merge.placeholders.iter().map(|p| p.field.as_str()).collect();
+    fields.sort_unstable();
+    assert_eq!(fields, vec!["Code", "Link", "Name", "Photo"]);
+    let link = d.data_merge.placeholders.iter().find(|p| p.field == "Link").unwrap();
+    let PlaceholderAnchor::Text { story, start, end } = link.anchor else { panic!("a text placeholder") };
+    assert_eq!(&d.stories[&story].text[start..end], "Visit");
+}
+
+/// Two people defining a condition, a text variable (and inserting an instance of it) and a
+/// cross-reference format each at once keep all of them, and every instance shows its own
+/// variable, whatever place the merged list gives it.
+#[test]
+fn concurrent_named_definitions_keep_both_and_instances_their_variable() {
+    let (mut a, mut b) = pair(&linked());
+    for (peer, (condition, variable, format, at_end)) in [(&mut a, ("Review", "Year", "Title", true)), (&mut b, ("Final", "City", "Page", false))] {
+        peer.edit(|d| {
+            d.conditions.push(Condition { name: condition.into(), color: [0, 0, 255], visible: true });
+            d.xref_formats.push(XrefFormat { name: format.into(), definition: "<pageNum />".into() });
+            d.text_variables.push(TextVariable::new(variable, VarKind::Custom { text: variable.to_uppercase() }));
+            let instance = var_char(d.text_variables.len() - 1).unwrap().to_string();
+            let story = linked_story(d);
+            let s = d.story_mut(story).unwrap();
+            let at = if at_end { s.len() } else { 0 };
+            s.insert(at, &instance);
+            shift_ranges(d, story, at, instance.len());
+        });
+    }
+    sync(&mut a, &mut b);
+    let d = a.doc();
+    let names = |list: Vec<&str>| {
+        let mut list = list;
+        list.sort_unstable();
+        list
+    };
+    assert_eq!(names(d.conditions.iter().map(|c| c.name.as_str()).collect()), vec!["Draft", "Final", "Review"]);
+    assert!(d.xref_formats.iter().any(|f| f.name == "Title") && d.xref_formats.iter().any(|f| f.name == "Page"));
+    let story = &d.stories[&linked_story(&d)];
+    let shown: Vec<&str> = story.text.chars().filter_map(var_index).map(|i| d.text_variables[i].name.as_str()).collect();
+    assert_eq!(shown, vec!["City", "Client", "Year"], "each instance names its own variable");
+}
+
+/// A bookmark names its page: when another person adds pages before it, it still goes there.
+#[test]
+fn a_bookmark_follows_its_page_when_another_person_adds_pages() {
+    let (mut a, mut b) = pair(&linked());
+    let marked = page_ids(&a.doc())[1];
+    b.edit(|d| {
+        d.insert_pages(None, 2, None).unwrap();
+        // The engine's own page indexes after the insertion (it keeps absolute indexes).
+        for bookmark in &mut d.bookmarks {
+            bookmark.page += 2;
+            for child in &mut bookmark.children {
+                child.page += 2;
+            }
+        }
+        if let HyperlinkDest::Page(page) = &mut d.hyperlinks[1].dest {
+            *page += 2;
+        }
+        for section in &mut d.sections {
+            section.start += 2;
+        }
+    });
+    a.edit(|d| d.bookmarks[0].name = "Opening".into());
+    sync(&mut a, &mut b);
+    let d = a.doc();
+    assert_eq!(d.bookmarks[0].name, "Opening");
+    assert_eq!(page_ids(&d)[d.bookmarks[0].page], marked, "the bookmark still goes to its page");
 }

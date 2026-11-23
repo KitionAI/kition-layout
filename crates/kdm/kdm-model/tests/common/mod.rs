@@ -6,9 +6,10 @@ use std::sync::Arc;
 use kition_layout_doc::build::NewDocument;
 use kition_layout_doc::color::{Color, Swatch, SwatchValue};
 use kition_layout_doc::geom::{Affine, Point, Rect, shapes};
+use kition_layout_doc::vars::{TextVariable, VarKind, var_char};
 use kition_layout_doc::{
-    AnchorPosition, AnchoredObject, CharAttrs, Content, CrossRef, Document, Fill, IndexRef, Item, ItemId, ParaFormat, Shape, SpreadRef, StoryId,
-    Table,
+    AnchorPosition, AnchoredObject, Bookmark, CharAttrs, Condition, Content, CrossRef, Document, Fill, Hyperlink, HyperlinkDest, HyperlinkSource,
+    IndexRef, Item, ItemId, ParaFormat, Placeholder, PlaceholderAnchor, PlaceholderRole, Shape, SpreadRef, StoryId, Table, XrefFormat,
 };
 use kition_layout_kdm::kition_kit::kdm::{ActorId, DocId, Origin, Replica};
 use kition_layout_kdm::kition_kit::session::{KitModel, MemoryBlobs};
@@ -142,6 +143,44 @@ pub fn rich() -> Document {
     d
 }
 
+/// The rich document with what the engine keeps beside its stories and items: a story whose text
+/// holds a hyperlink source (to a URL), a data merge placeholder and an instance of a custom text
+/// variable; a hyperlink from an item to a page; an image placeholder; a condition, a
+/// cross-reference format, and nested PDF bookmarks.
+pub fn linked() -> Document {
+    let mut d = rich();
+    d.conditions.push(Condition { name: "Draft".into(), color: [255, 0, 0], visible: true });
+    d.xref_formats.push(XrefFormat { name: "Short".into(), definition: "<pageNum />".into() });
+    d.text_variables.push(TextVariable::new("Client", VarKind::Custom { text: "Acme".into() }));
+    let client = var_char(d.text_variables.len() - 1).unwrap();
+    let lid = d.default_layer();
+    let (_, story) = d
+        .add_text_frame(SpreadRef::Doc(0), Rect::new(40.0, 500.0, 300.0, 560.0), lid, &format!("Visit us, {client}! <<Name>>"), ParaFormat::default())
+        .unwrap();
+    let id = d.alloc();
+    let source = HyperlinkSource::Text { story, start: 0, end: 8 };
+    d.hyperlinks.push(Hyperlink { id, name: "Site".into(), source, dest: HyperlinkDest::Url("https://example.com".into()) });
+    let oval = d.spreads.iter().flat_map(|s| s.items.iter()).find(|i| i.shape == Shape::Oval).map(|i| i.id).unwrap();
+    let id = d.alloc();
+    d.hyperlinks.push(Hyperlink { id, name: "Page 3".into(), source: HyperlinkSource::Item { id: oval }, dest: HyperlinkDest::Page(2) });
+    let at = d.story(story).unwrap().text.find("<<Name>>").unwrap();
+    let id = d.alloc();
+    let anchor = PlaceholderAnchor::Text { story, start: at, end: at + "<<Name>>".len() };
+    d.data_merge.placeholders.push(Placeholder { id, source_id: 0, field: "Name".into(), role: PlaceholderRole::Text, anchor });
+    let picture = d.spreads.iter().flat_map(|s| s.items.iter()).find(|i| matches!(i.content, Content::Graphic(_))).map(|i| i.id).unwrap();
+    let id = d.alloc();
+    let anchor = PlaceholderAnchor::Item { id: picture };
+    d.data_merge.placeholders.push(Placeholder { id, source_id: 0, field: "Photo".into(), role: PlaceholderRole::Image, anchor });
+    d.bookmarks.push(Bookmark { name: "Start".into(), page: 1, children: vec![Bookmark { name: "Inner".into(), page: 2, children: vec![] }] });
+    d.check().unwrap();
+    d
+}
+
+/// The story of `linked()`'s hyperlink sources and placeholders.
+pub fn linked_story(d: &Document) -> StoryId {
+    d.stories.values().find(|s| s.text.starts_with("Visit us")).map(|s| s.id).unwrap()
+}
+
 /// Table ids are a story's own numbers; any number works for a fixture.
 fn d_alloc_placeholder() -> u64 {
     77
@@ -154,7 +193,7 @@ pub fn from_idml() -> Document {
 
 /// Every fixture, by name.
 pub fn fixtures() -> Vec<(&'static str, Document)> {
-    vec![("blank", blank()), ("sample", sample()), ("rich", rich()), ("idml", from_idml())]
+    vec![("blank", blank()), ("sample", sample()), ("rich", rich()), ("linked", linked()), ("idml", from_idml())]
 }
 
 pub fn actor(n: u64) -> ActorId {

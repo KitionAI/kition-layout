@@ -204,3 +204,66 @@ fn concurrent_overrides_on_one_page_keep_both() {
     wanted.sort();
     assert_eq!(overridden, wanted);
 }
+
+/// Two sessions from one base, each recording its edit, then exchanging their changes both ways.
+fn concurrently(start: Document, a_edit: impl FnOnce(&mut Document), b_edit: impl FnOnce(&mut Document)) -> (LayoutSession, LayoutSession) {
+    let base = LayoutSession::create(&Arc::new(start), &Origin::system("create")).unwrap();
+    let snapshot = base.snapshot().unwrap();
+    let mut a = LayoutSession::open(&snapshot, &[], base.blobs().clone()).unwrap();
+    let mut b = LayoutSession::open(&snapshot, &[], base.blobs().clone()).unwrap();
+    let a_doc = edited(a.document(), a_edit);
+    a.record(&person(), &a_doc).unwrap();
+    let b_doc = edited(b.document(), b_edit);
+    b.record(&Origin::person("person:b"), &b_doc).unwrap();
+    let (va, vb) = (a.version(), b.version());
+    let (from_a, from_b) = (a.export_changes(&vb).unwrap(), b.export_changes(&va).unwrap());
+    a.import_changes(&from_b).unwrap();
+    b.import_changes(&from_a).unwrap();
+    // The repairs each side wrote reach the other.
+    let (va, vb) = (a.version(), b.version());
+    let (from_a, from_b) = (a.export_changes(&vb).unwrap(), b.export_changes(&va).unwrap());
+    a.import_changes(&from_b).unwrap();
+    b.import_changes(&from_a).unwrap();
+    assert_eq!(a.state_hash().unwrap(), b.state_hash().unwrap(), "the replicas converge");
+    assert_eq!(normalize(a.document()), normalize(b.document()), "and so do their views");
+    (a, b)
+}
+
+/// One person deletes a text variable while another inserts an instance of it: the instance,
+/// which names a variable that is gone, is removed (the read repair), the same on both sides.
+#[test]
+fn an_instance_of_a_variable_deleted_meanwhile_is_removed() {
+    use kition_layout_doc::vars::{var_char, var_index};
+    let (a, _) = concurrently(
+        linked(),
+        |d| {
+            // What `variables.delete` does to "Client": its instance becomes its value.
+            let story = linked_story(d);
+            let client = var_char(d.text_variables.len() - 1).unwrap();
+            let s = d.story_mut(story).unwrap();
+            let at = s.text.find(client).unwrap();
+            s.replace(at..at + client.len_utf8(), "Acme");
+            d.text_variables.pop();
+            // The placeholder after it moves with its text.
+            for p in &mut d.data_merge.placeholders {
+                if let kition_layout_doc::PlaceholderAnchor::Text { start, end, .. } = &mut p.anchor
+                    && *start > at
+                {
+                    *start += "Acme".len() - client.len_utf8();
+                    *end += "Acme".len() - client.len_utf8();
+                }
+            }
+        },
+        |d| {
+            let story = linked_story(d);
+            let client = var_char(d.text_variables.len() - 1).unwrap().to_string();
+            let s = d.story_mut(story).unwrap();
+            let end = s.len();
+            s.insert(end, &client);
+        },
+    );
+    let d = a.document();
+    let text = &d.stories[&linked_story(d)].text;
+    assert!(text.contains("Acme"), "{text}");
+    assert_eq!(text.chars().filter_map(var_index).count(), 0, "no instance names a variable that is gone: {text:?}");
+}

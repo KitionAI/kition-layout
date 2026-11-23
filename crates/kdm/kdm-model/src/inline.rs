@@ -82,7 +82,7 @@ pub(crate) fn placeholder_objects(list: &[Option<(InlineKey, InlineRef<'_>)>], o
 
 /// An inline object's registers and text.
 pub(crate) fn inline_fields(r: &InlineRef<'_>, out: &Out<'_>) -> KdmResult<(Fields, Vec<TextRun>)> {
-    let nested = |story: &Story| story_runs(story, &out.names, &Anchors { table: &nested_table, inlines: None });
+    let nested = |story: &Story| story_runs(story, &out.names, &Anchors { table: &nested_table, inlines: None, ranges: &[] });
     let (kind, item, data, runs) = match r {
         InlineRef::Object(o) => {
             let item = out.ids.items.object(o.item.id).map(|o| Value::String(o.as_str().to_owned())).unwrap_or(Value::Null);

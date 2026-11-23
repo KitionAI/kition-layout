@@ -258,3 +258,51 @@ fn v12_an_override_of_an_item_not_on_a_parent_is_cleared() {
     assert_eq!(replica.get(&a, "overrides").unwrap(), Value::Null, "not a parent item");
     assert_eq!(replica.get(&b, "overrides").unwrap(), json!(on_parent.as_str()), "a parent item stays");
 }
+
+#[test]
+fn v13_hyperlinks_and_placeholders_on_deleted_items_and_pages_are_deleted() {
+    let (mut replica, blobs, _) = replica_of(&linked());
+    let links = replica.list(&root(), "hyperlinks").unwrap();
+    let on_item = links.iter().find(|l| !replica.get(l, "item").unwrap().is_null()).unwrap().clone();
+    let oval = ObjectId::from_string(replica.get(&on_item, "item").unwrap().as_str().unwrap());
+    let placeholders = replica.list(&root(), "placeholders").unwrap();
+    let on_picture = placeholders.iter().find(|p| !replica.get(p, "item").unwrap().is_null()).unwrap().clone();
+    let picture = ObjectId::from_string(replica.get(&on_picture, "item").unwrap().as_str().unwrap());
+    damage(&mut replica, |tx| {
+        tx.delete(&oval)?;
+        tx.delete(&picture)
+    });
+    assert!(repair_once(&mut replica));
+    assert!(!replica.exists(&on_item) && !replica.exists(&on_picture));
+    assert_eq!(replica.list(&root(), "hyperlinks").unwrap().len(), links.len() - 1);
+    assert_eq!(replica.list(&root(), "placeholders").unwrap().len(), placeholders.len() - 1);
+    read(&replica, &blobs).check().unwrap();
+}
+
+/// The read repair: a hyperlink or placeholder whose text is gone (one person deleted the text
+/// while another edited the hyperlink), and a variable instance naming a deleted variable.
+#[test]
+fn v13_sources_whose_text_is_gone_and_instances_of_deleted_variables() {
+    let (mut replica, blobs, _) = replica_of(&linked());
+    let story = replica.list(&root(), "stories").unwrap().into_iter().find(|s| replica.text(s, "text").unwrap().starts_with("Visit us")).unwrap();
+    let links = replica.list(&root(), "hyperlinks").unwrap();
+    let text_link = links.iter().find(|l| replica.get(l, "item").unwrap().is_null()).unwrap().clone();
+    let variable = replica.list(&root(), "textVariables").unwrap().last().unwrap().clone();
+    let before_len = replica.text(&story, "text").unwrap().chars().count();
+    // "Visit us" (8 characters) goes, and so does the variable its instance names.
+    damage(&mut replica, |tx| {
+        tx.text_delete(&story, "text", 0, 8)?;
+        tx.delete(&variable)
+    });
+    let found = repair::read_repairs(&replica).unwrap();
+    assert_eq!(found.unanchored, vec![("hyperlinks", text_link.clone())], "{found:?}");
+    assert_eq!(found.chars.len(), 1, "the instance: {found:?}");
+    let wrote = replica.transact(&Origin::system("repair"), |tx| repair::apply(tx, &found)).unwrap();
+    assert!(wrote);
+    assert!(repair::read_repairs(&replica).unwrap().is_empty());
+    assert!(!replica.exists(&text_link));
+    assert_eq!(replica.text(&story, "text").unwrap().chars().count(), before_len - 8 - 1);
+    let doc = read(&replica, &blobs);
+    doc.check().unwrap();
+    assert!(doc.stories.values().all(|s| s.text.chars().all(|c| kition_layout_doc::vars::var_index(c).is_none())));
+}

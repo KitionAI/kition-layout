@@ -502,6 +502,19 @@ fn add_placeholder(d: &mut Document, sel: &Selection, p: &Value, name: &str) -> 
             let text = d.story(story).map(|st| st.text.clone()).unwrap_or_default();
             let start = kition_layout_doc::floor_char_boundary(&text, at.min(text.len()));
             let end = kition_layout_doc::floor_char_boundary(&text, end.min(text.len())).max(start);
+            // The document keeps the text a placeholder covers as a mark on it: it needs some
+            // text, and text no other placeholder covers.
+            if start == end {
+                return Err(bad("data.placeholder.add", "select the text the placeholder covers"));
+            }
+            let taken = d
+                .data_merge
+                .placeholders
+                .iter()
+                .any(|ph| matches!(ph.anchor, PlaceholderAnchor::Text { story: s, start: a, end: b } if s == story && a < end && start < b));
+            if taken {
+                return Err(bad("data.placeholder.add", "another placeholder covers the selected text"));
+            }
             PlaceholderAnchor::Text { story, start, end }
         }
     };
