@@ -31,6 +31,8 @@ serde_json = { workspace = true }
 
 [dev-dependencies]
 log = { workspace = true }
+# Counted ids for the deterministic-save test (KITION_REPRODUCIBLE_IDS); never in a shipped build.
+kition-kit = { workspace = true, features = ["reproducible-ids"] }
 kition-layout-fonts = { workspace = true, features = ["testing"] }
 # The Kition platform convergence suite (L6): two to five replicas of a layout (tests/convergence.rs).
 kition-convergence = { workspace = true }

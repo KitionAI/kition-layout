@@ -51,25 +51,6 @@ fn state(doc: &mut LayoutDocument) -> Value {
     Replica::load(kition_layout_kdm::schema(), &doc.snapshot().unwrap(), ActorId::random()).unwrap().state_json().unwrap()
 }
 
-/// [`state`] without the nodes of `Layout.items` that name a deleted item: the KDM keeps a
-/// deleted item's node (an undo of the delete brings the item back into it), and no reader of the
-/// layout sees it. A file's state written over a stored replica by object id
-/// (`kition_kit::session::write_state`) adds a node of its own for such an item when the file
-/// names it, so the two states differ in those nodes only.
-fn live_state(doc: &mut LayoutDocument) -> Value {
-    fn prune(nodes: &mut Value, live: &serde_json::Map<String, Value>) {
-        let Some(list) = nodes.as_array_mut() else { return };
-        list.retain(|node| node["object"].as_str().is_some_and(|object| live.contains_key(object)));
-        for node in list {
-            prune(&mut node["children"], live);
-        }
-    }
-    let mut state = state(doc);
-    let live = state["objects"].as_object().unwrap().clone();
-    prune(&mut state["objects"]["layout"]["items"], &live);
-    state
-}
-
 fn version(doc: &mut LayoutDocument) -> Version {
     Version::decode(&doc.version().unwrap()).unwrap()
 }
@@ -232,7 +213,7 @@ fn a_file_saved_elsewhere_opens_on_the_stored_replica_by_its_state() {
     let edited = host_save(&mut elsewhere);
     let mut opened = LayoutDocument::open_with_replica(FILE, &edited, &stored, &blobs).unwrap();
     assert_eq!(opened.doc_id(), doc.doc_id());
-    assert_eq!(live_state(&mut opened), live_state(&mut elsewhere), "the file's state, by object id");
+    assert_eq!(state(&mut opened), state(&mut elsewhere), "the file's state, by object id");
     assert_eq!(items(&opened), items(&elsewhere));
     assert!(contains(&opened.snapshot().unwrap(), DELETED_ELEMENT), "on top of the stored history, which it keeps");
 }

@@ -1,7 +1,9 @@
-//! A document built by the same commands saves the same bytes when `SOURCE_DATE_EPOCH` is set, as
-//! a showcase sample or a gating test builds it: the replica's actor and the document id come from
-//! a counter in the process instead of randomness. Each build runs in a process of its own: this
-//! test starts itself several times.
+//! A document built by the same commands saves the same bytes when `KITION_REPRODUCIBLE_IDS` is set
+//! (with the KDM's `reproducible-ids` feature, which this crate enables in its dev-dependencies
+//! only) and `SOURCE_DATE_EPOCH` fixes the clock, as a showcase sample or a gating test builds it:
+//! the replica's actor and the document id come from a counter in the process instead of
+//! randomness. `SOURCE_DATE_EPOCH` alone, which hosts pass to every kit, leaves ids random. Each
+//! build runs in a process of its own: this test starts itself several times.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
@@ -30,13 +32,15 @@ fn child_builds_a_document() {
     }
 }
 
-fn build_in_a_process(path: &PathBuf) -> Vec<u8> {
-    let status = Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", "child_builds_a_document", "--test-threads=1", "--quiet"])
-        .env("SOURCE_DATE_EPOCH", "1794182400")
-        .env(OUT, path)
-        .status()
-        .unwrap();
+fn build_in_a_process(path: &PathBuf, counted: bool) -> Vec<u8> {
+    let mut child = Command::new(std::env::current_exe().unwrap());
+    child.args(["--exact", "child_builds_a_document", "--test-threads=1", "--quiet"]).env("SOURCE_DATE_EPOCH", "1794182400").env(OUT, path);
+    if counted {
+        child.env("KITION_REPRODUCIBLE_IDS", "1");
+    } else {
+        child.env_remove("KITION_REPRODUCIBLE_IDS");
+    }
+    let status = child.status().unwrap();
     assert!(status.success(), "the child build failed");
     std::fs::read(path).unwrap()
 }
@@ -45,12 +49,22 @@ fn build_in_a_process(path: &PathBuf) -> Vec<u8> {
 fn the_same_commands_save_the_same_bytes() {
     let dir = std::env::temp_dir().join(format!("kition-layout-determinism-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let first = build_in_a_process(&dir.join("0.klayout"));
+    let first = build_in_a_process(&dir.join("0.klayout"), true);
     for build in 1..4 {
         // A second apart, so a clock read would show.
         std::thread::sleep(std::time::Duration::from_millis(1100));
-        let again = build_in_a_process(&dir.join(format!("{build}.klayout")));
+        let again = build_in_a_process(&dir.join(format!("{build}.klayout")), true);
         assert!(first == again, "build {build} saved other bytes than build 0");
     }
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn the_build_epoch_alone_leaves_ids_random() {
+    let dir = std::env::temp_dir().join(format!("kition-layout-random-ids-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let first = build_in_a_process(&dir.join("0.klayout"), false);
+    let again = build_in_a_process(&dir.join("1.klayout"), false);
+    assert!(first != again, "SOURCE_DATE_EPOCH alone counted the ids");
     std::fs::remove_dir_all(&dir).ok();
 }
