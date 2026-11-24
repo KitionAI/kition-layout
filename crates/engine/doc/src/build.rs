@@ -157,7 +157,6 @@ impl Document {
             xref_formats: crate::xref::default_formats(),
             index: None,
             created: crate::vars::now(),
-            modified: 0,
             next_id: 0,
             font_scope: 0,
         };

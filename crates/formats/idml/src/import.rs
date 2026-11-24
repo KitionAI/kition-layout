@@ -2343,7 +2343,6 @@ impl<'r> Importer<'r> {
             xref_formats: std::mem::take(&mut self.xref_formats),
             index: None,
             created: kition_layout_doc::vars::now(),
-            modified: 0,
             next_id: self.next_id,
             font_scope: 0,
         };

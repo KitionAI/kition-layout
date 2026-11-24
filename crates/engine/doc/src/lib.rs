@@ -524,11 +524,9 @@ pub struct Document {
     /// The generated index (kept for Update Index).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub index: Option<index::IndexSpec>,
-    /// Creation / last save time (Unix seconds, UTC).
+    /// Creation time (Unix seconds, UTC).
     #[serde(default)]
     pub created: i64,
-    #[serde(default)]
-    pub modified: i64,
     pub next_id: u64,
     /// While the document is open, the font scope of the fonts it brought (its `Document Fonts`
     /// folder): composition, export and the font menus look its fonts up there. 0: none. Not

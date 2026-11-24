@@ -199,7 +199,9 @@ impl Document {
                 }
             }
             VarKind::CreationDate { format } => format_date(self.created, format),
-            VarKind::ModificationDate { format } => format_date(if self.modified > 0 { self.modified } else { self.created }, format),
+            // The content holds no save time (a save of an unchanged layout writes the same
+            // bytes): the modification date reads the creation date.
+            VarKind::ModificationDate { format } => format_date(self.created, format),
             VarKind::OutputDate { format } => format_date(now(), format),
             VarKind::RunningHeader { .. } => return None,
         };
