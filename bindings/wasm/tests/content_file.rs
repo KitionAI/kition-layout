@@ -4,8 +4,7 @@
 //! opened without a store is the same document (docId, object ids) and edits; a replica from the
 //! file and one with the whole history converge; undo after a save takes back the last edit; and a
 //! file opens on top of a stored replica, by its changes or by its state. Hosts seal before saving
-//! (`prepare_save`, the direct path); the one fallback, a save nobody sealed for (the kit editor
-//! before its release that calls `prepareSave`), seals a copy and `mark_saved` takes the seal in.
+//! (`prepare_save`); a save nobody sealed for is refused.
 //!
 //! The needles below are written once each and share no run of four characters with anything else
 //! in the layout, so the engine's compression keeps each one literal in the bytes that hold it:
@@ -120,6 +119,25 @@ fn an_unchanged_layout_saves_to_the_same_bytes() {
     assert_eq!(host_save(&mut opened), first, "and from the file opened again");
 }
 
+/// Two people's sessions that open the same file and save it without an edit write the same
+/// whole file, byte for byte: the file holds nothing of the session that wrote it (no actor of
+/// its own, no time, no view, no selection), even after each looked at it its own way.
+#[test]
+fn two_sessions_that_open_one_file_and_save_unedited_write_the_same_bytes() {
+    let (mut doc, kept) = layout_with_history();
+    let file = host_save(&mut doc);
+    let mut one = LayoutDocument::open(FILE, &file).unwrap();
+    let mut two = LayoutDocument::open(FILE, &file).unwrap();
+    // Each person looks at it differently: a selection, a render, an inspect.
+    one.execute("selection.set", json!({ "ids": [kept] })).unwrap();
+    let _ = one.render(0.0, 0.0, 0.5, 300, 400).unwrap();
+    let _ = two.inspect().unwrap();
+    assert!(!one.dirty() && !two.dirty(), "looking is no edit");
+    let (from_one, from_two) = (host_save(&mut one), host_save(&mut two));
+    assert!(from_one == from_two, "two sessions saved other bytes for the same unedited file");
+    assert!(from_one == file, "and the file they opened");
+}
+
 #[test]
 fn a_file_opened_without_a_store_is_the_same_document_and_edits() {
     let (mut doc, kept) = layout_with_history();
@@ -218,31 +236,20 @@ fn a_file_saved_elsewhere_opens_on_the_stored_replica_by_its_state() {
     assert!(contains(&opened.snapshot().unwrap(), DELETED_ELEMENT), "on top of the stored history, which it keeps");
 }
 
-/// The fallback (delete with it once a kit-editor release that calls prepareSave is in
-/// web/pnpm-lock.yaml): a save nobody sealed for writes the content of a sealed copy, the same
-/// bytes for the same version, and `mark_saved` takes the seal into the session, which then
-/// exchanges changes with a replica of the file.
+/// A save nobody sealed for is refused (`not-sealed: …`, the session left as it was): every host
+/// seals first (`prepare_save`), and there is no sealed copy behind its back. After the seal the
+/// same session saves, and keeps its undo history.
 #[test]
-fn a_save_nobody_sealed_for_seals_a_copy_and_mark_saved_takes_the_seal_in() {
+fn a_save_nobody_sealed_for_is_refused() {
     let (mut doc, _) = layout_with_history();
     let at = version(&mut doc);
-    let first = doc.save(Some(FILE)).unwrap();
-    assert_eq!(version(&mut doc), at, "the session is not sealed by a save");
-    assert_eq!(doc.save(Some(FILE)).unwrap(), first, "the same version seals the same way");
-    for needle in NEEDLES {
-        assert!(!contains(&first, needle), "the file holds {needle}");
-    }
-    assert_eq!(Replica::snapshot_origins(&content(&first)).unwrap(), vec![Some(Origin::system("content-seal"))]);
+    let error = doc.save(Some(FILE)).unwrap_err();
+    assert!(error.starts_with("not-sealed"), "{error}");
+    assert_eq!(version(&mut doc), at, "the refused save left the session as it was");
+    assert!(doc.dirty());
+    let saved = host_save(&mut doc);
     doc.mark_saved();
     assert!(!doc.dirty());
-    assert_eq!(version(&mut doc), file_version(&first), "mark_saved took the seal in");
-    assert!(doc.can_undo(), "and kept the undo history");
-    // A replica of the file and the session exchange changes made after the save.
-    let mut file = LayoutDocument::open(FILE, &first).unwrap();
-    doc.execute("frame.create", json!({ "rect": [72, 600, 172, 700], "content": "unassigned" })).unwrap();
-    file.execute_as("frame.create", json!({ "rect": [300, 600, 400, 700], "content": "unassigned" }), &Origin::person("person:file")).unwrap();
-    let (to_file, to_doc) = (doc.export_changes(&file.version().unwrap()).unwrap(), file.export_changes(&doc.version().unwrap()).unwrap());
-    doc.import_changes(&to_doc).unwrap();
-    file.import_changes(&to_file).unwrap();
-    assert_eq!(state(&mut doc), state(&mut file));
+    assert_eq!(version(&mut doc), file_version(&saved), "the file holds the sealed session's version");
+    assert!(doc.can_undo(), "the seal is no undo step and clears none");
 }

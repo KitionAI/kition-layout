@@ -38,14 +38,11 @@ impl FileBase {
     }
 }
 
-/// A save: the file's bytes, what the file then holds, and the seal the save made.
+/// A save: the file's bytes and what the file then holds.
 #[derive(Debug)]
 pub struct SavedFile {
     pub bytes: Vec<u8>,
     pub base: FileBase,
-    /// The seal of the fallback in [`save_file`] (a replica nobody sealed): changes to import into
-    /// the replica once the file is stored. `None` on the direct path.
-    pub seal: Option<Vec<u8>>,
 }
 
 /// Why a file did not open, as the host reports it: `not-a-layout: …`, `damaged: …`, or a newer
@@ -78,43 +75,19 @@ pub fn open_file(bytes: &[u8]) -> Result<(LayoutSession, FileBase)> {
     Ok((session, FileBase { version, doc_id, extra: parts.extra }))
 }
 
-/// The actor that seals a copy of a replica at `version` (the fallback in [`save_file`]): one per
-/// version, so saving one version twice writes the same seal, and two versions never share a
-/// seal's change id.
-fn seal_actor(version: &Version) -> ActorId {
-    let hash = container::sha256_hex(&version.encode());
-    let value = hash.get(..16).and_then(|hex| u64::from_str_radix(hex, 16).ok()).unwrap_or(0) >> 1;
-    ActorId::from_u64(value).unwrap_or_else(|_| ActorId::random())
-}
-
-/// What a save writes as `content.bin`: the bytes, the version they hold, and the seal made for
-/// them on a copy, if any.
-struct Content {
-    bytes: Vec<u8>,
-    version: Version,
-    seal: Option<Vec<u8>>,
-}
-
-/// The content `replica` saves as. The direct path: the host sealed the replica
-/// (`KitDocument::prepare_save`, [`LayoutSession::seal`]), and its own content snapshot is written.
-fn content(replica: &Replica) -> Result<Content> {
-    let version = replica.version();
-    if replica.is_sealed() {
-        return Ok(Content { bytes: replica.sealed_content_snapshot().map_err(kit_err)?, version, seal: None });
+/// What a save writes as `content.bin`: the content snapshot of `replica`, which the host sealed
+/// first (`KitDocument::prepare_save`, [`LayoutSession::seal`]), and the version it holds. A
+/// replica that is not sealed answers `not-sealed: …`: every host seals before it saves.
+fn content(replica: &Replica) -> Result<(Vec<u8>, Version)> {
+    if !replica.is_sealed() {
+        return Err(KitError::new("not-sealed: the layout is saved after its seal (prepareSave)"));
     }
-    // FALLBACK, delete once a kit-editor release that calls prepareSave is in web/pnpm-lock.yaml:
-    // until then the editor saves a replica nobody sealed, and `save` sees it read-only. The
-    // content of a copy sealed under an actor derived from the version (the same version gives
-    // the same bytes); `mark_saved` imports the seal.
-    let mut sealed = replica.fork(seal_actor(&version)).map_err(kit_err)?;
-    sealed.seal().map_err(kit_err)?;
-    let seal = sealed.export_changes(&version).map_err(kit_err)?;
-    Ok(Content { bytes: sealed.sealed_content_snapshot().map_err(kit_err)?, version: sealed.version(), seal: Some(seal) })
+    Ok((replica.sealed_content_snapshot().map_err(kit_err)?, replica.version()))
 }
 
 /// The `.klayout` bytes of `replica`'s content with `blobs` and the unknown entries `extra`.
-fn write(replica: &Replica, blobs: BTreeMap<String, Vec<u8>>, extra: Vec<(String, Vec<u8>)>) -> Result<(Vec<u8>, Content)> {
-    let content = content(replica)?;
+fn write(replica: &Replica, blobs: BTreeMap<String, Vec<u8>>, extra: Vec<(String, Vec<u8>)>) -> Result<(Vec<u8>, Version)> {
+    let (content, version) = content(replica)?;
     let parts = Container {
         meta: Meta {
             kit: KIT.to_owned(),
@@ -123,28 +96,28 @@ fn write(replica: &Replica, blobs: BTreeMap<String, Vec<u8>>, extra: Vec<(String
             doc_id: replica.doc_id().to_string(),
             ..Default::default()
         },
-        content: content.bytes.clone(),
+        content,
         blobs,
         extra,
     };
     let bytes = container::write(&parts).map_err(kit_err)?;
-    Ok((bytes, content))
+    Ok((bytes, version))
 }
 
 /// The file `session` saves to, with `base` (what its file holds, when it is the same document, for
-/// the entries this build does not know): the bytes, what the file then holds, and the seal the
-/// fallback made. A sealed replica (the direct path) saves its own content snapshot, the same
-/// bytes for the same version.
+/// the entries this build does not know): the bytes and what the file then holds. The session must
+/// be sealed first ([`LayoutSession::seal`]); it saves its own content snapshot, the same bytes for
+/// the same version.
 pub fn save_file(session: &LayoutSession, base: Option<&FileBase>) -> Result<SavedFile> {
     let doc_id = session.doc_id().to_string();
     let extra = base.filter(|base| base.doc_id == doc_id).map(|base| base.extra.clone()).unwrap_or_default();
     let blobs: BTreeMap<String, Vec<u8>> = session.referenced_blobs().into_iter().map(|(hash, bytes)| (hash, bytes.to_vec())).collect();
-    let (bytes, Content { version, seal, .. }) = write(session.replica(), blobs, extra.clone())?;
-    Ok(SavedFile { bytes, base: FileBase { version, doc_id, extra }, seal })
+    let (bytes, version) = write(session.replica(), blobs, extra.clone())?;
+    Ok(SavedFile { bytes, base: FileBase { version, doc_id, extra } })
 }
 
 /// `replica` as a new `.klayout` file with the blobs its assets reference from `blobs`
-/// (`KitModel::export`): its content snapshot, sealed as [`save_file`] seals.
+/// (`KitModel::export`): its content snapshot, as [`save_file`] writes it (sealed first).
 pub(crate) fn export_file(replica: &Replica, blobs: &dyn BlobSource) -> Result<Vec<u8>> {
     let referenced = crate::session::referenced(replica);
     let blobs = referenced.into_iter().filter_map(|hash| blobs.get(&hash).map(|bytes| (hash, bytes.to_vec()))).collect();

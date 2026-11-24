@@ -99,9 +99,7 @@ fn the_file_holds_the_content_and_of_the_history_only_the_seal() {
     let start = Arc::new(rich());
     let mut s = LayoutSession::create(&start, &Origin::system("create")).unwrap();
     s.seal().unwrap();
-    let saved = save_file(&s, None).unwrap();
-    assert!(saved.seal.is_none(), "a sealed session saves its own content");
-    let bytes = saved.bytes;
+    let bytes = save_file(&s, None).unwrap().bytes;
     let (opened, base) = open_file(&bytes).unwrap();
     assert_eq!(opened.doc_id(), s.doc_id());
     assert_eq!(&opened.version(), base.version());
@@ -128,24 +126,21 @@ fn the_file_holds_the_content_and_of_the_history_only_the_seal() {
     assert_eq!(save_file(&reopened, None).unwrap().bytes, again, "the reopened file saves the same bytes");
 }
 
-/// The fallback (delete with it once a kit-editor release that calls prepareSave is in
-/// web/pnpm-lock.yaml): a session nobody sealed saves the content of a sealed copy, the same bytes
-/// for the same version, and the seal imports into the session.
+/// A session nobody sealed does not save (`not-sealed: …`): hosts seal first (`prepare_save`), and
+/// no sealed copy is made behind the session's back.
 #[test]
-fn an_unsealed_session_saves_the_content_of_a_sealed_copy() {
+fn an_unsealed_session_does_not_save() {
     let start = Arc::new(rich());
     let mut s = LayoutSession::create(&start, &Origin::system("create")).unwrap();
     let after = edited(s.document(), |d| d.title = "Edited".into());
     s.record(&person(), &after).unwrap();
     let version = s.version();
-    let first = save_file(&s, None).unwrap();
-    assert_eq!(s.version(), version, "the save sealed a copy, not the session");
-    assert_eq!(save_file(&s, None).unwrap().bytes, first.bytes, "the same version seals the same way");
-    let parts = kition_layout_format::container::read(&first.bytes).unwrap();
-    assert_eq!(Replica::snapshot_origins(&parts.content).unwrap(), vec![Some(Origin::system("content-seal"))]);
-    s.import_changes(first.seal.as_deref().unwrap()).unwrap();
-    assert_eq!(&s.version(), first.base.version(), "the session took the seal in");
-    assert!(s.is_sealed());
+    let error = save_file(&s, None).unwrap_err();
+    assert!(error.to_string().starts_with("not-sealed"), "{error}");
+    assert_eq!(s.version(), version, "the refused save left the session as it was");
+    assert!(s.seal().unwrap());
+    let saved = save_file(&s, None).unwrap();
+    assert_eq!(saved.base.version(), &s.version(), "the file holds the sealed session's version");
     assert!(s.can_undo(), "the seal is no undo step and clears none");
     s.undo().unwrap();
     assert_ne!(s.document().title, "Edited", "the undo took back the last edit");
@@ -156,7 +151,8 @@ fn damaged_and_foreign_files_are_refused() {
     assert!(open_file(b"not a layout").unwrap_err().to_string().starts_with("not-a-layout"));
     let engine_snapshot = kition_layout_format::save(&blank()).unwrap();
     assert!(open_file(&engine_snapshot).is_err(), "the engine's own snapshot is not a .klayout file");
-    let s = LayoutSession::create(&Arc::new(blank()), &Origin::system("create")).unwrap();
+    let mut s = LayoutSession::create(&Arc::new(blank()), &Origin::system("create")).unwrap();
+    s.seal().unwrap();
     let bytes = save_file(&s, None).unwrap().bytes;
     let mut parts = kition_layout_format::container::read(&bytes).unwrap();
     parts.content = b"garbage".to_vec();

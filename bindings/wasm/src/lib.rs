@@ -59,9 +59,8 @@ pub struct LayoutDocument {
     /// The canvas around the spreads (an editor's canvas color).
     pasteboard: [u8; 4],
     /// What the file holds after the last `save`, taken as the document's file by `mark_saved`
-    /// once the host has stored those bytes (edits made in between stay unsaved), with the seal
-    /// the save made on a copy (the fallback of `save`), which `mark_saved` takes into the replica.
-    saving: Mutex<Option<(FileBase, Option<Vec<u8>>)>>,
+    /// once the host has stored those bytes (edits made in between stay unsaved).
+    saving: Mutex<Option<FileBase>>,
     /// This document's own mark in the editor states it answers: a state it answered itself is
     /// put back as it is, while one of another document (the session a file reread replaces, the
     /// one a premise plan forks) must name only what this document has.
@@ -514,10 +513,9 @@ impl KitDocument for LayoutDocument {
     /// saved; or as an IDML package when `name` says so.
     ///
     /// The content is sealed (kition-sdk data model 7.3): hosts call [`KitDocument::prepare_save`]
-    /// first, which seals the replica, and the file holds the replica's own content snapshot. The
-    /// one fallback, for an editor that does not call `prepareSave` yet: a replica nobody sealed
-    /// saves the content of a sealed copy, and [`KitDocument::mark_saved`] takes that seal into the
-    /// replica (`kition_layout_kdm::file::save_file`).
+    /// first, which seals the replica, and the file holds the replica's own content snapshot. A
+    /// save the replica was not sealed for answers `not-sealed: …`
+    /// (`kition_layout_kdm::file::save_file`).
     fn save(&self, name: Option<&str>) -> Result<Vec<u8>, String> {
         let state = self.active()?;
         if name.is_some_and(|name| name.to_ascii_lowercase().ends_with(".idml")) {
@@ -526,26 +524,18 @@ impl KitDocument for LayoutDocument {
         let kdm = state.kdm().ok_or_else(|| "the layout has no replica".to_owned())?;
         let saved = kition_layout_kdm::save_file(kdm, state.file_base()).map_err(engine_error)?;
         if let Ok(mut saving) = self.saving.lock() {
-            *saving = Some((saved.base, saved.seal));
+            *saving = Some(saved.base);
         }
         Ok(saved.bytes)
     }
 
-    /// Records the last save as what the file holds, and takes the seal that save made on a copy
-    /// into the replica (no edit: the state, the revision and the undo histories stay as they
-    /// are).
+    /// Records the last save as what the file holds (no edit: the state, the revision and the undo
+    /// histories stay as they are).
     fn mark_saved(&mut self) {
         let saving = self.saving.get_mut().ok().and_then(Option::take);
         if let Some(state) = self.session.active_mut() {
             match saving {
-                Some((base, seal)) => {
-                    // The fallback's seal (see `save`; delete with it once a kit-editor release
-                    // that calls prepareSave is in web/pnpm-lock.yaml).
-                    if let Some(seal) = seal {
-                        state.take_seal(&seal);
-                    }
-                    state.saved_as(base);
-                }
+                Some(base) => state.saved_as(base),
                 None => state.mark_saved(),
             }
         }
@@ -637,6 +627,14 @@ pub fn add_font(bytes: &[u8]) -> usize {
 }
 
 impl LayoutDocument {
+    /// The document's file as a host saves it: [`KitDocument::prepare_save`] (the seal), then
+    /// [`KitDocument::save`]. For code that holds the document itself (tests, fixture builders);
+    /// a host calls the two itself.
+    pub fn seal_and_save(&mut self, name: Option<&str>) -> Result<Vec<u8>, String> {
+        self.prepare_save()?;
+        self.save(name)
+    }
+
     /// The canvas around the spreads in `#rrggbb` (the editor's canvas color).
     pub fn set_backdrop(&mut self, color: &str) -> Result<(), String> {
         let hex = color.trim().trim_start_matches('#');
@@ -785,14 +783,17 @@ mod tests {
         doc.execute("swatch.create", json!({ "name": "Red", "color": "#ff0000" })).unwrap();
         let frame = doc.execute("frame.create", json!({ "rect": [72, 72, 216, 144], "content": "unassigned" })).unwrap();
         doc.execute("object.fill", json!({ "swatch": "Red", "ids": [frame["id"]] })).unwrap();
-        doc.save(None).unwrap()
+        doc.seal_and_save(None).unwrap()
     }
 
     #[test]
     fn keeps_the_kit_contract() {
+        // The edit, then the seal a host makes before the save the contract checks
+        // (`prepare_save`: no edit, so the revision, the dirty state and the pixels stay).
         check_contract::<LayoutDocument>(&fixture(), "Flyer.klayout", |doc| {
             let frame = doc.execute("frame.create", json!({ "rect": [300, 300, 400, 400], "content": "unassigned" }))?;
-            doc.execute("object.fill", json!({ "swatch": "Black", "ids": [frame["id"]] })).map(|_| ())
+            doc.execute("object.fill", json!({ "swatch": "Black", "ids": [frame["id"]] }))?;
+            doc.prepare_save()
         })
         .unwrap();
     }

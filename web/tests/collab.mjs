@@ -208,6 +208,7 @@ try {
   const file = (() => {
     const doc = LayoutDocument.create(NAME, 612, 792)
     doc.execute('frame.create', JSON.stringify({ rect: [72, 72, 540, 200], text: 'Spring concert' }))
+    doc.prepareSave()
     const bytes = doc.save()
     doc.free()
     return bytes

@@ -241,8 +241,7 @@ impl KitModel for LayoutModel {
 
     /// `.idml` when `name` says so, otherwise a `.klayout` file holding `replica`'s content (no
     /// history, rule M16b) and the blobs its assets reference. Seal the replica first
-    /// ([`LayoutSession::seal`]); a replica that is not sealed saves the content of a sealed copy,
-    /// whose seal stays out of this replica.
+    /// ([`LayoutSession::seal`]); a replica that is not sealed answers `not-sealed: …`.
     fn export(&self, replica: &Replica, name: &str, blobs: &dyn BlobSource) -> Result<Vec<u8>> {
         if name.to_ascii_lowercase().ends_with(".idml") {
             return Ok(kition_layout_idml::export_idml(&self.document));

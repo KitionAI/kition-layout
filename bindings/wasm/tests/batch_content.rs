@@ -23,7 +23,7 @@ fn inconsistent_content_conversion_refuses_and_rolls_back() {
         assert!(result.is_err(), "inconsistent {content} conversion was accepted: {result:?}");
         assert_eq!(before, doc.inspect().unwrap(), "failed conversion changed the document");
         exchange.batch(&mut doc, &json!({"ops":[{"op":"set","target":frame["id"].to_string(),"field":"opacity","value":0.5}]}), false).unwrap();
-        let reopened = LayoutDocument::open("Review.klayout", &doc.save(None).unwrap()).unwrap();
+        let reopened = LayoutDocument::open("Review.klayout", &doc.seal_and_save(None).unwrap()).unwrap();
         assert_eq!(document_content(doc.inspect().unwrap(), &["/selection"]), document_content(reopened.inspect().unwrap(), &["/selection"]));
     }
 }

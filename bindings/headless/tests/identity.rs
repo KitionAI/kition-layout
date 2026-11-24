@@ -51,12 +51,12 @@ fn layout() -> Vec<u8> {
     let secret = doc.execute("frame.create", json!({ "rect": [72, 360, 300, 480], "content": "text", "text": SECRET })).unwrap()["id"].clone();
     doc.execute("file.place", json!({ "base64": PICTURE, "name": "dot.png", "x": 320, "y": 72, "width": 100 })).unwrap();
     doc.prepare_save().unwrap();
-    let first = doc.save(None).unwrap();
+    let first = doc.seal_and_save(None).unwrap();
     assert!(holds(&first, SECRET), "the control: the first file holds the frame's text");
     let mut doc = LayoutDocument::open("Plan.klayout", &first).unwrap();
     doc.execute("edit.clear", json!({ "ids": [secret] })).unwrap();
     doc.prepare_save().unwrap();
-    let saved = doc.save(None).unwrap();
+    let saved = doc.seal_and_save(None).unwrap();
     let mut parts = container::read(&saved).unwrap();
     let origins = kition_kit::kdm::Replica::snapshot_origins(&parts.content).unwrap();
     assert_eq!(origins, vec![Some(kition_kit::kdm::Origin::system("content-seal"))], "of the history, the file holds the seal");
@@ -152,7 +152,7 @@ async fn a_layout_tells_its_identity_and_forks_into_a_new_document_without_histo
     assert_eq!(opened.doc_id().as_deref(), Some(fork_id.as_str()));
     opened.execute("frame.create", json!({ "rect": [72, 500, 300, 600], "content": "text", "text": "New" })).unwrap();
     opened.prepare_save().unwrap();
-    let edited = opened.save(None).unwrap();
+    let edited = opened.seal_and_save(None).unwrap();
     let reopened = LayoutDocument::open("Fork.klayout", &edited).unwrap();
     assert_eq!(reopened.doc_id().as_deref(), Some(fork_id.as_str()));
     assert_eq!(items(&reopened), items(&opened));

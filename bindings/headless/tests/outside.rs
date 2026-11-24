@@ -63,7 +63,7 @@ impl Fixture {
         doc.execute("layout.pages.insert", json!({"count":5})).unwrap();
         let story = doc.execute("frame.create", json!({"rect":[20,500,300,700],"content":"text","text":"0123456789"})).unwrap()["story"].clone();
         let layers = doc.inspect().unwrap()["layers"].as_array().unwrap().iter().map(|layer| layer["id"].clone()).collect();
-        std::fs::write(root.join(FILE), doc.save(None).unwrap()).unwrap();
+        std::fs::write(root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
         let kit = KitDefinition::from_manifest_text(include_str!("../../../kit.json")).unwrap();
         let kits = KitManager::new(Some(root.clone()), vec![(kit, Some(PathBuf::from(env!("CARGO_BIN_EXE_kition-layout"))))]);
         Self {
@@ -87,7 +87,7 @@ impl Fixture {
         for (command, params) in steps {
             doc.execute(command, params.clone()).unwrap_or_else(|error| panic!("colleague {command}: {error}"));
         }
-        std::fs::write(&path, doc.save(None).unwrap()).unwrap();
+        std::fs::write(&path, doc.seal_and_save(None).unwrap()).unwrap();
         std::fs::File::options().write(true).open(path).unwrap().set_modified(modified - std::time::Duration::from_secs(3600)).unwrap();
     }
     async fn call(&self, action: &str, mut input: Value) -> Result<Value, Value> {
@@ -148,7 +148,7 @@ async fn insertion_before_the_index_refuses_and_after_applies() {
         if !before {
             colleague.execute("layer.move", json!({"id":new,"to":4})).unwrap();
         }
-        std::fs::write(f.root.join(FILE), colleague.save(None).unwrap()).unwrap();
+        std::fs::write(f.root.join(FILE), colleague.seal_and_save(None).unwrap()).unwrap();
         let answer = f.write(basis, "layer.move", json!({"id":f.layers[2],"to":1})).await;
         if before {
             conflict(&answer.unwrap_err(), "relocated");
@@ -196,7 +196,7 @@ async fn moving_a_parent_refuses_a_child_move() {
     let f = Fixture::new(Guard::Premise);
     let mut doc = f.disk();
     let group = doc.execute("object.group", json!({"ids":[f.a,f.b]})).unwrap()["id"].clone();
-    std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
+    std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
     let basis = f.basis().await;
     f.colleague(&[("transform.move", json!({"ids":[group],"dx":20,"dy":0}))]);
     conflict(&f.write(basis, "transform.move", json!({"ids":[f.a],"dx":2,"dy":0})).await.unwrap_err(), "relocated");
@@ -398,7 +398,7 @@ async fn receipt_bytes_and_saved_values() {
         if group {
             ids = vec![doc.execute("object.group", json!({"ids":ids})).unwrap()["id"].clone()];
         }
-        std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
+        std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
         let basis = f.basis().await;
         let receipt = if property {
             f.write(basis, "object.opacity", json!({"ids":ids,"opacity":0.123456789})).await.unwrap()

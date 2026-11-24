@@ -9,7 +9,7 @@ async fn read2_cell_style_source_holds_the_resolved_cell() {
         let mut doc = f.disk();
         doc.execute("text.select", json!({"story":f.story,"anchor":0})).unwrap();
         let table = doc.execute("table.insert", json!({"rows":2,"cols":2})).unwrap()["table"].clone();
-        std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
+        std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
         let address = json!({"story":f.story,"table":table,"row":1,"col":1});
         let basis = f.basis().await;
         f.colleague(&[match change {
@@ -39,7 +39,7 @@ async fn waiting_for_sdk_read2_selection_step_source_premises() {
         let mut doc = f.disk();
         doc.execute("text.select", json!({"story":f.story,"anchor":0})).unwrap();
         let table = doc.execute("table.insert", json!({"rows":2,"cols":2})).unwrap()["table"].clone();
-        std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
+        std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
         let basis = f.basis().await;
         f.colleague(&[if needed {
             ("table.setCell", json!({"story":f.story,"table":table,"row":1,"col":1,"fill":"Black"}))

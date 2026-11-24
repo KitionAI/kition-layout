@@ -7,7 +7,7 @@ fn prepare(f: &Fixture, steps: &[(&str, Value)]) {
     for (command, params) in steps {
         doc.execute(command, params.clone()).unwrap();
     }
-    std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
+    std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
 }
 
 fn colleague_field(f: &Fixture, target: &Value, field: &str, value: Value) {
@@ -19,7 +19,7 @@ fn colleague_field(f: &Fixture, target: &Value, field: &str, value: Value) {
     kition_kit::session::model::Exchange::new()
         .batch(&mut doc, &json!({"ops":[{"op":"set","target":target,"field":"props","value":field_value}]}), false)
         .unwrap();
-    std::fs::write(&path, doc.save(None).unwrap()).unwrap();
+    std::fs::write(&path, doc.seal_and_save(None).unwrap()).unwrap();
     std::fs::File::options().write(true).open(path).unwrap().set_modified(modified - std::time::Duration::from_secs(3600)).unwrap();
 }
 

@@ -21,7 +21,7 @@ fn build() -> Vec<u8> {
     doc.execute("swatch.create", json!({ "name": "Coral", "color": { "c": 0, "m": 66, "y": 62, "k": 0 } })).unwrap();
     doc.execute("frame.create", json!({ "spread": 0, "rect": [40, 40, 360, 200], "text": "Spring issue" })).unwrap();
     doc.execute("frame.create", json!({ "spread": 0, "rect": [40, 240, 360, 400], "content": "graphic" })).unwrap();
-    doc.save(Some("folio.klayout")).unwrap()
+    doc.seal_and_save(Some("folio.klayout")).unwrap()
 }
 
 /// The child's half: builds the drawing into the file `OUT` names (nothing without it).

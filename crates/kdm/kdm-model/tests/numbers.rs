@@ -79,8 +79,11 @@ fn add_rect(d: &mut Document, x: f64) -> ItemId {
     id
 }
 
+/// `s` saved (a replica of it sealed first, as a host seals before it saves) and opened again.
 fn reopened(s: &LayoutSession) -> LayoutSession {
-    let bytes = save_file(s, None).unwrap().bytes;
+    let mut sealed = LayoutSession::open(&s.snapshot().unwrap(), s.blobs().clone()).unwrap();
+    sealed.seal().unwrap();
+    let bytes = save_file(&sealed, None).unwrap().bytes;
     open_file(&bytes).unwrap().0
 }
 

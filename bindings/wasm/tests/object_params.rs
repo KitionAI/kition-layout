@@ -29,7 +29,7 @@ fn environment_schema_names_objects_and_bounds_opacity() {
 
 #[test]
 fn concurrent_creations_share_one_id_space_across_types() {
-    let bytes = LayoutDocument::create("Ids.klayout", 612, 792).unwrap().save(None).unwrap();
+    let bytes = LayoutDocument::create("Ids.klayout", 612, 792).unwrap().seal_and_save(None).unwrap();
     let mut a = LayoutDocument::open("Ids.klayout", &bytes).unwrap();
     let mut b = LayoutDocument::open("Ids.klayout", &bytes).unwrap();
     let item = a.execute("frame.create", serde_json::json!({"rect":[20,20,60,60],"content":"unassigned"})).unwrap()["id"].clone();

@@ -15,10 +15,11 @@
     "test:export": "node tests/export.mjs chromium && node tests/export.mjs webkit",
     "test:modes": "node tests/modes.mjs chromium && node tests/modes.mjs webkit",
     "test:focus": "node tests/focus.mjs chromium && node tests/focus.mjs webkit",
+    "test:history": "node tests/history.mjs chromium && node tests/history.mjs webkit",
     "test:collab": "node tests/private-skip.mjs tests/collab.mjs"
   },
   "dependencies": {
-    "@kition/sdk": "npm:@kitionstage/sdk@0.5.2-stage.16",
+    "@kition/sdk": "npm:@kitionstage/sdk@0.5.2-stage.18",
     "@kition/tessera": "npm:@kitionstage/tessera@0.1.1-stage.2",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"

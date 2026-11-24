@@ -267,7 +267,7 @@ mod tests {
     fn fixture() -> Vec<u8> {
         let mut doc = LayoutDocument::create("Flyer.klayout", 612, 792).unwrap();
         doc.execute("frame.create", json!({ "rect": [72, 72, 216, 144], "content": "unassigned" })).unwrap();
-        doc.save(None).unwrap()
+        doc.seal_and_save(None).unwrap()
     }
 
     fn frame(doc: &mut LayoutDocument, x: u32) {
@@ -330,7 +330,7 @@ mod tests {
         assert!(!b.dirty());
         assert!(LayoutDocument::open_with_replica("Shared.klayout", &[], b"not a replica", &[]).is_err());
         // A .klayout file wins over a stored replica: it is what the person saved.
-        let file = a.save(None).unwrap();
+        let file = a.seal_and_save(None).unwrap();
         let other = LayoutDocument::create("Other.klayout", 612, 792).unwrap().snapshot().unwrap();
         let c = LayoutDocument::open_with_replica("Flyer.klayout", &file, &other, &[]).unwrap();
         assert_eq!(c.doc_id(), a.doc_id());

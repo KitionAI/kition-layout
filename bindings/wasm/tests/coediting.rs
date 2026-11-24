@@ -86,7 +86,7 @@ fn texts(doc: &LayoutDocument) -> Vec<String> {
 
 /// The file both editors open: a layout saved as `.klayout` (it carries its replica).
 fn file() -> Vec<u8> {
-    common::starting_layout().unwrap().save(None).unwrap()
+    common::starting_layout().unwrap().seal_and_save(None).unwrap()
 }
 
 /// MC-17/18: two editors edit at once, each with One's own edit, and converge.
@@ -223,7 +223,7 @@ fn a_fresh_page_reads_the_rooms_edits_from_the_file_or_the_replica() {
     // The room's save writes the file (sealed first, as a host saves); reopened, it is the same
     // layout, under the same id.
     ann.doc.prepare_save().unwrap();
-    let saved = ann.doc.save(None).unwrap();
+    let saved = ann.doc.seal_and_save(None).unwrap();
     let mut reopened = LayoutDocument::open(NAME, &saved).unwrap();
     assert_eq!(reopened.doc_id(), ann.doc.doc_id());
     assert_converged(&mut ann.doc, &mut reopened);
@@ -233,7 +233,7 @@ fn a_fresh_page_reads_the_rooms_edits_from_the_file_or_the_replica() {
 /// edits of each reach the other.
 #[test]
 fn two_editors_opening_a_new_file_at_once_open_one_document() {
-    let bytes = LayoutDocument::create(NAME, 612, 792).unwrap().save(None).unwrap();
+    let bytes = LayoutDocument::create(NAME, 612, 792).unwrap().seal_and_save(None).unwrap();
     let (mut room, mut ann, mut bob) = (Room::default(), Page::open(&bytes), Page::open(&bytes));
     assert_eq!(ann.doc.doc_id(), bob.doc.doc_id());
     assert!(ann.doc.doc_id().is_some());

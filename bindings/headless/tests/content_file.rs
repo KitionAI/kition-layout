@@ -37,7 +37,7 @@ fn an_agents_batches_save_sealed_content() {
     let mut poster = LayoutDocument::create("Poster.klayout", 612, 792).unwrap();
     poster.execute("frame.create", json!({ "rect": [72, 72, 300, 200], "content": "text", "text": "Spring" })).unwrap();
     poster.prepare_save().unwrap();
-    std::fs::write(root.join("Poster.klayout"), poster.save(None).unwrap()).unwrap();
+    std::fs::write(root.join("Poster.klayout"), poster.seal_and_save(None).unwrap()).unwrap();
     assert_eq!(origins(&std::fs::read(root.join("Poster.klayout")).unwrap()), seal(), "the fixture's file");
 
     let mut kit = Headless::<LayoutDocument>::with_replica_port(

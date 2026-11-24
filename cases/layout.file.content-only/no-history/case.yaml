@@ -5,20 +5,19 @@ intent: >-
   A layout whose history holds typed-then-deleted text, a deleted frame and an overwritten title
   saves to a .klayout whose content.bin holds one change (the system content-seal) and none of
   those strings, each found in the session's full snapshot first; an unchanged layout saves to the
-  same bytes, twice, after markSaved and from the file opened again; a save nobody sealed for (the
-  kit editor before it calls prepareSave) writes the content of a sealed copy and markSaved takes
-  the seal in; through the headless kit, which seals before every save, an agent's batches save
-  files holding only the seal.
+  same bytes, twice, after markSaved and from the file opened again; a save nobody sealed for
+  (no prepareSave first) is refused as not-sealed and leaves the session as it was; through the
+  headless kit, which seals before every save, an agent's batches save files holding only the seal.
 layer: gate
 source:
   kind: synthetic
-  from: bindings/wasm/tests/content_file.rs (the_file_holds_the_content_and_of_the_history_only_the_seal, an_unchanged_layout_saves_to_the_same_bytes, a_save_nobody_sealed_for_seals_a_copy_and_mark_saved_takes_the_seal_in), bindings/headless/tests/content_file.rs
+  from: bindings/wasm/tests/content_file.rs (the_file_holds_the_content_and_of_the_history_only_the_seal, an_unchanged_layout_saves_to_the_same_bytes, a_save_nobody_sealed_for_is_refused), bindings/headless/tests/content_file.rs
   license: Apache-2.0
 input: []
 steps:
   - cargo-test: { package: kition-layout-kit, test: content_file, filter: the_file_holds_the_content_and_of_the_history_only_the_seal }
   - cargo-test: { package: kition-layout-kit, test: content_file, filter: an_unchanged_layout_saves_to_the_same_bytes }
-  - cargo-test: { package: kition-layout-kit, test: content_file, filter: a_save_nobody_sealed_for_seals_a_copy_and_mark_saved_takes_the_seal_in }
+  - cargo-test: { package: kition-layout-kit, test: content_file, filter: a_save_nobody_sealed_for_is_refused }
   - cargo-test: { package: kition-layout, test: content_file }
 expected:
   - actual: out:cargo-test

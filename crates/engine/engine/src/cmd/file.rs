@@ -25,7 +25,7 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!(noundo "file.saveAs", "Save As…", ["File"], Some("Cmd+Shift+S"), "{path}", has_doc, file_save),
         cmd!(noundo "file.saveACopy", "Save a Copy…", ["File"], None, "{path} — writes the document without changing which file it is or its unsaved state", has_doc, |s, p| {
             let path = str_param(p, "path").ok_or_else(|| bad("file.saveACopy", "missing `path`"))?.to_string();
-            let bytes = s.doc()?.klayout_bytes()?;
+            let bytes = s.doc_mut()?.klayout_bytes()?;
             #[cfg(not(target_arch = "wasm32"))]
             crate::disk::write(&path, &bytes).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
             Ok(json!({"path": path, "bytes": bytes.len()}))
@@ -45,7 +45,7 @@ pub fn specs() -> Vec<CommandSpec> {
         }),
         cmd!(query "file.serialize", "Serialize", [], None, "{} → {base64, bytes} the .klayout file", has_doc, |s, _| {
             // Preview fill is session state: the file holds the unfilled template.
-            let bytes = s.doc()?.klayout_bytes()?;
+            let bytes = s.doc_mut()?.klayout_bytes()?;
             Ok(json!({"base64": base64_encode(&bytes), "bytes": bytes.len()}))
         }),
         cmd!(noundo "file.close", "Close", ["File"], Some("Cmd+W"), "{index?}", has_doc, |s, p| {

@@ -105,7 +105,7 @@ async fn review2_other_offset_writes_rest_on_prefix_and_window() {
 fn prepare_text(f: &Fixture, text: &str) {
     let mut doc = f.disk();
     doc.execute("story.setText", json!({"story":f.story,"text":text})).unwrap();
-    std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
+    std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
 }
 
 #[tokio::test]
@@ -181,7 +181,7 @@ fn address_of(f: &Fixture, family: &str, name: &str) -> Value {
 fn colleague_ops(f: &Fixture, ops: Value) {
     let mut doc = f.disk();
     kition_kit::session::model::Exchange::new().batch(&mut doc, &json!({"ops":ops}), false).unwrap();
-    std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
+    std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
 }
 
 #[tokio::test]
@@ -202,7 +202,7 @@ async fn review2_identical_spelling_in_another_folder_refuses_a_write_by_name() 
                 doc.execute("style.paragraph.create", json!({"name":"Head"})).unwrap();
                 doc.execute("style.paragraph.create", json!({"name":"Other"})).unwrap();
             }
-            std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
+            std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
             let other = address_of(&f, family, "Other");
             let basis = f.basis().await;
             let spelled = if family == "swatches" { "Brand" } else { "Head" };
@@ -249,7 +249,7 @@ async fn review2_identical_spelling_already_observed_refuses_a_write_by_name() {
             doc.execute("style.paragraph.create", json!({"name":"Head"})).unwrap();
             doc.execute("style.paragraph.create", json!({"name":"Other"})).unwrap();
         }
-        std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
+        std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
         let other = address_of(&f, family, "Other");
         colleague_ops(&f, json!([{"op":"set","target":other,"field":"name","value":if family == "swatches" { "Brand" } else { "Head" }}]));
         let basis = f.basis().await;

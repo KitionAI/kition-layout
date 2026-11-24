@@ -375,7 +375,7 @@ impl KitAdapter for LayoutKit {
     }
 
     fn export_file(&self, doc: &mut LayoutDocument) -> Result<Option<Vec<u8>>> {
-        doc.save(None).map(Some)
+        doc.seal_and_save(None).map(Some)
     }
 }
 

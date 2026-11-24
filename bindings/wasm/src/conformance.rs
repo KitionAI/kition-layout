@@ -135,12 +135,12 @@ fn codes(document: &LayoutDocument) -> Vec<String> {
 fn every_fixture_reports_its_code_and_basic_is_clean() {
     let write = std::env::var_os("KITION_WRITE_CONFORMANCE").is_some();
     let out = repo().join("conformance");
-    let basic = basic();
+    let mut basic = basic();
     assert_eq!(codes(&basic), Vec::<String>::new(), "basic.klayout is clean");
     if write {
         std::fs::create_dir_all(out.join("expected")).expect("conformance/expected");
         std::fs::create_dir_all(repo().join("agent")).expect("agent");
-        std::fs::write(out.join("basic.klayout"), basic.save(None).expect("save")).expect("basic");
+        std::fs::write(out.join("basic.klayout"), basic.seal_and_save(None).expect("save")).expect("basic");
         std::fs::write(out.join("edit.json"), format!("{:#}\n", edit())).expect("edit.json");
         std::fs::write(out.join("expected/basic.png"), png(&basic, 1.0)).expect("expected preview");
         std::fs::write(out.join("expected/basic-scale-2.png"), png(&basic, 2.0)).expect("expected preview at scale 2");
@@ -154,7 +154,7 @@ fn every_fixture_reports_its_code_and_basic_is_clean() {
     }
     let mut failures = Vec::new();
     for entry in CATALOGUE {
-        let bytes = fixture(entry.code).save(None).expect("save");
+        let bytes = fixture(entry.code).seal_and_save(None).expect("save");
         let reopened = LayoutDocument::open("fixture.klayout", &bytes).expect("reopen");
         let found = codes(&reopened);
         if !found.iter().any(|code| code == entry.code) {

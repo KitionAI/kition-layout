@@ -7,7 +7,7 @@ use super::*;
 fn prepare(f: &Fixture, steps: &[(&str, Value)]) -> Vec<Value> {
     let mut doc = f.disk();
     let results = steps.iter().map(|(id, params)| doc.execute(id, params.clone()).unwrap()).collect();
-    std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
+    std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
     results
 }
 
@@ -266,7 +266,7 @@ async fn review3_parent_guides_hold_the_parent_prefix() {
                     false,
                 )
                 .unwrap();
-            std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
+            std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
         } else {
             f.colleague(&[("layer.set", json!({"id":f.layers[0],"name":"Renamed"}))]);
         }

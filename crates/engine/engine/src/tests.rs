@@ -330,7 +330,7 @@ fn serialized_document_opens_again() {
     s.execute("frame.create", &json!({"rect": [36, 36, 300, 200], "content": "text", "text": "Saved on the web"})).unwrap();
     let r = s.execute("file.serialize", &json!({})).unwrap();
     let bytes = cmd::base64_decode(r["base64"].as_str().expect("base64"));
-    assert_eq!(bytes, s.doc().unwrap().klayout_bytes().unwrap(), "the .klayout file, replica and all");
+    assert_eq!(bytes, s.doc_mut().unwrap().klayout_bytes().unwrap(), "the .klayout file, replica and all");
     assert!(kition_layout_kdm::is_klayout(&bytes));
     s.execute("file.openBytes", &json!({"name": "copy", "base64": r["base64"]})).unwrap();
     let d = s.execute("document.inspect", &json!({})).unwrap();

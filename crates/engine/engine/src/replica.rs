@@ -368,27 +368,19 @@ impl DocState {
         kition_layout_kdm::save_file(kdm, file.as_ref()).map(|saved| (saved.bytes, saved.base)).map_err(kdm_error)
     }
 
-    /// The bytes of the document's content as a `.klayout` file, for a document whose replica
-    /// already exists (no write at all; an unsealed replica saves the content of a sealed copy,
-    /// [`kition_layout_kdm::save_file`]): a fresh replica of `doc` otherwise.
-    /// A data-merge preview's filled document is session state: the unfilled template is saved.
-    pub fn klayout_bytes(&self) -> Result<Vec<u8>> {
-        let content = self.preview_stash.as_ref().unwrap_or(&self.doc);
-        match (&self.link.kdm, Arc::ptr_eq(&self.link.synced, content)) {
-            (Some(kdm), true) => kition_layout_kdm::save_file(kdm, self.link.file.as_ref()).map(|saved| saved.bytes).map_err(kdm_error),
-            _ => klayout_of(content),
-        }
-    }
-
-    /// Takes the seal a save made on a sealed copy (the fallback of
-    /// [`kition_layout_kdm::save_file`]) into the document's replica, once the file is stored: no
-    /// edit, so the state, the revision and the undo histories stay as they are. A seal that does
-    /// not import leaves the replica as it was.
-    pub fn take_seal(&mut self, seal: &[u8]) {
-        if let Some(kdm) = self.link.kdm.as_mut()
-            && let Err(error) = kdm.import_changes(seal)
-        {
-            log::warn!("the save's seal did not import: {error}");
+    /// The bytes of the document's content as a `.klayout` file without saving it (Save a Copy,
+    /// `file.serialize`): the replica is sealed first (a `system` change, no edit, no undo step, so
+    /// the document stays as dirty or clean as it was) when it holds the document; a fresh replica
+    /// of `doc` otherwise. A data-merge preview's filled document is session state: the unfilled
+    /// template is saved.
+    pub fn klayout_bytes(&mut self) -> Result<Vec<u8>> {
+        let content = self.preview_stash.clone().unwrap_or_else(|| self.doc.clone());
+        match self.link.kdm.as_mut() {
+            Some(kdm) if Arc::ptr_eq(&self.link.synced, &content) => {
+                kdm.seal().map_err(kdm_error)?;
+                kition_layout_kdm::save_file(kdm, self.link.file.as_ref()).map(|saved| saved.bytes).map_err(kdm_error)
+            }
+            _ => klayout_of(&content),
         }
     }
 

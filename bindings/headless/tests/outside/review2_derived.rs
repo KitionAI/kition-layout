@@ -82,7 +82,7 @@ async fn review2_same_server_derived_layer_items() {
 fn prepare_steps(f: &Fixture, steps: &[(&str, Value)]) -> Vec<Value> {
     let mut doc = f.disk();
     let results = steps.iter().map(|(id, params)| doc.execute(id, params.clone()).unwrap()).collect();
-    std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
+    std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
     results
 }
 

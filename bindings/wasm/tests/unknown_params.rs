@@ -20,8 +20,8 @@ fn every_command_refuses_a_parameter_it_does_not_take() {
 #[test]
 fn a_misspelled_parameter_names_the_one_it_resembles_and_changes_nothing() {
     let mut doc = layout();
-    let before = doc.save(None).unwrap();
+    let before = doc.seal_and_save(None).unwrap();
     let error = doc.execute("transform.set", json!({ "widht": 10 })).unwrap_err();
     assert!(error.contains("`widht`") && error.contains("did you mean `width`"), "{error}");
-    assert_eq!(doc.save(None).unwrap(), before);
+    assert_eq!(doc.seal_and_save(None).unwrap(), before);
 }

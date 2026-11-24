@@ -6,7 +6,7 @@ impl Fixture {
     fn prepare_names(&self, steps: &[(&str, Value)]) -> Vec<Value> {
         let mut doc = self.disk();
         let results = steps.iter().map(|(command, params)| doc.execute(command, params.clone()).unwrap()).collect();
-        std::fs::write(self.root.join(FILE), doc.save(None).unwrap()).unwrap();
+        std::fs::write(self.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
         results
     }
     fn named_address(&self, family: &str, name: &str) -> Value {
@@ -20,11 +20,11 @@ impl Fixture {
     }
     fn colleague_batch(&self, ops: Value) {
         let mut doc = self.disk();
-        let before = doc.save(None).unwrap();
+        let before = doc.seal_and_save(None).unwrap();
         Exchange::new().batch(&mut doc, &json!({"ops":ops}), false).unwrap();
         let path = self.root.join(FILE);
         let modified = std::fs::metadata(&path).unwrap().modified().unwrap();
-        let saved = doc.save(None).unwrap();
+        let saved = doc.seal_and_save(None).unwrap();
         assert_ne!(before, saved, "independent batch must really change the saved document");
         std::fs::write(&path, saved).unwrap();
         std::fs::File::options().write(true).open(path).unwrap().set_modified(modified - std::time::Duration::from_secs(3600)).unwrap();
