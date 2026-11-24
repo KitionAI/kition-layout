@@ -1,9 +1,10 @@
-// The undo history comes back from the host's stored replica, not from the file (kition-sdk Kit UI
-// protocol 7; a `.klayout` holds the content, not its history): node tests/history.mjs [chromium|webkit].
+// The history lives in the host's stored replica, not in the file (kition-sdk Kit UI protocol 7; a
+// `.klayout` holds the content, not its history): node tests/history.mjs [chromium|webkit].
 // Opens the sample layout under the development host with its replica store on (`?replica=1`),
-// adds a page (a person's edit), saves, reloads the document as its save left it
-// (`devHost.reload()`, which keeps the stored replica) and undoes the edit made before the save.
-// The control: the same file opened alone (`devHost.open`, no stored replica) has nothing to undo.
+// adds a page (a person's edit) and saves: the host stores the replica. Reloaded as its save left
+// it (`devHost.reload()`), the layout has the page, its objects keep their ids and the stored
+// replica is still kept (undo steps are the session's, so a reload starts with none). The control:
+// the same file opened alone (`devHost.open`, no stored replica) has the page and nothing to undo.
 // Needs the engine built into public/ (pnpm engine).
 import './platform.mjs'
 import { chromium, webkit } from 'playwright'
@@ -34,6 +35,9 @@ const until = async (check, tries = 100) => {
 }
 const details = () => page.evaluate(async () => (await window.devHost.connection().ai.inspect()).details)
 const pageCount = async () => (await details()).pageCount
+/** Every object's id, spread by spread. */
+const objectIds = async () => JSON.stringify((await details()).spreads.map((spread) => spread.items.map((item) => item.id)))
+const stored = () => page.evaluate((path) => window.devHost.history.replica(path) != null, FILE)
 const kit = page.frameLocator('#kit')
 const shortcut = async (keys) => {
   await kit.locator('.kui-app').focus()
@@ -67,19 +71,20 @@ try {
   const saved = await fileVersion()
   await shortcut('ControlOrMeta+s')
   step('saves through the host', await until(async () => (await fileVersion()) > saved), `file version ${await fileVersion()}`)
-  step('the host stores the replica', await until(async () => page.evaluate((path) => window.devHost.history.replica(path) != null, FILE)))
+  step('the host stores the replica', await until(stored))
+  const ids = await objectIds()
 
-  // Reloaded as the save left it, on the stored replica: the edit from before the save undoes.
+  // Reloaded as the save left it, on the stored replica: the content and its object ids are there.
   await reopened(() => window.devHost.reload(), before + 1)
   step('the reloaded layout has the page', (await pageCount()) === before + 1, `${await pageCount()} pages`)
-  step('Undo is enabled after the reload', await until(async () => (await details()).canUndo === true))
-  await shortcut('ControlOrMeta+z')
-  step('one undo takes back the page added before the save', await until(async () => (await pageCount()) === before), `${await pageCount()} pages`)
+  step('its objects keep their ids', (await objectIds()) === ids, await objectIds())
+  step('the stored replica is still kept', await stored())
 
   // The control: the saved file opened alone (no stored replica) holds no history to undo.
   await reopened((path) => window.devHost.open(path, window.devHost.files.get(path).bytes), before + 1)
   step('the file alone has the page', (await pageCount()) === before + 1, `${await pageCount()} pages`)
-  step("and nothing to undo: the history is the store's, not the file's", (await details()).canUndo === false)
+  step('with the same object ids', (await objectIds()) === ids, await objectIds())
+  step('and nothing to undo', (await details()).canUndo === false)
 
   step('no page errors', errors.length === 0, errors.join('; '))
 } catch (error) {
