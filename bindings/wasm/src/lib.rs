@@ -788,12 +788,10 @@ mod tests {
 
     #[test]
     fn keeps_the_kit_contract() {
-        // The edit, then the seal a host makes before the save the contract checks
-        // (`prepare_save`: no edit, so the revision, the dirty state and the pixels stay).
         check_contract::<LayoutDocument>(&fixture(), "Flyer.klayout", |doc| {
             let frame = doc.execute("frame.create", json!({ "rect": [300, 300, 400, 400], "content": "unassigned" }))?;
             doc.execute("object.fill", json!({ "swatch": "Black", "ids": [frame["id"]] }))?;
-            doc.prepare_save()
+            Ok(())
         })
         .unwrap();
     }
