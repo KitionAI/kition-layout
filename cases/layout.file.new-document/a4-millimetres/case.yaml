@@ -1,0 +1,25 @@
+format: 1
+id: layout.file.new-document/a4-millimetres
+feature: layout.file.new-document
+intent: >-
+  File › New… opens New Document in millimetres on A4 (210 × 297); with the margins unlinked to 20, 25, 15
+  and 10 mm and three pages, Create writes Brochure.klayout beside the open document through the host, and
+  that file opens as an A4 layout of three facing pages with those four margins; the open document is
+  unchanged.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/dialogs.mjs (plan 2026-11-25, stage 1)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/dialogs.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-25"

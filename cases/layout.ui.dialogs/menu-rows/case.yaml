@@ -1,0 +1,25 @@
+format: 1
+id: layout.ui.dialogs/menu-rows
+feature: layout.ui.dialogs
+intent: >-
+  Every menu row against the built web engine, in each state a person meets (nothing selected, a text frame,
+  three frames, a placed image, the text cursor, a table cell): it opens its dialog, runs, or is greyed out
+  with a reason, and a refusal it can meet is worded in the person's language; no row ends in an English
+  engine error. Every engine command with a menu path is in the menus or left out with a reason; every
+  generic dialog's starting values run once the values a person must type are in; every menu row, submenu,
+  tool and dialog control has a Chinese label.
+layer: gate
+source:
+  kind: probe
+  from: web/src/dialogs/menuRows.test.mjs, web/src/dialogs/dialogs.test.mjs (plan 2026-11-25, stage 1)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, --test, src/dialogs/dialogs.test.mjs, src/dialogs/menuRows.test.mjs]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-25"

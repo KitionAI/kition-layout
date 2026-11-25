@@ -60,3 +60,8 @@ export async function writeExports(files: ReadonlyArray<{ path: string; bytes: U
   }
   return written
 }
+
+/** The scale a resolution is of 72 ppi, with at most two decimals (300 ppi is 4.17×, not 4.166666666666667×). */
+export function scaleLabel(ppi: number) {
+  return String(Math.round((ppi / 72) * 100) / 100)
+}

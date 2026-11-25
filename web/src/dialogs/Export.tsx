@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button, Checkbox, Choice, Dialog, NumberField, toast, useKitEditor, useKitStore } from '@kition/sdk/editor'
 import type { DocumentInfo } from '../layout'
-import { FORMATS, type Format, bytesOf, bytesRequest, decodeBase64, exportPath, writeExports } from '../exporting'
+import { FORMATS, type Format, bytesOf, bytesRequest, decodeBase64, exportPath, scaleLabel, writeExports } from '../exporting'
 
 type Range = 'all' | 'current' | 'range' | 'sizes'
 export type ExportSettings = { format: Format; range: Range; pages: string; ppi: number; transparent: boolean; quality: number; bleed: boolean }
@@ -127,7 +127,7 @@ export function ExportDialog({ info, page, onClose }: { info: DocumentInfo; page
             <Choice
               label={t('resolution')}
               value={String(settings.ppi)}
-              choices={[72, 144, 216, 300].map((ppi) => [String(ppi), t('scale', { scale: ppi / 72, ppi })] as const)}
+              choices={[72, 144, 216, 300].map((ppi) => [String(ppi), t('scale', { scale: scaleLabel(ppi), ppi })] as const)}
               onChange={(ppi) => set({ ppi: Number(ppi) })}
               testId="layout-export-ppi"
             />

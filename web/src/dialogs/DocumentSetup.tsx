@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Button, Checkbox, Choice, Dialog, NumberField, useKitEditor } from '@kition/sdk/editor'
 import type { DocumentInfo } from '../layout'
 
@@ -26,8 +26,8 @@ export function presetOf(width: number, height: number): Preset {
 
 /**
  * Document Setup with InDesign's New Document choices and Kition's design sizes: a preset or a
- * custom size in points, pixels, millimetres or inches, facing pages, margins, columns and gutter,
- * and bleed. Applied in one step each (`layout.documentSetup`, `layout.marginsAndColumns`).
+ * custom size in points, pixels, millimetres or inches, facing pages, four margins (linked or each
+ * its own), columns and gutter, and bleed. Applied in one step each (`layout.documentSetup`, `layout.marginsAndColumns`).
  */
 export function DocumentSetupDialog({ info, onClose }: { info: DocumentInfo; onClose: () => void }) {
   const { run, t } = useKitEditor()
@@ -37,7 +37,9 @@ export function DocumentSetupDialog({ info, onClose }: { info: DocumentInfo; onC
   const [unit, setUnit] = useState<Unit>(() => PRESETS.find((preset) => preset.id === presetOf(info.settings.pageWidth, info.settings.pageHeight))?.unit ?? 'pt')
   const [intent, setIntent] = useState(info.settings.intent || 'print')
   const [facing, setFacing] = useState(info.settings.facingPages)
-  const [margin, setMargin] = useState(page?.margins?.top ?? 36)
+  const start = page?.margins ?? { top: 36, bottom: 36, inside: 36, outside: 36 }
+  const [margins, setMargins] = useState({ top: start.top, bottom: start.bottom, inside: start.inside, outside: start.outside })
+  const [linked, setLinked] = useState(start.top === start.bottom && start.top === start.inside && start.top === start.outside)
   const [columns, setColumns] = useState(page?.columns ?? 1)
   const [gutter, setGutter] = useState(12)
   const [bleed, setBleed] = useState(0)
@@ -55,7 +57,7 @@ export function DocumentSetupDialog({ info, onClose }: { info: DocumentInfo; onC
   }
   const apply = async () => {
     await run('layout.documentSetup', { width, height, facingPages: facing, intent, bleed })
-    await run('layout.marginsAndColumns', { margins: margin, columns, gutter })
+    await run('layout.marginsAndColumns', { margins, columns, gutter })
     onClose()
   }
   const size = (label: string, value: number, set: (points: number) => void, testId: string, min = 0.01) => (
@@ -89,11 +91,14 @@ export function DocumentSetupDialog({ info, onClose }: { info: DocumentInfo; onC
         <Choice label={t('intent')} value={intent} choices={['print', 'web', 'mobile'].map((value) => [value, t(`intent.${value}`)] as const)} onChange={setIntent} testId="layout-setup-intent" />
         {size(t('width'), width, setWidth, 'layout-setup-width')}
         {size(t('height'), height, setHeight, 'layout-setup-height')}
-        {size(t('margins'), margin, setMargin, 'layout-setup-margins', 0)}
+        {(['top', 'bottom', 'inside', 'outside'] as const).map((side) => (
+          <Fragment key={side}>{size(`${t('margins')}: ${t(facing ? `side.${side}` : `side.${side === 'inside' ? 'left' : side === 'outside' ? 'right' : side}`)}`, margins[side], (points) => setMargins((now) => (linked ? { top: points, bottom: points, inside: points, outside: points } : { ...now, [side]: points })), `layout-setup-margin-${side}`, 0)}</Fragment>
+        ))}
         {size(t('bleed'), bleed, setBleed, 'layout-setup-bleed', 0)}
         <NumberField label={t('columns')} value={columns} min={1} max={216} step={1} onChange={(value, final) => final && setColumns(Math.round(value))} testId="layout-setup-columns" />
         {size(t('gutter'), gutter, setGutter, 'layout-setup-gutter', 0)}
       </div>
+      <Checkbox label={t('dialog.linkSides')} checked={linked} onChange={setLinked} testId="layout-setup-margin-link" />
       <Checkbox label={t('facingPages')} checked={facing} onChange={setFacing} testId="layout-setup-facing" />
       <p className="kui-muted layout-note">{t('presetCustom', { size: `${shown(width)} × ${shown(height)} ${unit}` })}</p>
     </Dialog>

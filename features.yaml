@@ -491,6 +491,25 @@ features:
     paths: [web/src/App.tsx, web/src/HomeTab.tsx, web/tests/modes.mjs, web/tests/focus.mjs]
     cases: [layout.editor.display-modes/mode-smoke, regressions/issue-focus-rulers-escape, regressions/issue-published-editor-shim]
     since: "2026-11-17"
+  - id: layout.ui.dialogs
+    title: "The menus ask before they run: Layout's own menu catalog in the reference application's order (Window rows moved to Object and Type, fixed-value rows such as Align Left, Rotate 90°, the five fittings, the four cases, special characters, spaces and breaks), every row that asks first ends in an ellipsis and opens its dialog (purpose-built: Text Frame Options, Margins and Columns, Insert, Move and Delete Pages, Go to Page, Insert Table, Find/Change; the generic dialog for 48 more, labelled in Chinese), a row the selection does not suit is greyed out and says why, no menu row ends in an English engine error, and the engine's dialog requests (a click with a frame tool, the Page tool) and a double click on a polygon tool open their dialogs"
+    dimension: [function]
+    priority: P0
+    status: has
+    paths: [web/src/dialogs/**, web/src/menus/**, web/src/App.tsx, web/src/HomeTab.tsx, web/src/strings.ts, web/src/main.tsx, web/tests/dialogs.mjs]
+    gap: "Dialogs do not preview live: the engine keeps an undone step for Redo, so a preview taken back on Cancel would come back with Redo (the engine's interaction preview is not a command yet). Text Frame Options cannot show a frame's gutter, insets or justification (the engine reports only its columns). The View and Window menus wait for stages 2 and 3; 58 engine menu commands are left out with their reasons (web/src/menus/hidden.ts)."
+    cases: [layout.ui.dialogs/menu-dialogs, layout.ui.dialogs/menu-rows]
+    since: "2026-11-25"
+  - id: layout.file.new-document
+    title: "File › New… makes a new layout beside the open one: a size preset or a size in millimetres, centimetres, inches, points or pixels, orientation, pages, facing pages, columns and gutter, four margins (linked or each its own) and bleed, written through the host"
+    dimension: [function]
+    priority: P0
+    status: has
+    commands: [layout.documentSetup, layout.marginsAndColumns]
+    paths: [web/src/dialogs/PageDialogs.tsx, web/src/units.ts, web/tests/dialogs.mjs]
+    gap: "No primary text frame and no start page number; no saved presets. The new layout opens from the workspace, not in this editor (the editor shows the document its host opened)."
+    cases: [layout.file.new-document/a4-millimetres]
+    since: "2026-11-25"
   - id: layout.platform.document-identity
     title: "A host reads the document id a .klayout carries and forks a copied layout into a new document with no history (document.identity, document.fork; Kit Process Protocol 5.6)"
     dimension: [platform, data-safety]

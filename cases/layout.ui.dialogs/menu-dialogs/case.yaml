@@ -1,0 +1,28 @@
+format: 1
+id: layout.ui.dialogs/menu-dialogs
+feature: layout.ui.dialogs
+intent: >-
+  A person clicks the menus in Chinese: Object › Text Frame Options… (its key Cmd+B too) opens a dialog and
+  changes nothing until OK; Cancel leaves the frame and the history as they were with nothing to redo; OK sets
+  the columns in exactly one history step. Corner Options… asks its shape in Chinese and runs it. Find/Change
+  changes every match and says how many. Table › Insert Table… is greyed out until the text cursor is in text,
+  then puts the caret in the first cell and the Table menu's rows come alive. Group with one object is greyed
+  out and says why. A click with the Rectangle Frame tool asks the size; Delete Pages… and Help › Sample
+  Document over an edited layout ask first.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/dialogs.mjs (plan 2026-11-25, stage 1)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/dialogs.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-25"

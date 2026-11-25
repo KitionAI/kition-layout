@@ -22,6 +22,8 @@ export type Item = {
   stroke: { swatch: string; weight: number }
   locked: boolean
   hidden: boolean
+  /** A text frame's columns. */
+  columns?: number
   story?: number
   asset?: number
   children?: Item[]
@@ -175,18 +177,8 @@ export function findItem(info: DocumentInfo, id: number): { item: Item; spread: 
   return null
 }
 
-export const MENU_ORDER = ['File', 'Edit', 'Layout', 'Type', 'Object', 'Table', 'View', 'Window', 'Help']
-
-/** The engine commands each menu tab shows in Single line's row (InDesign's most-used), by menu. */
-export const LAYOUT_PRIMARY: Record<string, readonly string[]> = {
-  File: ['file.package'],
-  Edit: ['edit.undo', 'edit.redo', 'edit.cut', 'edit.copy', 'edit.paste', 'edit.duplicate', 'edit.stepAndRepeat', 'find.find'],
-  Layout: ['layout.pages.insert', 'layout.parents.new', 'layout.marginsAndColumns', 'layout.createGuides', 'toc.generate', 'layout.section'],
-  Type: ['footnote.insert', 'type.createOutlines', 'type.changeCase', 'hyperlink.create', 'list.define', 'type.fillWithPlaceholder'],
-  Object: ['object.group', 'object.ungroup', 'object.bringForward', 'object.sendBackward', 'object.fit', 'object.textFrameOptions', 'object.dropShadow', 'object.lock'],
-  Table: ['table.insertRowBelow', 'table.insertColumnRight', 'table.deleteRow', 'table.deleteColumn', 'table.merge', 'table.unmerge', 'table.convertFromText'],
-  View: ['guide.deleteAll', 'view.showTextThreads'],
-  Window: ['object.textWrap', 'preflight.run', 'article.new'],
-}
-/** Tools that need panels this editor does not have yet. */
-export const HIDDEN_TOOLS = ['note', 'colorTheme', 'contentCollector', 'contentPlacer']
+/**
+ * Tools the rail leaves out: those that need panels this editor does not have yet, and the empty
+ * ones (Free Transform, Measure and Vertical Type on a Path do nothing in the engine yet).
+ */
+export const HIDDEN_TOOLS = ['note', 'colorTheme', 'contentCollector', 'contentPlacer', 'freeTransform', 'measure', 'verticalTypeOnPath']

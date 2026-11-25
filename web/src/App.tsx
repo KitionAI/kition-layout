@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   EditorFrame,
   EngineToolRail,
@@ -6,7 +6,6 @@ import {
   KitDocumentCanvas,
   KitEditorProvider,
   ZOOM_TOOL,
-  commandMenuTabs,
   createKitStrings,
   useEngineTools,
   useKitEditorState,
@@ -22,37 +21,37 @@ import {
 import { engineManifest } from './engine'
 import { useEngineBackdrop } from './backdrop'
 import { CATALOGS } from './strings'
-import { LAYOUT_PRIMARY, HIDDEN_TOOLS, MENU_ORDER, describe } from './layout'
+import { HIDDEN_TOOLS, describe } from './layout'
 import { HomeTab } from './HomeTab'
 import { SidePanel } from './SidePanel'
 import { CanvasScrollbars, createViewStore } from './CanvasScrollbars'
 import { RULER, Ruler, rulerOrigin } from './Rulers'
-import { DocumentSetupDialog } from './dialogs/DocumentSetup'
-import { ExportDialog } from './dialogs/Export'
-import { TemplatesDialog } from './dialogs/Templates'
+import { LayoutDialogs, type Dialogs, type OwnDialog } from './dialogs/DialogHost'
+import { MenuHints, layoutMenuTabs, menuEnabled, menuKey } from './menus/layoutMenus'
 
 /** The view tools are the host's; the engine's other tools run in the engine. */
 const HOST_TOOLS = { hand: HAND_TOOL, zoom: ZOOM_TOOL }
 const HIDDEN = new Set(HIDDEN_TOOLS)
-const HOST_FILE_COMMANDS = ['file.new', 'book.new', 'library.new', 'file.open', 'file.close', 'file.save', 'file.saveAs', 'file.revert']
-/** Commands the editor's own dialogs stand for in the menus (agents still run them). */
-const OWN_DIALOGS = ['document.applyTemplate', 'layout.documentSetup', 'file.exportPdf', 'file.exportEpub', 'file.exportFixedEpub', 'file.exportHtml']
-/** Menus kept in a read-only document. */
-const VIEW_MENUS = ['View', 'Window', 'Help']
+/** The tools a double click on their button sets up (the number of sides). */
+const POLYGON_TOOLS = ['tool:polygon', 'tool:polygonFrame']
 
 export function App({ host, phrase }: { host: HostConnection; phrase: Phrases }) {
   const t = useMemo(() => createKitStrings(CATALOGS, host.init.locale), [host])
   const manifest = useMemo(engineManifest, [])
   const session = useKitSession(host, manifest, describe)
-  const editor = useKitEditorState(session, host, t, 'layout', phrase)
+  const own = useKitEditorState(session, host, t, 'layout', phrase)
   const { doc, change, state } = session
-  const tools = useEngineTools(session.tool, doc != null, change, { initial: 'selection', hostTools: HOST_TOOLS, hidden: HIDDEN })
+  // A row greys out where the selection is not one it works on (Group with one object), and a
+  // variant row (Align Left) as its engine command does.
+  const editor = useMemo(() => ({ ...own, enabled: menuEnabled(own.enabled, state) }), [own, state])
+  // Every person's run goes through the dialog host (plan 2026-11-25, stage 1).
+  const dialogs = useRef<Dialogs | null>(null)
+  const tools = useEngineTools(session.tool, doc != null, change, { initial: 'selection', hostTools: HOST_TOOLS, hidden: HIDDEN, onDialog: (name, params) => dialogs.current?.engine(name, params) })
   const canvas = useRef<KitCanvasHandle>(null)
   useEngineBackdrop(doc, canvas)
   const viewMemory = useRef<RasterView | null>(null)
   const [view, setView] = useState<KitCanvasView | null>(null)
   const views = useMemo(createViewStore, [])
-  const [dialog, setDialog] = useState<'setup' | 'export' | 'templates' | null>(null)
   const zoom = view?.zoom ?? 1
   // Scrolling stops at the pasteboard's edge: past it the engine has nothing to draw.
   const width = state?.canvas.x1 ?? 0
@@ -63,6 +62,18 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   const spread = origin?.spread ?? state?.spreads[0] ?? null
   const pageInView = origin ? (origin.spread.pages.find((page) => origin.spread.area.x0 + page.bounds[0] - origin.spread.left === origin.x)?.index ?? 0) : 0
   const { commands } = editor
+  const showDialog = (name: OwnDialog) => dialogs.current?.show(name)
+  const invoke = (command: string) => dialogs.current?.invoke(command)
+  const runKit = (command: string) => {
+    if (command === 'kit:file.place') dialogs.current?.place()
+    else if (command === 'kit:layout.goToPage') showDialog('goToPage')
+  }
+  // The page in view (0-based) and its spread: what page commands act on.
+  const place = { page: pageInView, spread: spread?.index ?? 0 }
+  const showPage = (index: number) => {
+    const at = state?.spreads.find((item) => item.pages.some((page) => page.index === index))
+    if (at) canvas.current?.show(at.area)
+  }
   // A guide dragged from a ruler is an edit, which a read-only layout (a viewer) does not make.
   const addGuide = (orientation: 'horizontal' | 'vertical', position: number, index: number) => {
     if (!host.readOnly) void editor.run('guide.add', { orientation, position, spread: index })
@@ -70,23 +81,25 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   const tabs = useMemo<FrameTab[]>(
     () => [
       // Home first (its own ribbon; a drop-down panel in Menus), then the engine's menus.
-      { id: 'home', label: t('homeTab'), ribbon: <HomeTab onDialog={setDialog} /> },
-      ...commandMenuTabs(commands, {
-        order: MENU_ORDER,
-        exclude: [...HOST_FILE_COMMANDS, ...OWN_DIALOGS],
+      { id: 'home', label: t('homeTab'), ribbon: <HomeTab onDialog={showDialog} onCommand={invoke} /> },
+      ...layoutMenuTabs({
+        commands,
         phrase,
-        view: VIEW_MENUS,
-        primary: LAYOUT_PRIMARY,
+        onCommand: invoke,
+        onKitCommand: runKit,
         // The editor's own dialogs stand for these commands, at the top of File.
         before: {
           File: [
-            { label: t('templatesMenu'), onSelect: () => setDialog('templates'), testId: 'layout-menu-templates', primary: true },
-            { label: t('documentSetupMenu'), onSelect: () => setDialog('setup'), testId: 'layout-menu-document-setup', primary: true },
-            { label: t('exportMenu'), onSelect: () => setDialog('export'), testId: 'layout-menu-export', primary: true },
+            { label: t('newDocumentMenu'), onSelect: () => showDialog('newDocument'), testId: 'layout-menu-new' },
+            { label: t('templatesMenu'), onSelect: () => showDialog('templates'), testId: 'layout-menu-templates', primary: true },
+            { label: t('documentSetupMenu'), onSelect: () => showDialog('documentSetup'), testId: 'layout-menu-document-setup', primary: true },
+            { label: t('exportMenu'), onSelect: () => showDialog('export'), testId: 'layout-menu-export', primary: true },
           ],
         },
       }),
     ],
+    // The handlers read `dialogs` when they run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [commands, phrase, t],
   )
 
@@ -98,6 +111,8 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
         canvas={canvas}
         zoom={zoom}
         onKeyDown={(event) => {
+          // The key of a row that asks first opens its dialog; a `kit:` row's key runs it.
+          if (dialogs.current && menuKey(event, { commands, enabled: editor.enabled, dialogs: dialogs.current, onKitCommand: runKit })) return true
           // Escape a busy tool did not take clears the selection; taken (default prevented) only
           // then, so in Focus an Escape with nothing to cancel still leaves Focus (KitPointer 4.4).
           if (event.key !== 'Escape' || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || !state?.selected) return false
@@ -111,7 +126,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
           </>
         }
         rail={<EngineToolRail hidden={HIDDEN_TOOLS} />}
-        panels={state ? <SidePanel info={state} spread={spread} onShow={(next) => canvas.current?.show(next.area)} onSetup={() => setDialog('setup')} /> : null}
+        panels={state ? <SidePanel info={state} spread={spread} onShow={(next) => canvas.current?.show(next.area)} onSetup={() => showDialog('documentSetup')} /> : null}
       >
         <div className="kui-row" data-testid="layout-workspace" data-view={view ? `${view.zoom} ${view.x} ${view.y}` : undefined}>
           <CanvasFrame rulers={(
@@ -130,12 +145,27 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
             </KitDocumentCanvas>
           </CanvasFrame>
         </div>
-        {state && dialog === 'setup' ? <DocumentSetupDialog info={state} onClose={() => setDialog(null)} /> : null}
-        {state && dialog === 'export' ? <ExportDialog info={state} page={pageInView} onClose={() => setDialog(null)} /> : null}
-        {state && dialog === 'templates' ? <TemplatesDialog onClose={() => setDialog(null)} /> : null}
+        <LayoutDialogs api={dialogs} info={state} place={place} onShowPage={showPage} />
+        <MenuHints info={state} />
+        <PolygonDoubleClick onOpen={() => showDialog('polygon')} />
       </EditorFrame>
     </KitEditorProvider>
   )
+}
+
+/** A double click on a polygon tool's button (in the rail or its flyout) opens the polygon settings. */
+function PolygonDoubleClick({ onOpen }: { onOpen: () => void }) {
+  const latest = useRef(onOpen)
+  latest.current = onOpen
+  useEffect(() => {
+    const onDoubleClick = (event: MouseEvent) => {
+      const button = event.target instanceof Element ? event.target.closest('[data-kit-ui-id]') : null
+      if (button && POLYGON_TOOLS.includes(button.getAttribute('data-kit-ui-id') ?? '')) latest.current()
+    }
+    document.addEventListener('dblclick', onDoubleClick)
+    return () => document.removeEventListener('dblclick', onDoubleClick)
+  }, [])
+  return null
 }
 
 /**

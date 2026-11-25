@@ -20,17 +20,27 @@ function HomeTool({ id, primary, size = 'large' }: { id: string; primary?: boole
  * Layout's Home tab: the layout tasks done most, in every display mode (a drop-down panel in
  * Menus): frames and shapes, placing an image, pages, styles, arranging, and export.
  */
-export function HomeTab({ onDialog }: { onDialog: (dialog: 'setup' | 'export' | 'templates') => void }) {
-  const { run, enabled, phrase: p, t, session } = useKitEditor()
-  const info = session.state as DocumentInfo | null
+/**
+ * Place: an image the host picks, into the one selected frame, else onto the page (as the Links
+ * panel's Place). `can` is false where the host picks no files.
+ */
+export function usePlaceImage() {
+  const { run, t, session } = useKitEditor()
   const { can, pick } = useHostPick()
-  // As the Links panel's Place: into the one selected frame, else onto the page.
   const place = async () => {
+    const info = session.state as DocumentInfo | null
     const file = await pick(t('placePurpose'), PLACE_TYPES)
     if (!file) return
     const frame = info?.selection.length === 1 ? info.selection[0] : undefined
     await run('file.place', { base64: base64(file.bytes), name: file.name, ...(frame != null ? { frame } : {}) })
   }
+  return { can, place }
+}
+
+export function HomeTab({ onDialog, onCommand }: { onDialog: (dialog: 'documentSetup' | 'export' | 'templates') => void; onCommand: (command: string) => void }) {
+  const { run, enabled, phrase: p, t, session } = useKitEditor()
+  const info = session.state as DocumentInfo | null
+  const { can, place } = usePlaceImage()
   return (
     <>
       <RibbonGroup label={t('home.frames')} icon={Frame}>
@@ -49,8 +59,8 @@ export function HomeTab({ onDialog }: { onDialog: (dialog: 'setup' | 'export' | 
       <RibbonGroup label={p('Pages')} icon={FilePlus2}>
         <CommandButton command="layout.pages.insert" params={{ count: 1 }} icon={FilePlus2} size="large" primary />
         <RibbonStack>
-          <CommandButton command="layout.parents.new" icon={LayoutTemplate} primary />
-          <RibbonButton icon={Settings2} label={t('documentSetupMenu')} onClick={() => onDialog('setup')} data-testid="layout-home-document-setup" primary />
+          <CommandButton command="layout.parents.new" icon={LayoutTemplate} onRun={onCommand} primary />
+          <RibbonButton icon={Settings2} label={t('documentSetupMenu')} onClick={() => onDialog('documentSetup')} data-testid="layout-home-document-setup" primary />
         </RibbonStack>
       </RibbonGroup>
 

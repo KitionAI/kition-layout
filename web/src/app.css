@@ -419,3 +419,97 @@
 .layout-scrollbars[data-both] > .kui-scrollbar[aria-orientation='horizontal'] {
   right: 14px;
 }
+
+/* The command dialogs (`dialogs/`, plan 2026-11-25 stage 1): one labelled row per value. */
+.layout-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 340px;
+  max-width: 460px;
+}
+
+.layout-dialog-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.layout-dialog-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.layout-dialog-row > .kui-choice {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.layout-dialog-row > .kui-choice > span,
+.layout-dialog-label {
+  flex: 0 0 120px;
+  overflow: hidden;
+  color: var(--kit-text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-dialog-row > .kui-choice select {
+  max-width: none;
+  flex: 1 1 auto;
+}
+
+.layout-dialog-row > input.kui-field {
+  flex: 1 1 auto;
+}
+
+.layout-dialog-number {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.layout-dialog-number input {
+  width: 96px;
+}
+
+.layout-dialog-unit {
+  color: var(--kit-text-muted);
+  font-size: 12px;
+}
+
+.layout-dialog-color {
+  width: 40px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--kit-border);
+  border-radius: var(--kit-radius-control);
+  background: var(--kit-surface);
+}
+
+.layout-dialog-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0;
+  padding: 6px 10px 8px;
+  border: 1px solid var(--kit-border);
+  border-radius: var(--kit-radius-card);
+}
+
+.layout-dialog-group > legend {
+  padding: 0 4px;
+  color: var(--kit-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.layout-dialog-warning {
+  color: var(--kit-danger);
+  font-size: 12px;
+}
