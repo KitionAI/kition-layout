@@ -1,0 +1,22 @@
+format: 1
+id: layout.ui.properties/engine-readback
+feature: layout.ui.properties
+intent: >-
+  In the binding: inspect() reads back what the Properties panel shows beyond file.inspect, without
+  changing any field it had: each object's whole stroke (type, alignment, cap, join, arrowheads),
+  its four corners, a text frame's gutter, inset and vertical justification, every swatch's colour
+  with its CMYK parts (unnamed colours too), and each story's words and overset characters.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/src/lib.rs, bindings/wasm/src/readback.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, filter: inspect_reads_back_what_the_properties_panel_shows }
+  - cargo-test: { package: kition-layout-kit, filter: readback::tests }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

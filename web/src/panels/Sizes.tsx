@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { PlusIcon as Plus, TrashIcon as Trash } from '@kition/tessera/icons/react'
-import { Button, Dialog, IconButton, NumberField, PanelFooter, PanelSection, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { Button, Dialog, IconButton, NumberField, PanelFooter, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { PanelHeading } from './fields'
 import type { DocumentInfo, LayoutInfo, Spread } from '../layout'
 import { PRESETS, presetOf } from '../dialogs/DocumentSetup'
 
@@ -22,7 +23,8 @@ export function SizesSection({ info, onShow }: { info: DocumentInfo; onShow: (sp
   const spreadOf = (layout: LayoutInfo) => info.spreads.find((spread) => spread.pages.some((page) => page.index === layout.firstPage - 1))
   const selected = info.layouts.find((layout) => layout.name != null && layout.name === chosen) ?? null
   return (
-    <PanelSection title={t('sizes')} actions={<IconButton icon={Plus} label={t('newSize')} disabled={readOnly} onClick={() => setAdding(true)} data-testid="layout-new-size" />} testId="layout-sizes">
+    <div className="layout-panel" data-testid="layout-sizes">
+      <PanelHeading title={t('sizes')} actions={<IconButton icon={Plus} label={t('newSize')} disabled={readOnly} onClick={() => setAdding(true)} data-testid="layout-new-size" />} />
       <div data-testid="layout-size-list" data-count={info.layouts.length}>
         {info.layouts.map((layout) => {
           const name = layout.name ?? t('originalSize')
@@ -57,7 +59,7 @@ export function SizesSection({ info, onShow }: { info: DocumentInfo; onShow: (sp
         }
       />
       {adding ? <NewSizeDialog info={info} onClose={() => setAdding(false)} onMade={setChosen} /> : null}
-    </PanelSection>
+    </div>
   )
 }
 

@@ -1,0 +1,21 @@
+format: 1
+id: regressions/issue-active-layer-readback
+feature: layout.ui.properties
+intent: >-
+  The sample opened on its empty "Notes" layer and every new object went there, and the Layers
+  panel could not show which layer was active: inspect() copied the document without the editor's
+  active layer and so always answered the default one, whatever layer.activate had set. It now
+  answers the active layer, and new objects go on it.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings.md (section 7, 2026-11-25); plan 2026-11-25 section 0b
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, filter: the_active_layer_reads_back_as_the_editor_set_it }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

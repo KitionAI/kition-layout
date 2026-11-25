@@ -45,3 +45,9 @@ copy inter Inter-Variable.ttf OFL.txt Inter-OFL.txt
 copy lora Lora-Variable.ttf OFL.txt Lora-OFL.txt
 copy jetbrains-mono JetBrainsMono-Variable.ttf OFL.txt JetBrainsMono-OFL.txt
 copy bricolage-grotesque BricolageGrotesque-Variable.ttf OFL.txt BricolageGrotesque-OFL.txt
+# The engine's own document faces, for the font menu to show each family in its face (the engine
+# embeds them; the browser has no copy of its own).
+for face in SourceSerif4-Regular SourceSans3-Regular; do
+  cp "$repo/assets/fonts/$face.ttf" "$web/public/fonts/"
+done
+cp "$repo/assets/fonts/OFL-SourceSerif4.txt" "$repo/assets/fonts/OFL-SourceSans3.txt" "$web/public/fonts/"

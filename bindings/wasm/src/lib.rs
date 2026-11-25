@@ -26,6 +26,7 @@ mod conformance;
 pub mod files;
 mod params;
 mod place;
+mod readback;
 pub mod render;
 pub mod view;
 
@@ -479,8 +480,12 @@ impl KitDocument for LayoutDocument {
         let mut scratch = files::session();
         let mut copy = DocState::new((*state.doc).clone(), None);
         copy.selection = state.selection.clone();
+        // The active layer is editor state too: new objects go on it (the Layers panel marks it).
+        copy.active_layer = state.active_layer;
         scratch.add_document(copy);
         let mut inspected = scratch.execute("file.inspect", &json!({})).map_err(engine_error)?;
+        // What the Properties panel and the status bar read back (plan 2026-11-25, stage 4).
+        readback::extend(&mut inspected, &state.doc, &scratch);
         let origin = self.origin();
         let layout = self.session.layout();
         let spreads: Vec<Value> = layout
@@ -677,6 +682,17 @@ pub fn add_font(bytes: &[u8]) -> usize {
 }
 
 impl LayoutDocument {
+    /// Adds a font file's faces (TTF, OTF, TTC) the person chose (a system font, a file), so the
+    /// family can be set; text already set in it is laid out again. Returns the faces added.
+    /// Editor state: the document and its history do not change (the font is not embedded).
+    pub fn add_font_file(&mut self, bytes: &[u8]) -> usize {
+        let added = add_font(bytes);
+        if added > 0 {
+            self.session.cache.clear();
+        }
+        added
+    }
+
     /// Ends the typing in progress: the next text typed (`toolText`) is a new undo step.
     pub fn end_typing(&mut self) {
         self.session.end_typing();
@@ -814,6 +830,13 @@ pub mod web {
         #[wasm_bindgen(js_name = endTyping)]
         pub fn end_typing(&mut self) {
             self.0.end_typing();
+        }
+
+        /// Adds a font file's faces the person chose (a system font, a file) and lays out the
+        /// text set in it again; returns how many faces it added (plan 2026-11-25, stage 4).
+        #[wasm_bindgen(js_name = addFontFile)]
+        pub fn add_font_file(&mut self, bytes: &[u8]) -> u32 {
+            u32::try_from(self.0.add_font_file(bytes)).unwrap_or(u32::MAX)
         }
 
         #[wasm_bindgen(js_name = canUndo)]
@@ -973,6 +996,60 @@ mod tests {
         // New documents draw missing glyphs from fallback fonts.
         let doc = LayoutDocument::create("New.klayout", 612, 792).unwrap();
         assert!(doc.session.doc().unwrap().doc.settings.glyph_fallback);
+    }
+
+    #[test]
+    fn inspect_reads_back_what_the_properties_panel_shows() {
+        // Plan 2026-11-25, stage 4: the stroke, the corners, a text frame's options, every
+        // swatch's colour (unnamed ones too), and a story's words and overset characters.
+        let mut doc = LayoutDocument::create("Panel.klayout", 612, 792).unwrap();
+        let text = "Words keep coming and the frame fills up quickly with them. ".repeat(12);
+        let frame = doc.execute("frame.add", json!({ "rect": [100, 100, 300, 160], "content": "text", "text": text, "caret": false })).unwrap()["id"]
+            .as_u64()
+            .unwrap();
+        doc.execute(
+            "object.stroke",
+            json!({ "ids": [frame], "weight": 2, "cap": "round", "join": "bevel", "align": "inside", "end": "triangle", "type": {"kind": "dotted"} }),
+        )
+        .unwrap();
+        doc.execute("object.textFrameOptions", json!({ "ids": [frame], "gutter": 18, "inset": [1, 2, 3, 4], "verticalJustification": "center" }))
+            .unwrap();
+        doc.execute("object.color", json!({ "ids": [frame], "color": {"c": 10, "m": 20, "y": 30, "k": 40} })).unwrap();
+        let inspected = doc.inspect().unwrap();
+        let item = inspected["spreads"][0]["items"].as_array().unwrap().iter().find(|item| item["id"] == json!(frame)).unwrap().clone();
+        assert_eq!(item["strokeDetail"]["cap"], json!("round"), "{item}");
+        assert_eq!(item["strokeDetail"]["join"], json!("bevel"));
+        assert_eq!(item["strokeDetail"]["align"], json!("inside"));
+        assert_eq!(item["strokeDetail"]["end"], json!("triangle"));
+        assert_eq!(item["strokeDetail"]["type"]["kind"], json!("dotted"));
+        assert_eq!(item["corners"].as_array().map(Vec::len), Some(4));
+        assert_eq!(item["textFrame"]["gutter"], json!(18.0));
+        assert_eq!(item["textFrame"]["inset"], json!([1.0, 2.0, 3.0, 4.0]));
+        assert_eq!(item["textFrame"]["verticalJustification"], json!("center"));
+        let fill = item["fill"].as_str().unwrap();
+        assert_eq!(inspected["colors"][fill]["cmyk"], json!([10.0, 20.0, 30.0, 40.0]), "{}", inspected["colors"]);
+        let story = inspected["stories"].as_array().unwrap().iter().find(|story| story["frames"] == json!([frame])).unwrap();
+        assert_eq!(story["words"], json!(12 * 11));
+        assert!(story["oversetChars"].as_u64().unwrap() > 0, "{story}");
+    }
+
+    #[test]
+    fn the_active_layer_reads_back_as_the_editor_set_it() {
+        // `inspect()` answered the document's default layer whatever `layer.activate` had set, so
+        // the editor could not tell which layer new objects go on (plan 2026-11-25, 0b).
+        let mut doc = LayoutDocument::create("Layers.klayout", 612, 792).unwrap();
+        let first = doc.inspect().unwrap()["layers"][0]["id"].as_u64().unwrap();
+        doc.execute("layer.new", json!({ "name": "Notes" })).unwrap();
+        let layers = doc.inspect().unwrap()["layers"].as_array().unwrap().iter().filter_map(|layer| layer["id"].as_u64()).collect::<Vec<_>>();
+        assert_eq!(layers.len(), 2);
+        for id in layers.iter().copied().chain([first]) {
+            doc.execute("layer.activate", json!({ "id": id })).unwrap();
+            assert_eq!(doc.inspect().unwrap()["activeLayer"], json!(id));
+            let made = doc.execute("frame.add", json!({ "rect": [10, 10, 50, 50], "content": "graphic" })).unwrap()["id"].as_u64().unwrap();
+            let spread = &doc.inspect().unwrap()["spreads"][0]["items"];
+            let item = spread.as_array().unwrap().iter().find(|item| item["id"] == json!(made)).unwrap().clone();
+            assert_eq!(item["layer"], json!(id));
+        }
     }
 
     #[test]

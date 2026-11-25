@@ -1,6 +1,7 @@
 import { useMemo, useState, type MouseEvent } from 'react'
 import { ArrowDownIcon as ArrowDown, ArrowUpIcon as ArrowUp, ChevronDownIcon as ChevronDown, ChevronRightIcon as ChevronRight, CopyIcon as Copy, EyeIcon as Eye, EyeOffIcon as EyeOff, GroupIcon as Group, LockIcon as Lock, LockOpenIcon as LockOpen, PlusIcon as Plus, TrashIcon as Trash, UngroupIcon as Ungroup } from '@kition/tessera/icons/react'
-import { IconButton, PanelFooter, PanelSection, RenameField, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { IconButton, PanelFooter, RenameField, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { PanelHeading } from './fields'
 import { flatten, type DocumentInfo, type Item, type Layer, type Spread } from '../layout'
 import { useMenuOpener } from '../menus/ContextMenus'
 
@@ -121,7 +122,8 @@ export function LayersSection({ info, spread }: { info: DocumentInfo; spread: Sp
   }
 
   return (
-    <PanelSection title={p('Layers')} actions={<IconButton icon={Plus} label={t('newLayer')} disabled={readOnly} onClick={() => void run('layer.new', {})} data-testid="layout-new-layer" />} testId="layout-layers">
+    <div className="layout-panel" data-testid="layout-layers">
+      <PanelHeading actions={<IconButton icon={Plus} label={t('newLayer')} disabled={readOnly} onClick={() => void run('layer.new', {})} data-testid="layout-new-layer" />} />
       <div className="layout-virtual" style={{ height: Math.min(rows.length, VIEW_ROWS) * ROW }} onScroll={(event) => setScroll(event.currentTarget.scrollTop)} data-testid="layout-layer-list" data-rows={rows.length}>
         <div style={{ height: rows.length * ROW, position: 'relative' }}>{rows.slice(first, last).map((entry, offset) => row(entry, first + offset))}</div>
       </div>
@@ -141,6 +143,6 @@ export function LayersSection({ info, spread }: { info: DocumentInfo; spread: Sp
           </>
         }
       />
-    </PanelSection>
+    </div>
   )
 }

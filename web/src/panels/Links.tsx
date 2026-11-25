@@ -1,5 +1,5 @@
 import { ImagePlusIcon as ImagePlus, Link2Icon as Link2, RefreshCwIcon as RefreshCw } from '@kition/tessera/icons/react'
-import { IconButton, PanelFooter, PanelSection, PICTURE_TYPES, base64, useEngineQuery, useHostPick, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { IconButton, PanelFooter, PICTURE_TYPES, base64, useEngineQuery, useHostPick, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import type { DocumentInfo } from '../layout'
 
 type Link = { asset: number; name: string; path: string | null; status: 'ok' | 'modified' | 'missing' | 'embedded'; pixels?: [number, number] | null; uses: Array<{ id: number; page: number | null; ppi: number | null }> }
@@ -14,7 +14,7 @@ export const PLACE_TYPES = [...PICTURE_TYPES, 'pdf', 'psd', 'eps', 'svg']
  * puts a picked image into the selected empty frame, or on the page.
  */
 export function LinksSection({ info }: { info: DocumentInfo }) {
-  const { run, phrase: p, t } = useKitEditor()
+  const { run, t } = useKitEditor()
   const readOnly = useReadOnly()
   const { can: canPick, pick } = useHostPick()
   // Placing and relinking edit the layout: a viewer only goes to links.
@@ -32,7 +32,7 @@ export function LinksSection({ info }: { info: DocumentInfo }) {
   }
   const target = info.selection.length === 1 ? info.selection[0] : undefined
   return (
-    <PanelSection title={p('Links')} defaultOpen={false} testId="layout-links">
+    <div className="layout-panel" data-testid="layout-links">
       {links.length ? null : <p className="layout-empty">{t('noLinks')}</p>}
       {links.map((link) => {
         const ppi = link.uses.map((use) => use.ppi).filter((value): value is number => value != null)
@@ -51,6 +51,6 @@ export function LinksSection({ info }: { info: DocumentInfo }) {
         )
       })}
       <PanelFooter end={can ? <IconButton icon={ImagePlus} label={t('placeImage')} onClick={() => void place(target)} data-testid="layout-place-image" /> : null} />
-    </PanelSection>
+    </div>
   )
 }

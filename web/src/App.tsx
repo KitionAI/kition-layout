@@ -23,7 +23,10 @@ import { useEngineBackdrop } from './backdrop'
 import { CATALOGS } from './strings'
 import { HIDDEN_TOOLS, describe } from './layout'
 import { HomeTab } from './HomeTab'
-import { SidePanel } from './SidePanel'
+import { LayoutDock } from './panels/dock'
+import { DialogsProvider } from './panels/dialogsContext'
+import { defaultFillStroke, layerToActivate, swapFillStroke } from './panels/panelLogic'
+import { StatusInfo } from './StatusInfo'
 import { CanvasScrollbars, createViewStore } from './CanvasScrollbars'
 import { RULER, Ruler, rulerOrigin } from './Rulers'
 import { LayoutDialogs, type Dialogs, type OwnDialog } from './dialogs/DialogHost'
@@ -34,7 +37,7 @@ import { useFileDrop, useSystemClipboard } from './clipboard'
 import { VIEW_ACTIONS, VIEW_KEY_ALIASES, viewMove, type ViewAction } from './view'
 import { ZoomEntry } from './ZoomEntry'
 import { drawnCursor } from './cursors'
-import type { DocumentInfo } from './layout'
+import { findItem, type DocumentInfo, type Item } from './layout'
 import { GuideOverlay, guidesOf, useGuideGestures } from './GuideLayer'
 import { EditorViewProvider, type EditorView } from './viewContext'
 import { browserStorage, engineView, loadView, saveView, viewChange, viewChecked, type GuideRef, type ViewState } from './viewOptions'
@@ -72,6 +75,10 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   // Space and Ctrl reach the engine's tools, a modifier pressed mid-drag acts at once, a pause ends typing's undo step.
   useEngineModifiers(session.doc)
   const typing = useRef<() => boolean>(() => false)
+  const runQuietRef = useRef<(command: string, params: Record<string, unknown>) => Promise<string | null>>(async () => null)
+  // New objects go on the layer of what the person selected, and not on an empty layer a
+  // document opened on (plan 2026-11-25, 0b).
+  useActiveLayer(state, session.doc, runQuietRef)
   typing.current = () => tools.wantsText
   useCanvasWheel(canvas, () => typing.current())
   useFocusOnOpen(doc != null)
@@ -116,6 +123,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   }, [doc, viewOptions, selectedGuide, movingGuide, refreshTools])
   const editorView = useMemo<EditorView>(() => ({ view: viewOptions, setView: (change) => setViewOptions(change), repaint }), [viewOptions, repaint])
   const runQuiet = useCallback((command: string, params: Record<string, unknown>) => editor.session.run(command, params), [editor.session])
+  runQuietRef.current = runQuiet
   const guides = useMemo(() => guidesOf(state), [state])
   const guideGestures = useGuideGestures({ run: runQuiet, info: state, guides, view: viewOptions, canvas, tool: tools.active, readOnly: Boolean(host.readOnly), selected: selectedGuide, onSelect: setSelectedGuide, onMoving: setMovingGuide })
   const viewMemory = useRef<RasterView | null>(null)
@@ -180,6 +188,20 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
       setViewOptions((now) => ({ ...now, screenMode: now.screenMode === 'normal' ? 'preview' : 'normal' }))
       return true
     }
+    // X swaps the selection's fill and stroke, D gives it the default ones (InDesign's keys; the
+    // engine has no command for either, so each is a fill and a stroke command).
+    const letter = event.key.toLowerCase()
+    if ((letter === 'x' || (letter === 'd' && !event.shiftKey)) && !command && !event.altKey && !tools.wantsText && !inField(event.target) && state?.selected && !host.readOnly) {
+      const items = state.selection.flatMap((id) => {
+        const found = findItem(state, id)?.item
+        return found ? [found as Item & { fillTint?: number; strokeDetail?: { tint?: number } }] : []
+      })
+      const steps = letter === 'x' ? swapFillStroke(items) : defaultFillStroke(state.selection)
+      void (async () => {
+        for (const [id, params] of steps) await editor.run(id, params)
+      })()
+      return true
+    }
     // A selected ruler guide takes the arrows, Delete and Escape.
     if (!tools.wantsText && !inField(event.target) && guideGestures.guideKey(event)) return true
     if (ARROWS.has(event.key) && tools.active !== 'hand' && tools.active !== 'zoom') {
@@ -236,6 +258,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
     <KitEditorProvider editor={editor} tools={tools}>
       <EditorViewProvider value={editorView}>
       <MenuOpenerProvider value={openMenu}>
+      <DialogsProvider value={dialogs}>
       <EditorFrame
         tabs={tabs}
         defaultTab="home"
@@ -255,10 +278,11 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
           <>
             <span data-testid="layout-status">{tools.status ? phrase(tools.status) : state ? t(state.pageCount === 1 ? 'summaryOne' : 'summary', { pages: state.pageCount }) : ''}</span>
             {state?.selected ? <span>{t('selectedCount', { count: state.selected })}</span> : null}
+            {state ? <StatusInfo info={state} views={views} unit={viewOptions.unit} /> : null}
           </>
         }
         rail={<EngineToolRail hidden={HIDDEN_TOOLS} />}
-        panels={state ? <SidePanel info={state} spread={spread} onShow={(next) => canvas.current?.show(next.area)} onSetup={() => showDialog('documentSetup')} /> : null}
+        panels={state ? <LayoutDock info={state} spread={spread} onShow={(next) => canvas.current?.show(next.area)} onSetup={() => showDialog('documentSetup')} /> : null}
       >
         <div ref={workspace} className="kui-row" data-testid="layout-workspace" data-view={view ? `${view.zoom} ${view.x} ${view.y}` : undefined}>
           <CanvasFrame showRulers={rulers} rulers={(
@@ -285,10 +309,35 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
         <LayoutContextMenu menu={menu} info={state} onClose={() => setMenu(null)} dialogs={dialogs} onView={(action) => viewActions.current(action)} view={viewOptions} onViewOption={runKit} />
         <ZoomEntry canvas={canvas} zoom={zoom} />
       </EditorFrame>
+      </DialogsProvider>
       </MenuOpenerProvider>
       </EditorViewProvider>
     </KitEditorProvider>
   )
+}
+
+/**
+ * The active layer follows the person (plan 2026-11-25, 0b): selecting objects on one layer makes
+ * it active, as InDesign does, and a document that opens on an empty layer while another shown,
+ * unlocked layer has objects opens on the topmost of those (the sample's "Notes"). The active
+ * layer is editor state (`layer.activate`, no undo step), and new objects go on it.
+ */
+function useActiveLayer(info: DocumentInfo | null, doc: unknown, run: RefObject<(command: string, params: Record<string, unknown>) => Promise<string | null>>) {
+  const opened = useRef<unknown>(null)
+  const selection = info?.selection.join(',') ?? ''
+  useEffect(() => {
+    if (!info || !doc) return
+    const first = opened.current !== doc
+    opened.current = doc
+    const layers = new Map<number, number>()
+    for (const spread of info.spreads) for (const item of spread.items) layers.set(item.layer, (layers.get(item.layer) ?? 0) + 1)
+    const selected = [...new Set(info.selection.flatMap((id) => findItem(info, id)?.item.layer ?? []))]
+    if (!first && !selected.length) return
+    const next = layerToActivate(info.layers, layers, info.activeLayer, selected)
+    if (next != null) void run.current?.('layer.activate', { id: next }).catch(() => null)
+    // Only when the document or the person's selection changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc, selection, info != null])
 }
 
 /** Whether a key went to a field of its own (a panel's number, a text box). */

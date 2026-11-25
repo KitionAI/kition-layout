@@ -1,0 +1,33 @@
+format: 1
+id: layout.ui.properties/properties
+feature: layout.ui.properties
+intent: >-
+  A person with the Properties panel: the sample opens on its content layer (not the empty Notes
+  layer) and a shape drawn by hand goes there; the status bar shows the pointer's place, the
+  selection's size and the story's words and overset characters; on a text frame the panel sets
+  underline, superscript, a left indent typed in millimetres, space before, Justify with last line
+  centred, bullets, the language, the text colour, columns and vertical justification, each read
+  back from the engine; the font menu finds a family by name, draws it in its own face, sets it,
+  and loads a font file the host picks; on a frame it sets the stroke type, cap and arrowhead, a
+  CMYK fill from the colour picker kept as CMYK, Add to Swatches, text wrap with an offset in
+  millimetres; three objects align left; X swaps fill and stroke and D restores the defaults; the
+  reference point moves where X reads; with nothing selected it sets the margins; Alt-click on a
+  style's New opens its options; at 1024 × 700 every dock tab shows with room, no group over
+  another, and a field low in Properties scrolls into view and sets.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/properties.mjs (plan 2026-11-25, stage 4)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/properties.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-25"

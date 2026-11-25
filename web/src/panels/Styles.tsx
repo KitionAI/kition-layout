@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { PencilIcon as Pencil, PlusIcon as Plus, TrashIcon as Trash } from '@kition/tessera/icons/react'
-import { Button, Choice, Dialog, IconButton, PanelFooter, PanelSection, useEngineQuery, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { PencilIcon as Pencil, PlusIcon as Plus, Settings2Icon as Settings2, TrashIcon as Trash } from '@kition/tessera/icons/react'
+import { Button, Choice, Dialog, IconButton, PanelFooter, useEngineQuery, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { PanelHeading } from './fields'
 import type { DocumentInfo } from '../layout'
 
 type Kind = 'paragraph' | 'character'
@@ -23,15 +24,21 @@ export function StylesSection({ info, kind }: { info: DocumentInfo; kind: Kind }
   const current = kind === 'paragraph' ? at?.paragraphStyle : at?.characterStyle
   const [chosen, setChosen] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
+  // Alt+click on New opens the style options first (InDesign's); a plain click makes the style at once.
+  const [making, setMaking] = useState(false)
   const testId = kind === 'paragraph' ? 'layout-paragraph-style' : 'layout-character-style'
   const apply = (name: string) => {
     setChosen(name)
     if (!readOnly) void run(kind === 'paragraph' ? 'style.paragraph.apply' : 'style.character.apply', { name })
   }
-  const create = async () => {
+  const freeName = () => {
     const base = kind === 'paragraph' ? t('newParagraphStyleName') : t('newCharacterStyleName')
     let name = base
     for (let n = 2; names.includes(name); n += 1) name = `${base} ${n}`
+    return name
+  }
+  const create = async () => {
+    const name = freeName()
     if (kind === 'paragraph') {
       await run('style.paragraph.add', { name, fromSelection: info.editingText || info.selection.length > 0 })
     } else {
@@ -43,7 +50,8 @@ export function StylesSection({ info, kind }: { info: DocumentInfo; kind: Kind }
   }
   const selected = chosen && names.includes(chosen) ? chosen : null
   return (
-    <PanelSection title={p(kind === 'paragraph' ? 'Paragraph Styles' : 'Character Styles')} defaultOpen={false} testId={`${testId}s`}>
+    <div className="layout-panel" data-testid={`${testId}s`}>
+      <PanelHeading title={p(kind === 'paragraph' ? 'Paragraph Styles' : 'Character Styles')} />
       {names.map((name) => (
         <button key={name} type="button" className="layout-list-item" data-active={name === selected} data-current={name === current} onClick={() => apply(name)} onDoubleClick={() => setEditing(name)} data-testid={`${testId}-${name}`}>
           {name}
@@ -52,7 +60,14 @@ export function StylesSection({ info, kind }: { info: DocumentInfo; kind: Kind }
       <PanelFooter
         end={
           <>
-            <IconButton icon={Plus} label={t(kind === 'paragraph' ? 'newParagraphStyle' : 'newCharacterStyle')} disabled={readOnly} onClick={() => void create()} data-testid={`${testId}-new`} />
+            <IconButton
+              icon={Plus}
+              label={t(kind === 'paragraph' ? 'newParagraphStyleHint' : 'newCharacterStyleHint')}
+              disabled={readOnly}
+              onClick={(event) => (event.altKey ? setMaking(true) : void create())}
+              data-testid={`${testId}-new`}
+            />
+            <IconButton icon={Settings2} label={t(kind === 'paragraph' ? 'newParagraphStyleOptions' : 'newCharacterStyleOptions')} disabled={readOnly} onClick={() => setMaking(true)} data-testid={`${testId}-new-options`} />
             <IconButton icon={Pencil} label={t('editStyle')} disabled={readOnly || !selected} onClick={() => selected && setEditing(selected)} data-testid={`${testId}-edit`} />
             <IconButton
               icon={Trash}
@@ -65,14 +80,18 @@ export function StylesSection({ info, kind }: { info: DocumentInfo; kind: Kind }
         }
       />
       {editing ? <StyleDialog info={info} kind={kind} name={editing} onClose={() => setEditing(null)} /> : null}
-    </PanelSection>
+      {making ? <StyleDialog info={info} kind={kind} name={freeName()} make={{ fromSelection: info.editingText || info.selection.length > 0, chars: at?.chars ?? {} }} onClose={() => setMaking(false)} onMade={setChosen} /> : null}
+    </div>
   )
 }
 
 const ALIGN_CHOICES = ['', 'left', 'center', 'right', 'justify'] as const
 
-/** A style's text settings; empty fields stay as the style has them. */
-function StyleDialog({ info, kind, name, onClose }: { info: DocumentInfo; kind: Kind; name: string; onClose: () => void }) {
+/**
+ * A style's text settings; empty fields stay as the style has them. With `make`, the options of a
+ * new style (New Paragraph Style…): OK makes it, from the selected text's look and the fields.
+ */
+function StyleDialog({ info, kind, name, make, onClose, onMade }: { info: DocumentInfo; kind: Kind; name: string; make?: { fromSelection: boolean; chars: Record<string, unknown> }; onClose: () => void; onMade?: (name: string) => void }) {
   const { run, t, phrase: p, session } = useKitEditor()
   const families = useEngineQuery<string[]>('font.families', {}, session.doc ? 'families' : null) ?? []
   const [rename, setRename] = useState(name)
@@ -90,6 +109,18 @@ function StyleDialog({ info, kind, name, onClose }: { info: DocumentInfo; kind: 
     if (number(leading) != null) chars.leading = { kind: 'points', value: number(leading) }
     if (number(tracking) != null) chars.tracking = number(tracking)
     if (fill) chars.fill = fill
+    if (make) {
+      const made = rename.trim() || name
+      if (kind === 'paragraph') {
+        await run('style.paragraph.add', { name: made, fromSelection: make.fromSelection, chars, ...(align ? { para: { align } } : {}) })
+      } else {
+        const picked = Object.fromEntries(['fontFamily', 'fontStyle', 'size', 'fill', 'tracking'].filter((key) => make.chars[key] != null).map((key) => [key, make.chars[key]]))
+        await run('style.character.add', { name: made, chars: { ...picked, ...chars } })
+      }
+      onMade?.(made)
+      onClose()
+      return
+    }
     const params: Record<string, unknown> = { name, chars }
     if (rename.trim() && rename.trim() !== name && !BUILT_IN.has(name)) params.rename = rename.trim()
     if (kind === 'paragraph' && align) params.para = { align }
@@ -104,7 +135,7 @@ function StyleDialog({ info, kind, name, onClose }: { info: DocumentInfo; kind: 
   )
   return (
     <Dialog
-      title={t('styleOptions', { name })}
+      title={make ? t(kind === 'paragraph' ? 'newParagraphStyleOptions' : 'newCharacterStyleOptions') : t('styleOptions', { name })}
       onClose={onClose}
       testId="layout-style-dialog"
       actions={
@@ -118,7 +149,7 @@ function StyleDialog({ info, kind, name, onClose }: { info: DocumentInfo; kind: 
     >
       <label className="layout-field">
         <span>{t('styleName')}</span>
-        <input className="kui-field" value={rename} disabled={BUILT_IN.has(name)} onChange={(event) => setRename(event.target.value)} data-testid="layout-style-name" />
+        <input className="kui-field" value={rename} disabled={!make && BUILT_IN.has(name)} onChange={(event) => setRename(event.target.value)} data-testid="layout-style-name" />
       </label>
       <Choice label={p('Font')} value={family} choices={[['', t('unchanged')] as const, ...families.map((name) => [name, name] as const)]} onChange={setFamily} testId="layout-style-font" />
       {field(t('fontSize'), size, setSize, 'layout-style-size')}

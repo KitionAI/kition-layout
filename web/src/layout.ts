@@ -40,7 +40,10 @@ export type Spread = {
   guides: unknown[]
 }
 export type Layer = { id: number; name: string; visible: boolean; locked: boolean; color: number[] }
-export type Story = { id: number; frames: number[]; overset: boolean; preview: string; length: number }
+/** A story; `words` and `oversetChars` (the characters that do not fit) for the status bar. */
+export type Story = { id: number; frames: number[]; overset: boolean; preview: string; length: number; words?: number; oversetChars?: number }
+/** A swatch's colour (`inspect().colors`, unnamed ones too): as the screen shows it, and its CMYK percentages when defined so. */
+export type ColorValue = { hex?: string; cmyk?: number[] }
 export type SwatchInfo = { name: string; kind: string; color: string | null; locked: boolean }
 export type ParentInfo = { id: number; label: string | null; items: number }
 /** The original layout (`name` null) and each alternate layout: a size of the document. */
@@ -55,10 +58,14 @@ export type DocumentInfo = {
   selected: number
   selection: number[]
   editingText: boolean
+  /** The story the text cursor or text selection is in (null when not editing text). */
+  textStory: number | null
   layers: Layer[]
   activeLayer: number | null
   swatches: string[]
   swatchColors: SwatchInfo[]
+  /** Every swatch's colour by name, the unnamed (hidden) ones too. */
+  colors: Record<string, ColorValue>
   paragraphStyles: string[]
   characterStyles: string[]
   stories: Story[]
@@ -72,11 +79,12 @@ type Inspected = {
   pageCount?: number
   spreads?: Array<{ index?: number; pages?: Array<Partial<Page>>; items?: Item[] }>
   canvas?: { spreads?: Array<{ x: number; y: number; width: number; height: number; guides?: unknown[] }> }
-  selection?: { items?: number[]; text?: unknown }
+  selection?: { items?: number[]; text?: { story?: number } | null }
   layers?: Layer[]
   activeLayer?: number
   swatches?: string[]
   swatchColors?: SwatchInfo[]
+  colors?: Record<string, ColorValue>
   paragraphStyles?: string[]
   characterStyles?: string[]
   stories?: Story[]
@@ -117,10 +125,12 @@ export function describe(info: KitEngineInfo): DocumentInfo {
     selected: inspected.selection?.items?.length ?? 0,
     selection: inspected.selection?.items ?? [],
     editingText: inspected.selection?.text != null,
+    textStory: inspected.selection?.text?.story ?? null,
     layers: inspected.layers ?? [],
     activeLayer: inspected.activeLayer ?? null,
     swatches: inspected.swatches ?? [],
     swatchColors: inspected.swatchColors ?? (inspected.swatches ?? []).map((name) => ({ name, kind: 'color', color: null, locked: false })),
+    colors: inspected.colors ?? {},
     paragraphStyles: inspected.paragraphStyles ?? [],
     characterStyles: inspected.characterStyles ?? [],
     stories: inspected.stories ?? [],

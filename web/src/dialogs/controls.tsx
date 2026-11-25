@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { Checkbox, Choice } from '@kition/sdk/editor'
 import { formatField, parseLength, unitSuffix, type Unit } from '../units'
+import { ColorWell } from '../panels/ColorWell'
+import { hexToRgb, pickedRgb, rgbToHex } from '../panels/colors'
 
 /**
  * The dialogs' controls, on kit-editor's: a drop-down, a check box, a colour well, a number, a
@@ -35,10 +37,12 @@ export function FieldRow({ label, children, htmlFor }: { label: string; children
   )
 }
 
+/** A colour (`#rrggbb`) from kit-editor's colour picker (plan 2026-11-25, stage 4). */
 export function ColorRow({ label, value, onChange, testId }: { label: string; value: string; onChange: (value: string) => void; testId?: string }) {
+  const rgb = hexToRgb(value)
   return (
     <FieldRow label={label}>
-      <input type="color" className="layout-dialog-color" value={value} aria-label={label} onChange={(event) => onChange(event.target.value)} data-testid={testId} />
+      <ColorWell label={label} color={rgb ? { model: 'rgb', rgb } : null} onChange={(color) => onChange(rgbToHex(pickedRgb(color)))} testId={testId ?? 'layout-dialog-color'} />
     </FieldRow>
   )
 }

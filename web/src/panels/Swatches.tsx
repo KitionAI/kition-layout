@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { PlusIcon as Plus, TrashIcon as Trash } from '@kition/tessera/icons/react'
-import { Button, Dialog, IconButton, NumberField, PanelFooter, PanelSection, Segmented, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { Button, Dialog, IconButton, NumberField, PanelFooter, Segmented, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import { SquareIcon as Square, SquareDashedIcon as SquareDashed } from '@kition/tessera/icons/react'
 import type { DocumentInfo, SwatchInfo } from '../layout'
+import { ColorEditor } from './ColorWell'
+import { colorParam, hexToRgb, pickedRgb, rgbToHex, type PickedColor } from './colors'
 
 type Target = 'fill' | 'stroke'
 
@@ -27,7 +29,7 @@ export function SwatchesSection({ info }: { info: DocumentInfo }) {
   }
   const deletable = info.swatchColors.find((swatch) => swatch.name === chosen && !swatch.locked && swatch.kind !== 'none' && swatch.kind !== 'paper' && swatch.kind !== 'registration')
   return (
-    <PanelSection title={p('Swatches')} defaultOpen={false} testId="layout-swatches">
+    <div className="layout-panel" data-testid="layout-swatches">
       <div className="layout-bar">
         <Segmented
           label={t('swatchTarget')}
@@ -56,18 +58,23 @@ export function SwatchesSection({ info }: { info: DocumentInfo }) {
         }
       />
       {creating ? <NewSwatchDialog onClose={() => setCreating(false)} /> : null}
-    </PanelSection>
+    </div>
   )
 }
 
+/**
+ * New Swatch: a name and a colour from the colour picker (RGB, HSB and hex, or CMYK parts, kept
+ * as CMYK), or typed as hex.
+ */
 function NewSwatchDialog({ onClose }: { onClose: () => void }) {
   const { run, t } = useKitEditor()
   const [name, setName] = useState('')
-  const [color, setColor] = useState('#5645d4')
-  const valid = /^#[0-9a-f]{6}$/i.test(color)
+  const [color, setColor] = useState<PickedColor>({ model: 'rgb', rgb: [0x56, 0x45, 0xd4] })
+  const [hex, setHex] = useState('#5645d4')
+  const valid = /^#[0-9a-f]{6}$/i.test(hex)
   const create = async () => {
     if (!valid) return
-    await run('swatch.add', name.trim() ? { name: name.trim(), color } : { color })
+    await run('swatch.add', name.trim() ? { name: name.trim(), color: colorParam(color) } : { color: colorParam(color) })
     onClose()
   }
   return (
@@ -88,12 +95,27 @@ function NewSwatchDialog({ onClose }: { onClose: () => void }) {
         <span>{t('swatchName')}</span>
         <input className="kui-field" value={name} placeholder={t('swatchNameHint')} onChange={(event) => setName(event.target.value)} data-testid="layout-new-swatch-name" />
       </label>
+      <ColorEditor
+        value={color}
+        onChange={(next) => {
+          setColor(next)
+          setHex(rgbToHex(pickedRgb(next)))
+        }}
+        testId="layout-new-swatch-picker"
+      />
       <label className="layout-field">
         <span>{t('swatchColor')}</span>
-        <span className="layout-color">
-          <input type="color" value={valid ? color : '#000000'} onChange={(event) => setColor(event.target.value)} aria-label={t('swatchColor')} />
-          <input className="kui-field" value={color} onChange={(event) => setColor(event.target.value.trim())} data-testid="layout-new-swatch-color" />
-        </span>
+        <input
+          className="kui-field"
+          value={hex}
+          onChange={(event) => {
+            const text = event.target.value.trim()
+            setHex(text)
+            const rgb = hexToRgb(text)
+            if (rgb && /^#[0-9a-f]{6}$/i.test(text)) setColor({ model: 'rgb', rgb })
+          }}
+          data-testid="layout-new-swatch-color"
+        />
       </label>
     </Dialog>
   )

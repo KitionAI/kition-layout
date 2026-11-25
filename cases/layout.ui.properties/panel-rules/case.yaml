@@ -1,0 +1,27 @@
+format: 1
+id: layout.ui.properties/panel-rules
+feature: layout.ui.properties
+intent: >-
+  The panel's rules without a browser: colours go between hex, RGB and CMYK and a CMYK colour
+  reaches the engine as CMYK; X and Y read at the reference point and linked sizes keep the
+  proportions; every fixed-value button (align, distribute, wrap, pathfinder, fitting) is a menu
+  row with its Chinese label; X swaps each object's fill and stroke and D gives none and a black
+  1 pt stroke; new objects go on the selection's layer and a document opened on an empty layer
+  moves to the topmost layer with objects; a font file names its family; the panel's words are in
+  English and Chinese; and the built engine takes every stroke type, arrowhead, corner shape, text
+  frame option, wrap offset, character and paragraph value the panel sends and reads each back.
+layer: gate
+source:
+  kind: probe
+  from: web/src/panels/properties.test.mjs (plan 2026-11-25, stage 4)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, --test, src/panels/properties.test.mjs]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+timeout_s: 60
+since: "2026-11-25"

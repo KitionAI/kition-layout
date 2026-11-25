@@ -82,9 +82,256 @@
 
 /* Panels (W3-22 DE11a). */
 
+/* The dock beside the canvas (plan 2026-11-25, stage 4): tabbed groups that share its height. */
 .layout-side {
-  width: 272px;
+  width: 288px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.layout-side > .kui-dock {
+  flex: 1 1 auto;
+}
+
+.layout-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.layout-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  padding: 0 6px 0 12px;
+  color: var(--kit-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.layout-properties {
+  padding-bottom: 8px;
+}
+
+.layout-property-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0 8px;
+  border-top: 1px solid var(--kit-border);
+}
+
+.layout-property-group:first-of-type {
+  border-top: 0;
+}
+
+.layout-property-title,
+.layout-property-subtitle {
+  margin: 0;
+  padding: 0 10px;
+  color: var(--kit-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.layout-property-subtitle {
+  padding-top: 4px;
+}
+
+.layout-grid-tight {
+  gap: 4px 8px;
+}
+
+.layout-row-pad {
+  padding: 0 10px;
+}
+
+/* A length field: its label, the value in the ruler unit (any unit typed), the unit. */
+.layout-length {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.layout-length-label {
+  color: var(--kit-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 64px;
+}
+
+.layout-length input {
+  min-width: 0;
+  width: 100%;
+  height: 26px;
+  padding: 0 6px;
+}
+
+.layout-length input[aria-invalid='true'] {
+  border-color: var(--kit-danger, var(--kit-border));
+}
+
+.layout-length-unit {
+  color: var(--kit-text-muted);
+  font-size: 11px;
+}
+
+.layout-transform {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 10px;
+}
+
+.layout-transform > .layout-grid {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-left: 0;
+}
+
+/* The reference point: nine points of the box, the chosen one filled. */
+.layout-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 12px);
+  grid-template-rows: repeat(3, 12px);
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--kit-border);
+  border-radius: var(--kit-radius-control);
+}
+
+.layout-ref-dot {
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 1px solid var(--kit-text-muted);
+  border-radius: 2px;
+  background: var(--kit-surface);
+  cursor: pointer;
+}
+
+.layout-ref-dot[aria-checked='true'] {
+  border-color: var(--kit-text);
+  background: var(--kit-text);
+}
+
+.layout-variant-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  padding: 0 8px;
+}
+
+/* A colour well: the current colour, or a slash for none. */
+.layout-well {
+  flex: none;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--kit-border);
+  border-radius: var(--kit-radius-control);
+  background: var(--kit-surface);
+  cursor: pointer;
+}
+
+.layout-well[data-none='true'] {
+  background: linear-gradient(to top right, transparent calc(50% - 1px), var(--kit-text-muted) 50%, transparent calc(50% + 1px)), var(--kit-surface);
+}
+
+.layout-color > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.layout-color-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 248px;
+}
+
+.layout-color-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.layout-color-parts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.layout-color-parts[data-model='cmyk'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* The font: the drop-down and the button that opens the searchable font menu. */
+.layout-font-field {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.layout-font-field > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.layout-font-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 280px;
+}
+
+.layout-font-list {
+  max-height: 300px;
   overflow-y: auto;
+}
+
+.layout-font-row {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 16px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.layout-font-row:hover,
+.layout-font-row[aria-selected='true'] {
+  background: var(--kit-primary-soft);
+}
+
+.layout-font-group {
+  padding: 6px 8px 2px;
+  color: var(--kit-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.layout-font-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layout-status-info {
+  margin-left: 12px;
+  white-space: nowrap;
 }
 
 .layout-empty {

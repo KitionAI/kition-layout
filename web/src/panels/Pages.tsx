@@ -1,8 +1,9 @@
 import { useEffect, useState, type MouseEvent } from 'react'
 import { ArrowDownIcon as ArrowDown, ArrowUpIcon as ArrowUp, CopyIcon as Copy, PlusIcon as Plus, Settings2Icon as Settings2, TrashIcon as Trash } from '@kition/tessera/icons/react'
-import { Choice, IconButton, PanelFooter, PanelSection, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { Choice, IconButton, PanelFooter, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import type { DocumentInfo, Spread } from '../layout'
 import { useMenuOpener } from '../menus/ContextMenus'
+import { PanelHeading } from './fields'
 
 const THUMB = 92
 
@@ -56,7 +57,8 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
   const parentOf = spreadOf?.pages.find((item) => item.index === page)?.parent ?? null
   const parents = info.parents.filter((parent) => parent.label).map((parent) => [parent.label ?? '', parent.label ?? ''] as const)
   return (
-    <PanelSection title={p('Pages')} actions={<IconButton icon={Plus} label={t('addPage')} disabled={readOnly} onClick={() => void run('layout.pages.insert', { count: 1, after: page })} data-testid="layout-add-page" />} testId="layout-pages-panel">
+    <div className="layout-panel" data-testid="layout-pages-panel">
+      <PanelHeading title={p('Pages')} actions={<IconButton icon={Plus} label={t('addPage')} disabled={readOnly} onClick={() => void run('layout.pages.insert', { count: 1, after: page })} data-testid="layout-add-page" />} />
       <div className="layout-parents" data-testid="layout-parents">
         {info.parents.map((parent) => (
           <span key={parent.id} className="layout-parent" title={t('parentItems', { count: parent.items })}>
@@ -105,6 +107,6 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
           </>
         }
       />
-    </PanelSection>
+    </div>
   )
 }
