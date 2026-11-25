@@ -1,6 +1,7 @@
-import { BringToFrontIcon as BringToFront, DownloadIcon as Download, FilePlusCornerIcon as FilePlus2, FrameIcon as Frame, GroupIcon as Group, ImagePlusIcon as ImagePlus, LayoutTemplateIcon as LayoutTemplate, PilcrowIcon as Pilcrow, SendToBackIcon as SendToBack, Settings2Icon as Settings2, TypeIcon as Type, UngroupIcon as Ungroup } from '@kition/tessera/icons/react'
+import { ListIcon, ListOrderedIcon, BringToFrontIcon as BringToFront, DownloadIcon as Download, FilePlusCornerIcon as FilePlus2, FrameIcon as Frame, GroupIcon as Group, ImagePlusIcon as ImagePlus, LayoutTemplateIcon as LayoutTemplate, PilcrowIcon as Pilcrow, SendToBackIcon as SendToBack, Settings2Icon as Settings2, TypeIcon as Type, UngroupIcon as Ungroup } from '@kition/tessera/icons/react'
 import { CommandButton, MenuItem, RibbonButton, RibbonGroup, RibbonMenu, RibbonStack, ToolButton, base64, toolIcon, useHostPick, useKitEditor, useKitTools } from '@kition/sdk/editor'
 import type { DocumentInfo } from './layout'
+import type { ListKind } from './lists'
 import { PLACE_TYPES } from './panels/Links'
 
 /**
@@ -50,7 +51,7 @@ export function usePlaceImage() {
   return { can, place }
 }
 
-export function HomeTab({ onDialog, onCommand }: { onDialog: (dialog: 'documentSetup' | 'export' | 'templates') => void; onCommand: (command: string) => void }) {
+export function HomeTab({ onDialog, onCommand, onList }: { onDialog: (dialog: 'documentSetup' | 'export' | 'templates') => void; onCommand: (command: string) => void; onList: (kind: ListKind) => void }) {
   const { run, enabled, phrase: p, t, session } = useKitEditor()
   const info = session.state as DocumentInfo | null
   const { can, place } = usePlaceImage()
@@ -88,6 +89,11 @@ export function HomeTab({ onDialog, onCommand }: { onDialog: (dialog: 'documentS
             <MenuItem key={name} label={name} onSelect={() => void run('style.character.apply', { name })} testId={`layout-home-character-style-${name}`} />
           ))}
         </RibbonMenu>
+        {/* Bullets and numbering switch on the selected paragraphs, off when they already have that list. */}
+        <RibbonStack>
+          <RibbonButton icon={ListIcon} label={t('home.bullets')} disabled={!enabled('text.para')} onClick={() => onList('bullets')} data-testid="layout-home-bullets" primary />
+          <RibbonButton icon={ListOrderedIcon} label={t('home.numbers')} disabled={!enabled('text.para')} onClick={() => onList('numbers')} data-testid="layout-home-numbers" primary />
+        </RibbonStack>
       </RibbonGroup>
 
       <RibbonGroup label={p('Arrange')} icon={Group}>

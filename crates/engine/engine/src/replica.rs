@@ -431,6 +431,8 @@ impl Session {
     /// pause ([`Session::end_typing`]), any other edit, a click, a key, a tool change or an undo
     /// ends the step. Without a replica (or during a live gesture) each insert is a step of its own.
     pub fn type_text(&mut self, text: &str) -> Result<serde_json::Value> {
+        // An input method's committed text takes the place of its marked text.
+        self.ime_cancel();
         let starts_word = text.chars().next().is_some_and(|c| !c.is_whitespace());
         let uid = self.active().map(|st| st.uid);
         let joins = matches!(self.typing, Some(typing) if Some(typing.uid) == uid && !(typing.after_space && starts_word));

@@ -135,6 +135,10 @@ test('the View menu lists the view actions, each in Chinese', () => {
 
 test('the engine\'s shared cursors are drawn by the active tool', () => {
   assert.equal(drawnCursor('loadedText', 'copy'), DRAWN_CURSORS.loadedText)
+  // The loaded text cursor says what a click does (stage 5): link, unlink, or nothing.
+  assert.equal(drawnCursor('loadedText', 'alias'), DRAWN_CURSORS.threadLink)
+  assert.equal(drawnCursor('loadedText', 'no-drop'), DRAWN_CURSORS.unthread)
+  assert.equal(drawnCursor('loadedText', 'not-allowed'), 'not-allowed')
   assert.equal(drawnCursor('placeGun', 'copy'), DRAWN_CURSORS.loadedGraphic)
   assert.equal(drawnCursor('eyedropper', 'copy'), DRAWN_CURSORS.eyedropper)
   assert.equal(drawnCursor('selection', 'grab'), DRAWN_CURSORS.rotate)

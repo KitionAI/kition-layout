@@ -3,6 +3,7 @@ import { catalogTabs, shortcutMatches, useKitEditor, type FrameTab, type KitComm
 import type { DocumentInfo } from '../layout'
 import { asks } from '../dialogs/routes'
 import { VARIANT, engineCommandOf, layoutMenus } from './catalog'
+import { LIST_ROWS } from '../lists'
 import { contextReason, disabledReason } from './context'
 import { menuContext, type Dialogs } from '../dialogs/DialogHost'
 import { VIEW_TOGGLES } from '../viewOptions'
@@ -111,5 +112,6 @@ const KIT_KEYS: ReadonlyArray<readonly [string, string]> = [
   ['Cmd+D', 'kit:file.place'],
   ['Cmd+J', 'kit:layout.goToPage'],
   ['Cmd+K', 'kit:edit.preferences'],
+  ...LIST_ROWS.map(([kind, , shortcut]) => [shortcut, `kit:text.${kind}`] as const),
   ...VIEW_TOGGLES.flatMap(([key, , shortcut]) => (shortcut ? [[shortcut, `kit:view.${key}`] as const] : [])),
 ]

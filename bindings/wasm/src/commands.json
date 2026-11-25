@@ -4297,6 +4297,33 @@
    }
   }
  },
+ "table.resizeBorder": {
+  "description": "Moves a table's row or column border by a distance in points, as dragging it does; keepTableSize keeps the table's size.",
+  "params": {
+   "axis": {
+    "enum": [
+     "column",
+     "row"
+    ],
+    "type": "string"
+   },
+   "index": {
+    "description": "the column or row the border ends, from 0",
+    "type": "integer"
+   },
+   "delta": {
+    "description": "points the border moves",
+    "type": "number"
+   },
+   "size": {
+    "description": "the column's width or the row's height to make, in points",
+    "type": "number"
+   },
+   "keepTableSize": {
+    "type": "boolean"
+   }
+  }
+ },
  "table.setColumnWidth": {
   "description": "Sets the target columns' width in points."
  },
@@ -4362,6 +4389,16 @@
      "type": "number"
     },
     "type": "array"
+   },
+   "unit": {
+    "description": "after text.selectWord with a unit: grow the selection by whole units of it",
+    "enum": [
+     "word",
+     "line",
+     "paragraph",
+     "story"
+    ],
+    "type": "string"
    }
   }
  },
@@ -4415,7 +4452,7 @@
   }
  },
  "text.selectWord": {
-  "description": "Selects the word at a point in a frame.",
+  "description": "Selects the word at a point in a frame, or its line, paragraph or whole story (several clicks).",
   "params": {
    "point": {
     "description": "[x, y] in points",
@@ -4423,6 +4460,16 @@
      "type": "number"
     },
     "type": "array"
+   },
+   "unit": {
+    "description": "word, line, paragraph or story: what two, three, four or five clicks select",
+    "enum": [
+     "word",
+     "line",
+     "paragraph",
+     "story"
+    ],
+    "type": "string"
    }
   }
  },

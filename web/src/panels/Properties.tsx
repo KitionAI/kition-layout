@@ -5,6 +5,7 @@ import { ArrangeGroups, TextFrameGroup } from './properties/Arrange'
 import { CharacterGroup, type CharAttrs } from './properties/Character'
 import { DocumentGroup } from './properties/Document'
 import { ParagraphGroup, type ParaAttrs } from './properties/Paragraph'
+import { TableGroup } from './properties/Table'
 import { TransformGroup } from './properties/Transform'
 
 type TextAttrs = { paragraphStyle?: string; characterStyle?: string; para?: ParaAttrs; chars?: CharAttrs }
@@ -14,7 +15,7 @@ type TextAttrs = { paragraphStyle?: string; characterStyle?: string; para?: Para
  * panel's rows): what the selection is decides the groups. Objects: Transform, Appearance (fill,
  * stroke and its options, opacity, corners), Text Wrap, Align, Pathfinder, Fitting, and a text
  * frame's options. Text being edited, or selected text frames: Character, Paragraph, the styles
- * and Fit Text to Frame. Nothing selected: the document and the pages' background. Read-only (a
+ * and Fit Text to Frame; with the caret in a table, the table's rows, columns and cells (stage 5). Nothing selected: the document and the pages' background. Read-only (a
  * viewer), it shows them and changes nothing.
  */
 export function PropertiesPanel({ info }: { info: DocumentInfo }) {
@@ -36,6 +37,7 @@ export function PropertiesPanel({ info }: { info: DocumentInfo }) {
         {objects ? <TransformGroup info={info} item={item} /> : null}
         {objects ? <AppearanceGroup info={info} item={item} /> : null}
         {objects && item.story != null ? <TextFrameGroup info={info} item={item} /> : null}
+        {info.editingText ? <TableGroup info={info} /> : null}
         {text ? <TextGroups info={info} /> : null}
         {objects ? <ArrangeGroups info={info} item={item} /> : null}
       </fieldset>

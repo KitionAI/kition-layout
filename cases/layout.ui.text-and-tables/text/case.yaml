@@ -1,0 +1,32 @@
+format: 1
+id: layout.ui.text-and-tables/text
+feature: layout.ui.text-and-tables
+intent: >-
+  A person with text and tables: with the Type tool two, three, four and five clicks select the
+  word, line, paragraph and story, and a drag after a double click grows by words; Underline with
+  only a caret shows pressed in the panel and underlines the next letter typed; an input method's
+  marked text (composition events) shows at the caret with no undo step, the hidden field sits at
+  the caret, the committed text is one step and a cancelled composition leaves nothing; Alt+Right
+  kerns the pair at the caret; a click in an empty frame makes it a text frame; in a table Tab and
+  Shift+Tab move between cells, Esc selects the cell and Esc again its text, the Table group sets
+  the row height, dragging a column border resizes the column in one undo step and Shift-dragging
+  keeps the table's width, and the Table group adds a column; the bullets key switches bullets on
+  and off and the Home tab's button numbers the paragraph; with the loaded text cursor the linked
+  frame shows the unthread cursor and a click on it breaks the thread.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/text.mjs (plan 2026-11-25, stage 5)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/text.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-25"

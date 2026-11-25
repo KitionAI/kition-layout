@@ -1,0 +1,23 @@
+format: 1
+id: layout.ui.text-and-tables/binding-text
+feature: layout.ui.text-and-tables
+intent: >-
+  In the binding: the editor's click count (setClickCount) reaches the Type tool for one press;
+  marked text through imePreedit, imeCancel and imeCaret shows underlined at the caret, a cancel
+  leaves no step and typed text commits it as one; the loaded text cursor's CSS names link
+  (alias), unlink (no-drop) and the loaded cursor (copy).
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/src/lib.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, filter: the_editors_click_count_reaches_the_type_tool }
+  - cargo-test: { package: kition-layout-kit, filter: marked_text_through_the_editor_methods }
+  - cargo-test: { package: kition-layout-kit, filter: the_loaded_text_cursor_names_link_and_unlink }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

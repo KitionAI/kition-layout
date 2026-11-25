@@ -56,6 +56,7 @@ impl Session {
         if self.tool.id() == id {
             return;
         }
+        self.ime_cancel();
         self.end_typing();
         self.tool = kition_layout_tools::create(id);
         // Leaving the Type tool keeps the text frame selected.
@@ -99,6 +100,8 @@ impl Session {
     pub fn pointer(&mut self, ev: &PointerEvent, view: ViewInfo) -> Result<()> {
         // A press (moving the caret, choosing something else) ends the typing; hovering does not.
         if matches!(ev.kind, kition_layout_tools::PointerKind::Down | kition_layout_tools::PointerKind::DoubleClick) {
+            // A press ends a composition: its marked text goes (the input method commits on its own).
+            self.ime_cancel();
             self.end_typing();
             // A gesture works on the document, not on a dialog's preview of it.
             self.cancel_preview();
@@ -108,6 +111,7 @@ impl Session {
     }
 
     pub fn tool_key(&mut self, key: ToolKey, mods: Mods, view: ViewInfo) -> Result<bool> {
+        self.ime_cancel();
         self.end_typing();
         self.cancel_preview();
         let actions = self.with_ctx(view, |t, cx| t.key(cx, key, mods)).unwrap_or_default();
@@ -138,6 +142,46 @@ impl Session {
 
     pub fn wants_text(&mut self) -> bool {
         self.with_ctx(ViewInfo::at_zoom(1.0), |t, cx| t.wants_text(cx)).unwrap_or(false)
+    }
+
+    /// An input method's marked text at the caret (`text`, replacing the last; empty clears it),
+    /// shown in place through the active tool's preview: no undo step until the committed text is
+    /// typed ([`Session::type_text`]). `active_chars` is the clause being converted.
+    pub fn ime_preedit(&mut self, text: &str, active_chars: Option<std::ops::Range<usize>>) -> Result<()> {
+        if !text.is_empty() && !self.tool.composing() {
+            self.end_typing();
+            // Marked text replaces a dialog's preview as any typing does.
+            self.cancel_preview();
+            if self.tool_busy() || self.doc()?.interaction.is_some() {
+                return Err(EngineError::Other("finish the gesture in progress before typing".into()));
+            }
+        }
+        let actions = self.with_ctx(ViewInfo::default(), |t, cx| t.ime_preedit(cx, text, active_chars)).unwrap_or_default();
+        self.run_actions(actions)
+    }
+
+    /// Takes an input method's marked text away, leaving the document and the selection as they
+    /// were and no undo or redo step. False when none was showing.
+    pub fn ime_cancel(&mut self) -> bool {
+        let actions = self.tool.ime_cancel();
+        let had = !actions.is_empty();
+        for a in actions {
+            if a == Action::Cancel {
+                self.cancel_interaction();
+            }
+        }
+        had
+    }
+
+    /// Whether an input method's marked text is showing.
+    pub fn composing(&self) -> bool {
+        self.tool.composing()
+    }
+
+    /// Where an input method's candidate window goes: the caret line (top, bottom) in canvas
+    /// points, or None when no text takes typing.
+    pub fn ime_caret(&mut self, view: ViewInfo) -> Option<(kition_layout_geom::Point, kition_layout_geom::Point)> {
+        self.with_ctx(view, |t, cx| t.ime_caret(cx)).flatten()
     }
 
     pub fn run_actions(&mut self, actions: Vec<Action>) -> Result<()> {

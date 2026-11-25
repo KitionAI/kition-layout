@@ -1,0 +1,23 @@
+format: 1
+id: layout.ui.text-and-tables/text-rules
+feature: layout.ui.text-and-tables
+intent: >-
+  The editor's text rules without a browser: presses close in time and place count up to the
+  engine's limit and a pause or a move starts again; the candidate window's spot is the caret on
+  the screen; bullets and numbering switch on, over each other, and off; the Table panel adds rows
+  and columns after the last and deletes the last ones, keeping one.
+layer: gate
+source:
+  kind: probe
+  from: web/src/text.test.mjs (plan 2026-11-25, stage 5)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, --test, src/text.test.mjs]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+timeout_s: 60
+since: "2026-11-25"

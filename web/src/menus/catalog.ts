@@ -1,6 +1,7 @@
 import type { MenuRow } from '@kition/sdk/editor'
 import { VIEW_ACTIONS } from '../view.ts'
 import { SCREEN_MODES, VIEW_TOGGLES, type ViewToggle } from '../viewOptions.ts'
+import { LIST_ROWS } from '../lists.ts'
 
 /**
  * Layout's menus (plan 2026-11-25, stage 1): the reference application's menu tables, in its
@@ -155,6 +156,10 @@ const MENUS: ReadonlyArray<readonly [string, readonly Entry[]]> = [
       '<',
       '-',
       '>Bulleted & Numbered Lists',
+      // Switches (the editor's: on, or off when already that list), and Remove (plan stage 5).
+      ...LIST_ROWS.map(([kind, label, shortcut]) => k(`text.${kind}`, label, shortcut)),
+      v('text.para', 'noList', 'Remove Bullets and Numbering', { attrs: { listType: 'none' } }),
+      '-',
       c('list.define'),
       '<',
       '-',

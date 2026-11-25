@@ -6,7 +6,8 @@
 //! space makes a frame the width of the column under the pointer down to the bottom margin.
 //! Alt-clicking keeps the cursor loaded from the new frame (semi-autoflow); Shift-clicking from an
 //! out port autoflows (pages with threaded frames are added until the story fits). Double-clicking a port
-//! breaks the thread there (`frame.unthread`). Escape unloads the cursor.
+//! breaks the thread there (`frame.unthread`), and so does clicking the frame already linked on the
+//! loaded side; the cursor shows which a click does. Escape unloads the cursor.
 
 use kition_layout_doc::{Content, Item, ItemId, SpreadRef};
 use kition_layout_geom::{Affine, Point, Rect};
@@ -101,6 +102,21 @@ pub fn thread_lines(cx: &ToolContext) -> Vec<Overlay> {
     out
 }
 
+/// What a click with the loaded text cursor does at a point.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Target {
+    /// Nothing there: a new frame.
+    Empty,
+    /// The frame the text was loaded from (the second click of a double click on its port).
+    Own,
+    /// A frame that can join the thread.
+    Thread(ItemId),
+    /// The frame already linked on the loaded side: the click breaks the thread there.
+    Unthread,
+    /// A frame that can't take the text (a picture, a group, a frame of the same story).
+    Invalid,
+}
+
 /// The text cursor loaded from `from`'s `side` port.
 pub struct LoadedTextTool {
     from: ItemId,
@@ -149,6 +165,30 @@ impl LoadedTextTool {
         let mut p = self.base();
         p["to"] = json!(to.0);
         Some(Action::Exec("frame.thread".into(), p))
+    }
+
+    /// The frame linked on the loaded side: the next frame from an out port, the previous one
+    /// from an in port.
+    fn neighbour(&self, cx: &ToolContext) -> Option<ItemId> {
+        match self.side {
+            Side::Out => cx.doc.next_frame(self.from),
+            Side::In => cx.doc.prev_frame(self.from),
+        }
+    }
+
+    /// What a click at canvas point `p` does.
+    fn target(&self, cx: &ToolContext, p: Point) -> Target {
+        let Some((_, id)) = cx.hit(p) else { return Target::Empty };
+        if cx.doc.top_level_of(id).unwrap_or(id) == self.from || id == self.from {
+            return Target::Own;
+        }
+        if Some(id) == self.neighbour(cx) {
+            return Target::Unthread;
+        }
+        match self.onto(cx, id) {
+            Some(_) => Target::Thread(id),
+            None => Target::Invalid,
+        }
     }
 
     /// `frame.thread` into a new frame at `rect` on spread `sr` (spread coordinates).
@@ -210,11 +250,16 @@ impl Tool for LoadedTextTool {
                     }
                     return vec![self.new_frame(sr, rect)];
                 }
-                match cx.hit(start) {
+                match self.target(cx, start) {
                     // Its own frame (the second click of a double-click on a port): wait.
-                    Some((_, id)) if cx.doc.top_level_of(id).unwrap_or(id) == self.from || id == self.from => vec![],
-                    Some((_, id)) => self.onto(cx, id).into_iter().collect(),
-                    None => vec![self.new_frame(sr, Self::click_rect(cx, sr, sa))],
+                    Target::Own | Target::Invalid => vec![],
+                    // The frame already linked there: the thread breaks between them.
+                    Target::Unthread => vec![
+                        Action::SwitchTool("selection".into()),
+                        Action::Exec("frame.unthread".into(), json!({ "frame": self.from.0, "side": self.side.as_str() })),
+                    ],
+                    Target::Thread(id) => self.onto(cx, id).into_iter().collect(),
+                    Target::Empty => vec![self.new_frame(sr, Self::click_rect(cx, sr, sa))],
                 }
             }
             PointerKind::DoubleClick => {
@@ -250,8 +295,15 @@ impl Tool for LoadedTextTool {
         }
     }
 
-    fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
-        Cursor::LoadedText
+    /// The cursor says what a click there does: flow the text in (link), break the link, nothing
+    /// (not allowed), or, over empty space and the frame it was loaded from, the loaded cursor.
+    fn cursor(&self, cx: &ToolContext, p: Point, _m: Mods) -> Cursor {
+        match self.target(cx, p) {
+            Target::Empty | Target::Own => Cursor::LoadedText,
+            Target::Thread(_) => Cursor::ThreadLink,
+            Target::Unthread => Cursor::Unthread,
+            Target::Invalid => Cursor::NotAllowed,
+        }
     }
 
     /// Loaded, the tool takes Escape (to unload) and waits for its click.

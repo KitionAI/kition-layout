@@ -285,6 +285,11 @@ pub struct Session {
     /// A dialog's live preview is showing ([`Session::preview_command`]): the interaction is the
     /// dialog's, not a tool's.
     pub(crate) dialog_preview: bool,
+    /// Character formatting chosen at a bare caret in text, for what is typed there next.
+    pub(crate) typing_format: Option<cmd::text::TypingFormat>,
+    /// The word, line, paragraph or story several clicks selected: a drag after them grows the
+    /// selection by that unit (`text.extendTo` with `unit`).
+    pub(crate) text_unit: Option<kition_layout_doc::TextSel>,
 }
 
 impl Default for Session {
@@ -321,6 +326,8 @@ impl Session {
             typing: None,
             typing_now: false,
             dialog_preview: false,
+            typing_format: None,
+            text_unit: None,
         }
     }
 
@@ -488,7 +495,16 @@ impl Session {
             self.stop_data_preview();
         }
         let before = self.active().map(|d| (d.uid, d.doc.clone()));
+        let selection_before = self.typing_format.as_ref().and(self.active()).map(|d| d.selection.clone());
         let r = (spec.run)(self, params)?;
+        // A format chosen at a caret is for typing there: the caret going elsewhere (even back
+        // again) drops it. An input method's marked text, previewed in an interaction, keeps it
+        // for the committed text.
+        if let Some(was) = selection_before
+            && self.active().is_some_and(|d| d.interaction.is_none() && d.selection != was)
+        {
+            self.typing_format = None;
+        }
         // Undo, redo or deleting layers can take the active layer away: new objects would land on
         // a layer that isn't there (invisible, not exported). Fall back to the top layer.
         if let Some(st) = self.active_mut()
@@ -635,3 +651,5 @@ mod tests_idml;
 mod tests_roundtrip;
 #[cfg(test)]
 mod tests_table;
+#[cfg(test)]
+mod tests_typing;

@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import type { EngineOverlay, KitCanvasHandle, KitEngine, KitTool, OverlayDrawer } from '@kition/sdk/editor'
 import { wheelZoomFactor, zoomAbout } from './view'
+import { nextPress, type Press } from './clicks'
 
 const SURFACE = 'kit-canvas-surface'
 /** A pause this long ends the typing's undo step. */
@@ -44,6 +45,9 @@ export function useEngineModifiers(doc: KitEngine | null) {
     let dragging = false
     let pointer: { x: number; y: number; id: number; buttons: number; surface: HTMLElement | null; over: boolean } = { x: 0, y: 0, id: 1, buttons: 0, surface: null, over: false }
     let pause: number | undefined
+    // Presses in a row on the canvas (a triple click), counted as they come: the engine's
+    // event has no count, so the press's count goes to the engine just before the press.
+    let press: Press | null = null
     const own = doc as unknown as { tool: KitEngine['tool'] }
     const original = doc.tool.bind(doc)
     own.tool = ((name, args = [], settled = false) => {
@@ -53,6 +57,7 @@ export function useEngineModifiers(doc: KitEngine | null) {
           const event = JSON.parse(args[0]) as { action?: string; mods?: Record<string, boolean> }
           dragging = event.action === 'down' || event.action === 'drag'
           event.mods = { ...event.mods, space: held.space, control: held.control }
+          if (event.action === 'down' && press && press.count > 1) void doc.invoke('setClickCount', press.count).catch(() => undefined)
           sent = [JSON.stringify(event), ...args.slice(1)]
         } catch {
           // Not the engine tools' event shape: sent as it is.
@@ -68,6 +73,7 @@ export function useEngineModifiers(doc: KitEngine | null) {
     const track = (event: PointerEvent) => {
       if (!event.isTrusted) return
       pointer = { x: event.clientX, y: event.clientY, id: event.pointerId, buttons: event.buttons, surface: onSurface(event.target) ? event.target : pointer.surface, over: onSurface(event.target) }
+      if (event.type === 'pointerdown' && event.button === 0) press = onSurface(event.target) ? nextPress(press, event.timeStamp, event.clientX, event.clientY) : null
       if (event.type === 'pointerup' || event.type === 'pointercancel') dragging = false
     }
     const key = (event: KeyboardEvent) => {

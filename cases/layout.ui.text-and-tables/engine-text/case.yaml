@@ -1,0 +1,23 @@
+format: 1
+id: layout.ui.text-and-tables/engine-text
+feature: layout.ui.text-and-tables
+intent: >-
+  In the engine: a format chosen at a caret is no undo step, shows in text.selectionAttrs and goes
+  to the text typed next, and the caret going elsewhere drops it; kerning at a caret kerns the
+  pair; text.selectWord selects a word, line, paragraph or story and text.extendTo grows by that
+  unit; input-method marked text lays out at the caret, a cancel leaves no step and the committed
+  text is one; table.resizeBorder resizes a column or row, keeps the table's size when asked, and
+  refuses bad input without a panic.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/src/tests_typing.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: tests_typing }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

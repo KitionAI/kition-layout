@@ -202,6 +202,15 @@ fn table_specs() -> Vec<CommandSpec> {
         ),
         cmd!("table.setRowHeight", "Row Height", [], None, "{height, mode?: atLeast|exactly}", in_table, set_row_height),
         cmd!("table.setColumnWidth", "Column Width", [], None, "{width}", in_table, set_col_width),
+        cmd!(
+            "table.resizeBorder",
+            "Resize Row or Column",
+            [],
+            None,
+            "{story?, table?, frame?, axis: column|row, index, delta? | size?, keepTableSize?: bool} — moves the border after column/row `index` by `delta` points (or makes that column/row `size` wide/high), as dragging a table's border does; later columns/rows move along. The last index is the table's right/bottom edge. keepTableSize (Shift): on an inner border the next column/row gives or takes the change; on the edge every column/row scales. A dragged row becomes At Least. Refuses a locked `frame`",
+            in_table_or_ids,
+            resize_border
+        ),
         cmd!("table.distributeColumns", "Distribute Columns Evenly", ["Table"], None, "{}", in_table, distribute_cols),
         cmd!(
             "table.distributeRows",
@@ -824,6 +833,117 @@ fn set_col_width(s: &mut Session, p: &Value) -> Result<Value> {
             c.width = w;
         }
         ok()
+    })
+}
+
+/// The smallest and largest row height or column width a border drag makes, in points.
+const MIN_TRACK: f64 = 3.0;
+const MAX_TRACK: f64 = 10000.0;
+
+/// Moves the border after `index` among `sizes` by `delta`. Returns the new sizes.
+fn resize_track(sizes: &[f64], index: usize, delta: f64, keep: bool) -> Option<Vec<f64>> {
+    let mut out = sizes.to_vec();
+    let cur = *sizes.get(index)?;
+    let last = index + 1 == sizes.len();
+    if keep && last {
+        // Scale every track so the table edge moves by `delta`.
+        let total: f64 = sizes.iter().sum();
+        let smallest = sizes.iter().copied().fold(f64::INFINITY, f64::min);
+        let largest = sizes.iter().copied().fold(0.0, f64::max);
+        if !(total > 0.0 && smallest > 0.0 && largest > 0.0) {
+            return None;
+        }
+        let lo = (MIN_TRACK / smallest).min(1.0);
+        let hi = (MAX_TRACK / largest).max(1.0);
+        let f = ((total + delta) / total).clamp(lo, hi);
+        out.iter_mut().for_each(|v| *v *= f);
+    } else if keep {
+        let next = *sizes.get(index + 1)?;
+        let pair = cur + next;
+        let a = (cur + delta).clamp(MIN_TRACK, (pair - MIN_TRACK).max(MIN_TRACK));
+        let [this, after] = out.get_mut(index..index + 2)? else { return None };
+        *this = a;
+        *after = (pair - a).max(MIN_TRACK);
+    } else {
+        *out.get_mut(index)? = (cur + delta).clamp(MIN_TRACK, MAX_TRACK);
+    }
+    out.iter().all(|v| v.is_finite()).then_some(out)
+}
+
+/// The height row `r` of table `t` is laid out at: its tallest placed cell spanning one row, else
+/// its stored height.
+fn composed_row_height(cs: &compose::ComposedStory, table: u64, t: &Table, r: usize) -> f64 {
+    let placed = cs
+        .frames
+        .iter()
+        .flat_map(|f| &f.tables)
+        .filter(|f| f.table == table)
+        .flat_map(|f| &f.cells)
+        .filter(|c| c.row == r && !c.repeated && t.cell(c.row, c.col).is_some_and(|cell| cell.row_span <= 1))
+        .map(|c| c.rect.height())
+        .filter(|h| h.is_finite() && *h > 0.0)
+        .reduce(f64::max);
+    placed.or_else(|| t.rows.get(r).map(|row| row.height)).unwrap_or(MIN_TRACK).max(MIN_TRACK)
+}
+
+fn resize_border(s: &mut Session, p: &Value) -> Result<Value> {
+    const ID: &str = "table.resizeBorder";
+    let column = match str_param(p, "axis") {
+        Some("column") => true,
+        Some("row") => false,
+        _ => return Err(bad(ID, "axis must be `column` or `row`")),
+    };
+    let index = p.get("index").and_then(Value::as_u64).and_then(|v| usize::try_from(v).ok()).ok_or_else(|| bad(ID, "`index` required"))?;
+    let keep = p.get("keepTableSize").and_then(Value::as_bool).unwrap_or(false);
+    let g = target(s, p, ID)?;
+    let st = s.doc()?;
+    // The frame a border drag names must hold the table's story and be editable.
+    if let Some(fid) = super::id_param(p, "frame") {
+        let it = st.doc.item(fid).ok_or_else(|| bad(ID, format!("no frame {}", fid.0)))?;
+        if it.text_frame().map(|f| f.story) != Some(g.story) {
+            return Err(bad(ID, "the table is not in that frame's story"));
+        }
+        if it.locked || st.doc.layer(it.layer).is_some_and(|l| l.locked) {
+            return Err(bad(ID, "the frame or its layer is locked"));
+        }
+    }
+    let t = st.doc.story(g.story).and_then(|x| x.tables.get(&g.table)).ok_or_else(|| bad(ID, "no table"))?;
+    let sizes: Vec<f64> = if column {
+        t.columns.iter().map(|c| c.width).collect()
+    } else {
+        let cs = s.cache.get(&st.doc, g.story, None);
+        (0..t.nrows()).map(|r| composed_row_height(&cs, g.table, t, r)).collect()
+    };
+    let cur = *sizes.get(index).ok_or_else(|| bad(ID, format!("index {index} out of range")))?;
+    let delta = match (p.get("delta").and_then(Value::as_f64), p.get("size").and_then(Value::as_f64)) {
+        (Some(d), _) => d,
+        (None, Some(size)) => size - cur,
+        (None, None) => return Err(bad(ID, "`delta` or `size` required")),
+    };
+    if !delta.is_finite() {
+        return Err(bad(ID, "`delta`/`size` must be a finite number"));
+    }
+    let delta = delta.clamp(-MAX_TRACK, MAX_TRACK);
+    let new = resize_track(&sizes, index, delta, keep).ok_or_else(|| bad(ID, "invalid table geometry"))?;
+    let size = new.get(index).copied().unwrap_or(cur);
+    let scaled = keep && index + 1 == sizes.len();
+    edit_table(s, &g, ID, |t| {
+        if column {
+            for (c, w) in t.columns.iter_mut().zip(&new) {
+                c.width = *w;
+            }
+        } else {
+            for (i, (r, h)) in t.rows.iter_mut().zip(&new).enumerate() {
+                // Only the rows the drag changed take the new height.
+                if scaled || i == index || (keep && i == index + 1) {
+                    r.height = *h;
+                    if !scaled {
+                        r.mode = RowHeightMode::AtLeast;
+                    }
+                }
+            }
+        }
+        Ok(json!({"axis": if column { "column" } else { "row" }, "index": index, "size": size}))
     })
 }
 

@@ -1,0 +1,23 @@
+format: 1
+id: layout.ui.text-and-tables/tool-text
+feature: layout.ui.text-and-tables
+intent: >-
+  In the tools: the Type tool's presses in a row select by unit and a drag after them grows by it,
+  the editor's own double click after counted presses changes nothing; a click converts an empty
+  frame and a drag draws over it; in a table cell Shift+Tab goes back and Esc toggles the cell;
+  a border press resizes a column or row (Shift keeping the table's size), Esc cancels it; Alt+arrows
+  kern and track; marked text previews and cancels with no step; the loaded text cursor unthreads
+  the linked frame and its cursor names link, unlink and not allowed.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/tools/src/tests_text.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-tools, filter: tests_text }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

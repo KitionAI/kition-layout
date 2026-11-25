@@ -149,6 +149,7 @@ const STORIES: &[&str] = &[
     "table.splitVertically",
     "table.setRowHeight",
     "table.setColumnWidth",
+    "table.resizeBorder",
     "table.distributeColumns",
     "table.distributeRows",
     "table.select",
@@ -229,6 +230,7 @@ const FRAMES: &[&str] = &[
     "story.get",
     "text.fillWithPlaceholder",
     "table.dropCells",
+    "table.resizeBorder",
 ];
 
 #[derive(Default)]
@@ -322,6 +324,7 @@ fn declaration(command: &KitCommand) -> Declaration {
         "path.deleteAnchor" | "path.convertAnchor" => places.extend(["anchor", "subpath"]),
         "table.moveRow" | "table.moveColumn" => places.extend(["from", "to"]),
         "table.sortRows" => places.push("column"),
+        "table.resizeBorder" => places.push("index"),
         "text.select" => places.extend(["anchor", "focus"]),
         "frame.thread" => places.extend(["page", "at"]),
         "button.set" | "toc.generate" | "index.generate" | "guide.add" | "layout.addGuides" | "file.place" => places.push("page"),

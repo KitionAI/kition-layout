@@ -37,6 +37,8 @@ import { useFileDrop, useSystemClipboard } from './clipboard'
 import { VIEW_ACTIONS, VIEW_KEY_ALIASES, viewMove, type ViewAction } from './view'
 import { ZoomEntry } from './ZoomEntry'
 import { drawnCursor } from './cursors'
+import { useInputMethod } from './ime'
+import { LIST_ROWS, nextListType, type ListKind } from './lists'
 import { findItem, type DocumentInfo, type Item } from './layout'
 import { GuideOverlay, guidesOf, useGuideGestures } from './GuideLayer'
 import { EditorViewProvider, type EditorView } from './viewContext'
@@ -121,6 +123,8 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
       live = false
     }
   }, [doc, viewOptions, selectedGuide, movingGuide, refreshTools])
+  // Input methods: marked text in place at the caret, the candidate window next to it (stage 5).
+  useInputMethod({ doc, canvas, typing: () => typing.current(), repaint, revision: change.revision })
   const editorView = useMemo<EditorView>(() => ({ view: viewOptions, setView: (change) => setViewOptions(change), repaint }), [viewOptions, repaint])
   const runQuiet = useCallback((command: string, params: Record<string, unknown>) => editor.session.run(command, params), [editor.session])
   runQuietRef.current = runQuiet
@@ -163,9 +167,25 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
     [],
   )
   useViewToolDoubleClicks(() => viewActions.current('fitSpread'), () => viewActions.current('actualSize'))
+  /**
+   * Bullets or numbering on the selected paragraphs (the Type menu's switch, its key, the Home
+   * tab's button): on, or off when the paragraph at the selection already has that list.
+   */
+  const toggleList = async (kind: ListKind) => {
+    const open = session.doc
+    const text = state?.editingText || state?.selection.some((id) => findItem(state, id)?.item.story != null)
+    if (!open || !text || host.readOnly) return
+    const attrs = JSON.parse(await open.execute('text.selectionAttrs', {}).catch(() => 'null')) as { para?: { listType?: string } } | null
+    await editor.run('text.para', { attrs: { listType: nextListType(attrs?.para?.listType, kind) } })
+  }
+  // The menus are made once: their handlers reach the latest selection through this.
+  const lists = useRef(toggleList)
+  lists.current = toggleList
   const runKit = (command: string) => {
     const option = viewChange(command, viewShown.current)
-    if (option) setViewOptions(option)
+    const list = LIST_ROWS.find(([kind]) => command === `kit:text.${kind}`)
+    if (list) void lists.current(list[0])
+    else if (option) setViewOptions(option)
     else if (command === 'kit:file.place') dialogs.current?.place()
     else if (command === 'kit:layout.goToPage') showDialog('goToPage')
     else if (command === 'kit:edit.preferences') showDialog('preferences')
@@ -231,7 +251,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   const tabs = useMemo<FrameTab[]>(
     () => [
       // Home first (its own ribbon; a drop-down panel in Menus), then the engine's menus.
-      { id: 'home', label: t('homeTab'), ribbon: <HomeTab onDialog={showDialog} onCommand={invoke} /> },
+      { id: 'home', label: t('homeTab'), ribbon: <HomeTab onDialog={showDialog} onCommand={invoke} onList={(kind) => void lists.current(kind)} /> },
       ...layoutMenuTabs({
         commands,
         phrase,

@@ -450,6 +450,13 @@ fn tables() -> Vec<Row> {
         ),
         row("table.setColumnWidth", TABLE_TARGETS, "addressed column definitions/counting prefix", "set addressed column widths", &["selection"]),
         row(
+            "table.resizeBorder",
+            "explicit table/story or the selected table; frame item id when given (its story and lock, its layer's lock); axis and index from zero; delta or size",
+            "every column width (columns), or every row's laid-out height from the story's composition (rows), as the keep-size branches redistribute across them",
+            "set the column widths or the changed rows' heights (At Least)",
+            &["selection"],
+        ),
+        row(
             "table.distributeColumns",
             TABLE_TARGETS,
             "addressed columns' stored widths and counted prefix",
@@ -986,6 +993,13 @@ fn table_checks() -> Vec<Check> {
             r#"{"story":"$TABLESTORY","table":"$TABLE","row":0,"height":32}"#,
             &[],
             &[("$ROW0", &["props.height"])],
+            &["selection", "mode"],
+        ),
+        check(
+            "table.resizeBorder",
+            r#"{"story":"$TABLESTORY","table":"$TABLE","axis":"column","index":0,"delta":10}"#,
+            &[],
+            &[("$COL0", &["props.width"])],
             &["selection", "mode"],
         ),
         check(

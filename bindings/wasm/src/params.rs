@@ -129,6 +129,7 @@ const EXTRA: &[(&str, &[(&str, Kind)])] = &[
     ("table.moveColumn", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
     ("table.moveRow", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
     ("table.placeGraphic", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
+    ("table.resizeBorder", &[("rows", Kind::Integer), ("cols", Kind::Integer)]),
     ("table.setColumnWidth", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
     ("table.setRowHeight", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
     ("table.sortRows", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),

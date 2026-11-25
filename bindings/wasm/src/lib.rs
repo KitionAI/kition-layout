@@ -70,6 +70,9 @@ pub struct LayoutDocument {
     editor_owner: u64,
     /// What the editor shows and snaps to (its state, never the document's).
     view: ViewOptions,
+    /// How many presses in a row the next press completes (the editor counts them: the Kit tools'
+    /// pointer event has no count), for the Type tool's double, triple and more clicks.
+    clicks: u8,
 }
 
 /// The next [`LayoutDocument::editor_owner`].
@@ -99,6 +102,7 @@ impl LayoutDocument {
             saving: Mutex::new(None),
             editor_owner,
             view: ViewOptions::default(),
+            clicks: 1,
         };
         document.commands();
         document
@@ -248,6 +252,10 @@ fn cursor_css(cursor: Cursor) -> String {
         Cursor::ZoomIn => "zoom-in",
         Cursor::ZoomOut => "zoom-out",
         Cursor::Eyedropper | Cursor::LoadedText | Cursor::LoadedGraphic => "copy",
+        // The loaded text cursor over a frame it can flow into, and over the linked frame a click
+        // unthreads (the editor draws both).
+        Cursor::ThreadLink => "alias",
+        Cursor::Unthread => "no-drop",
         Cursor::NotAllowed => "not-allowed",
         _ => "default",
     }
@@ -642,7 +650,10 @@ impl KitTools for LayoutDocument {
         self.hover = (event.action == PointerAction::Move).then_some(at);
         let before = self.session.tool_id();
         let mods = mods_in(event.mods);
-        self.session.pointer(&PointerEvent::new(kind, at.x, at.y).with_mods(mods), self.view(event.zoom)).map_err(engine_error)?;
+        // A press takes the count the editor gave for it (one when it gave none).
+        let clicks = if kind == PointerKind::Down { std::mem::replace(&mut self.clicks, 1) } else { 1 };
+        let ev = PointerEvent::new(kind, at.x, at.y).with_mods(mods).with_clicks(clicks);
+        self.session.pointer(&ev, self.view(event.zoom)).map_err(engine_error)?;
         Ok(self.respond(before, Some(at), mods, event.zoom))
     }
 
@@ -691,6 +702,35 @@ impl LayoutDocument {
             self.session.cache.clear();
         }
         added
+    }
+
+    /// How many presses in a row the next pointer press completes (2 to 255; the editor counts
+    /// presses close in time and place). Editor state, used once.
+    pub fn set_click_count(&mut self, count: u32) {
+        self.clicks = u8::try_from(count.clamp(1, 255)).unwrap_or(1);
+    }
+
+    /// An input method's marked text at the caret, shown in place and underlined (empty clears
+    /// it); `active` is the clause being converted, in characters of `text`. No undo step: the
+    /// committed text arrives as typed text (`toolText`), which takes the marked text's place.
+    pub fn ime_preedit(&mut self, text: &str, active: Option<std::ops::Range<usize>>) -> Result<(), String> {
+        self.session.ime_preedit(text, active).map_err(engine_error)
+    }
+
+    /// Takes the marked text away (a composition that ended or was cancelled); false when none
+    /// was showing.
+    pub fn ime_cancel(&mut self) -> bool {
+        self.session.ime_cancel()
+    }
+
+    /// Where the input method's candidate window goes, in document pixels: the caret line
+    /// `[x0, y0, x1, y1]` (top to bottom), or None when nothing takes typed text.
+    pub fn ime_caret(&mut self, zoom: f64) -> Option<[f64; 4]> {
+        let view = self.view(zoom);
+        let origin = self.origin();
+        let (a, b) = self.session.ime_caret(view)?;
+        let out = [a.x - origin.x, a.y - origin.y, b.x - origin.x, b.y - origin.y];
+        out.iter().all(|v| v.is_finite()).then_some(out)
     }
 
     /// Ends the typing in progress: the next text typed (`toolText`) is a new undo step.
@@ -823,6 +863,36 @@ pub mod web {
         #[wasm_bindgen(js_name = cancelPreview)]
         pub fn cancel_preview(&mut self) -> bool {
             self.0.cancel_preview()
+        }
+
+        /// How many presses in a row the next pointer press completes (a triple click: 3).
+        #[wasm_bindgen(js_name = setClickCount)]
+        pub fn set_click_count(&mut self, count: u32) {
+            self.0.set_click_count(count);
+        }
+
+        /// An input method's marked text at the caret (empty clears it); `start` and `end` are the
+        /// clause being converted in characters of `text` (negative: none).
+        #[wasm_bindgen(js_name = imePreedit)]
+        pub fn ime_preedit(&mut self, text: &str, start: i32, end: i32) -> Result<(), JsError> {
+            let active = match (usize::try_from(start), usize::try_from(end)) {
+                (Ok(a), Ok(b)) => Some(a..b),
+                _ => None,
+            };
+            self.0.ime_preedit(text, active).map_err(error)
+        }
+
+        /// Takes an input method's marked text away (no undo or redo step).
+        #[wasm_bindgen(js_name = imeCancel)]
+        pub fn ime_cancel(&mut self) -> bool {
+            self.0.ime_cancel()
+        }
+
+        /// The caret line for the input method's candidate window, `[x0, y0, x1, y1]` in document
+        /// pixels as JSON, or `null`.
+        #[wasm_bindgen(js_name = imeCaret)]
+        pub fn ime_caret(&mut self, zoom: f64) -> String {
+            self.0.ime_caret(zoom).map_or_else(|| "null".to_owned(), |c| serde_json::json!(c).to_string())
         }
 
         /// Ends the typing in progress, so the next text typed is a new undo step: the editor
@@ -1214,6 +1284,78 @@ mod tests {
         assert_eq!(doc.state(72.0 + 400.0, 72.0 + 400.0, ToolMods::default(), 1.0).cursor, "crosshair");
         let space = ToolMods { space: true, ..ToolMods::default() };
         assert_eq!(doc.state(72.0 + 400.0, 72.0 + 400.0, space, 1.0).cursor, "grab");
+    }
+
+    /// The editor counts presses in a row (the Kit tools' event has no count): a triple click
+    /// with the Type tool selects the line, a press after it counts one again.
+    #[test]
+    fn the_editors_click_count_reaches_the_type_tool() {
+        let mut doc = LayoutDocument::create("Clicks.klayout", 612, 792).unwrap();
+        let frame = doc
+            .execute("frame.add", json!({ "rect": [100, 100, 400, 300], "content": "text", "text": "One two three\nFour", "caret": false }))
+            .unwrap();
+        let story = frame["story"].as_u64().unwrap();
+        doc.select_tool("type", 1.0).unwrap();
+        let event = |action| ToolPointer { action, x: 72.0 + 110.0, y: 72.0 + 108.0, mods: ToolMods::default(), pressure: 1.0, zoom: 1.0 };
+        let range = |doc: &LayoutDocument| doc.active().unwrap().selection.text.map(|t| t.range());
+        doc.set_click_count(3);
+        doc.pointer(&event(PointerAction::Down)).unwrap();
+        doc.pointer(&event(PointerAction::Up)).unwrap();
+        assert_eq!(range(&doc), Some(0..13), "the line of story {story}");
+        doc.pointer(&event(PointerAction::Down)).unwrap();
+        doc.pointer(&event(PointerAction::Up)).unwrap();
+        assert_eq!(range(&doc).map(|r| r.is_empty()), Some(true), "one click: a caret");
+        doc.set_click_count(0);
+        doc.set_click_count(5);
+        doc.pointer(&event(PointerAction::Down)).unwrap();
+        assert_eq!(range(&doc), Some(0..18), "five: the story");
+    }
+
+    /// Input-method marked text through the editor methods: shown in place, underlined, with the
+    /// candidate window at the caret; the committed text is one step and a cancel leaves none.
+    #[test]
+    fn marked_text_through_the_editor_methods() {
+        let mut doc = LayoutDocument::create("Marked.klayout", 612, 792).unwrap();
+        let frame = doc.execute("frame.add", json!({ "rect": [100, 100, 400, 300], "content": "text", "text": "ab", "caret": true })).unwrap();
+        let story = frame["story"].as_u64().unwrap();
+        doc.select_tool("type", 1.0).unwrap();
+        let text = |doc: &mut LayoutDocument| doc.execute("story.get", json!({ "story": story })).unwrap()["text"].as_str().unwrap().to_owned();
+        let history = |doc: &mut LayoutDocument| doc.execute("file.history", json!({})).unwrap();
+        let caret = doc.ime_caret(1.0).unwrap();
+        assert!(caret[3] > caret[1] && caret[0] > 100.0, "{caret:?}");
+        let before = history(&mut doc);
+        doc.ime_preedit("ni", None).unwrap();
+        assert_eq!(text(&mut doc), "abni");
+        let shown = doc.state(0.0, 0.0, ToolMods::default(), 1.0);
+        assert!(shown.overlays.iter().any(|o| matches!(o, ToolOverlay::Line { color, .. } if *color == [0, 0, 0, 255])), "{:?}", shown.overlays);
+        assert!(doc.ime_cancel());
+        assert_eq!(text(&mut doc), "ab");
+        assert_eq!(history(&mut doc), before, "a cancelled composition leaves no step");
+        doc.ime_preedit("ni", Some(0..2)).unwrap();
+        KitTools::text(&mut doc, "你", 1.0).unwrap();
+        assert_eq!(text(&mut doc), "ab你");
+        assert!(!doc.ime_cancel(), "the commit took the marked text away");
+        doc.end_typing();
+        let after = history(&mut doc);
+        assert_eq!(after["undo"].as_array().map(Vec::len), before["undo"].as_array().map(|undo| undo.len() + 1), "{after}");
+    }
+
+    /// With the loaded text cursor, the cursor says what a click does.
+    #[test]
+    fn the_loaded_text_cursor_names_link_and_unlink() {
+        let mut doc = LayoutDocument::create("Threads.klayout", 612, 792).unwrap();
+        let a = doc.execute("frame.add", json!({ "rect": [100, 100, 300, 200], "content": "text", "text": "x", "caret": false })).unwrap()["id"]
+            .as_u64()
+            .unwrap();
+        let b = doc.execute("frame.add", json!({ "rect": [100, 300, 300, 400], "content": "text", "caret": false })).unwrap()["id"].as_u64().unwrap();
+        doc.execute("frame.add", json!({ "rect": [350, 300, 500, 400], "content": "unassigned" })).unwrap();
+        doc.execute("frame.thread", json!({ "from": a, "to": b })).unwrap();
+        doc.execute("frame.loadText", json!({ "frame": a, "side": "out" })).unwrap();
+        doc.select_tool("loadedText", 1.0).unwrap();
+        let cursor = |doc: &mut LayoutDocument, x: f64, y: f64| doc.state(72.0 + x, 72.0 + y, ToolMods::default(), 1.0).cursor;
+        assert_eq!(cursor(&mut doc, 200.0, 350.0), "no-drop", "the linked frame: a click unthreads");
+        assert_eq!(cursor(&mut doc, 420.0, 350.0), "alias", "an empty frame: a click threads");
+        assert_eq!(cursor(&mut doc, 200.0, 600.0), "copy", "empty space: the loaded cursor");
     }
 
     #[test]

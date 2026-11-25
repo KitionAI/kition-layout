@@ -21,16 +21,24 @@ pub fn specs() -> Vec<CommandSpec> {
             has_doc,
             release
         ),
-        cmd!(noundo "text.extendTo", "Extend Text Selection", [], None, "{frame, point}", has_doc, |s, p| place(s, p, true)),
-        cmd!(noundo "text.selectWord", "Select Word", [], None, "{frame, point}", has_doc, |s, p| {
-            place(s, p, false)?;
-            let st = s.doc_mut()?;
-            let Some(t) = st.selection.text else { return ok() };
-            let text = &st.doc.text_story(t.story, t.cell).map(|x| x.text.clone()).unwrap_or_default();
-            let (a, b) = word_bounds(text, t.focus);
-            st.selection.text = Some(TextSel { anchor: a, focus: b, ..t });
-            ok()
-        }),
+        cmd!(
+            noundo "text.extendTo",
+            "Extend Text Selection",
+            [],
+            None,
+            "{frame, point, unit?: word|line|paragraph|story} — moves the selection's focus to the point; with `unit`, after a text.selectWord with that unit, the selection grows by whole units from the unit first selected (a drag after a double, triple, quadruple or quintuple click)",
+            has_doc,
+            |s, p| place(s, p, true)
+        ),
+        cmd!(
+            noundo "text.selectWord",
+            "Select Word",
+            [],
+            None,
+            "{frame, point, unit?: word|line|paragraph|story (default word)} — what a double, triple, quadruple or quintuple click selects: the word under the point, its line, its paragraph with the paragraph return, or the whole story (in a table cell, the cell's text)",
+            has_doc,
+            |s, p| select_unit(s, p, str_param(p, "unit").unwrap_or("word"))
+        ),
         cmd!(noundo "text.select", "Select Text", [], None, "{story, anchor, focus} (UTF-8 byte offsets into the story text, as edit.find reports them: á or — counts 2 or 3)", has_doc, |s, p| {
             let sid = StoryId(p.get("story").and_then(Value::as_u64).unwrap_or(0));
             let st = s.doc_mut()?;
@@ -310,6 +318,24 @@ fn place(s: &mut Session, p: &Value, extend: bool) -> Result<Value> {
         s.execute("object.content", &json!({"ids": [frame.0], "type": "text"}))?;
     }
     let (sid, b, cell) = hit_byte(s, frame, pt).ok_or_else(|| bad("text.placeCaret", "not a text frame"))?;
+    // A drag after several clicks: whole units from the one first selected, in either direction.
+    if extend
+        && let Some(unit) = str_param(p, "unit")
+        && let Some(u) = s.text_unit.filter(|u| u.story == sid && u.cell == cell)
+    {
+        // The remembered unit may predate edits that shortened the text.
+        let text = s.doc()?.doc.text_story(sid, cell).map_or("", |t| t.text.as_str());
+        let (ua, ue) = (floor_char_boundary(text, u.anchor.min(u.focus)), floor_char_boundary(text, u.anchor.max(u.focus)));
+        let (na, ne) = unit_at(s, sid, cell, b, unit, "text.extendTo")?;
+        let (anchor, focus) = if na < ua { (ue, na) } else { (ua, ne.max(ue)) };
+        let st = s.doc_mut()?;
+        st.selection = Selection::text(TextSel { story: sid, anchor, focus, frame: Some(frame), cell });
+        st.revision += 1;
+        return Ok(json!({"story": sid.0, "anchor": anchor, "focus": focus}));
+    }
+    if !extend {
+        s.text_unit = None;
+    }
     // Drag and drop: a press inside the selected text keeps it (to be dragged).
     if !extend {
         s.text_drag = s.doc()?.selection.text.is_some_and(|t| t.story == sid && t.cell == cell && !t.range().is_empty() && t.range().contains(&b));
@@ -340,6 +366,55 @@ fn place(s: &mut Session, p: &Value, extend: bool) -> Result<Value> {
     st.selection = Selection::text(t);
     st.revision += 1;
     Ok(json!({"story": sid.0, "pos": b, "cell": cell}))
+}
+
+/// Selects the `unit` (word, line, paragraph or story) at `point` in `frame` (several clicks).
+fn select_unit(s: &mut Session, p: &Value, unit: &str) -> Result<Value> {
+    const ID: &str = "text.selectWord";
+    let frame = id_param(p, "frame").ok_or_else(|| bad(ID, "missing frame"))?;
+    let pt = point_param(p, "point").unwrap_or(Point::ZERO);
+    // Empty frames become text frames, as a click in them does.
+    if s.doc()?.doc.item(frame).is_some_and(|i| matches!(i.content, Content::Unassigned)) {
+        s.execute("object.content", &json!({"ids": [frame.0], "type": "text"}))?;
+    }
+    let (sid, b, cell) = hit_byte(s, frame, pt).ok_or_else(|| bad(ID, "not a text frame"))?;
+    let (a, e) = unit_at(s, sid, cell, b, unit, ID)?;
+    s.text_drag = false;
+    s.typing_format = None;
+    let sel = TextSel { story: sid, anchor: a, focus: e, frame: Some(frame), cell };
+    s.text_unit = Some(sel);
+    let st = s.doc_mut()?;
+    st.selection = Selection::text(sel);
+    st.revision += 1;
+    Ok(json!({"story": sid.0, "anchor": a, "focus": e}))
+}
+
+/// The `unit` (word, line, paragraph or story) around byte `b` of story `sid` (a cell's story
+/// with `cell`), as several clicks select it.
+fn unit_at(s: &Session, sid: StoryId, cell: Option<CellAddr>, b: usize, unit: &str, id: &str) -> Result<(usize, usize)> {
+    let st = s.doc()?;
+    let story = st.doc.text_story(sid, cell).ok_or(kition_layout_doc::DocError::NoStory(sid))?;
+    let text = story.text.as_str();
+    let b = floor_char_boundary(text, b.min(text.len()));
+    Ok(match unit {
+        "word" => word_bounds(text, b),
+        "line" => {
+            let cs = s.cache.get(&st.doc, sid, None);
+            let cs = match cell {
+                Some(c) if c.footnote_id().is_some() => compose::find_note(&cs, c.row as u64).map(|(_, n)| n.text.clone()).unwrap_or(cs),
+                Some(c) => compose::find_cell(&cs, c.table, c.row, c.col).map(|(_, _, pc)| pc.text.clone()).unwrap_or(cs),
+                None => cs,
+            };
+            let found = cs.frames.iter().flat_map(|f| f.lines.iter()).find(|l| l.range.contains(&b)).map(|l| (l.range.start, l.range.end));
+            found.or_else(|| line_of(&cs, b)).unwrap_or((b, b))
+        }
+        // The paragraph with its return (the last paragraph has none).
+        "paragraph" => {
+            story.para_ranges().get(story.para_at(b)).map_or((b, b), |r| (r.start, floor_char_boundary(text, (r.end + 1).min(text.len()))))
+        }
+        "story" => (0, text.len()),
+        other => return Err(bad(id, format!("unknown unit `{other}` (word, line, paragraph or story)"))),
+    })
 }
 
 fn release(s: &mut Session, p: &Value) -> Result<Value> {
@@ -408,6 +483,12 @@ fn insert(s: &mut Session, p: &Value) -> Result<Value> {
     let text = if s.prefs.typographers_quotes && !raw { smart_quotes(s, &text) } else { text };
     let tracking = s.doc()?.doc.settings.track_changes;
     let autocorrect = (s.prefs.autocorrect && !tracking && !raw).then(|| s.prefs.autocorrect_list.clone());
+    // Formatting chosen at this caret goes to what is typed here (an input method's marked text
+    // shows it too; the format stays for the committed text).
+    let typing = typing_format(s).cloned();
+    if s.doc()?.interaction.is_none() {
+        s.typing_format = None;
+    }
     s.edit(|d, sel| {
         let t = sel.text.ok_or_else(|| bad("text.insert", "no insertion point"))?;
         let st = d.text_story_mut(t.story, t.cell).ok_or(kition_layout_doc::DocError::NoStory(t.story))?;
@@ -468,6 +549,9 @@ fn insert(s: &mut Session, p: &Value) -> Result<Value> {
             // Track Changes: the replaced text is marked deleted, the typing inserted after it.
             let at = super::changes::mark_deleted(st, r.clone());
             let mut fmt = st.char_format_at(at).clone();
+            if let Some(f) = &typing {
+                apply_typing_format(&mut fmt, f);
+            }
             fmt.over.change = Some(kition_layout_doc::ChangeMark::Inserted);
             st.insert_with(at, &text, fmt);
             let pos = at + text.len() - trail;
@@ -475,6 +559,9 @@ fn insert(s: &mut Session, p: &Value) -> Result<Value> {
             return Ok(json!({"pos": pos}));
         }
         st.replace(r.clone(), &text);
+        if let Some(f) = &typing {
+            st.format_chars(r.start..r.start + text.len(), |fmt| apply_typing_format(fmt, f));
+        }
         let pos = r.start + text.len() - trail;
         sel.text = Some(TextSel { anchor: pos, focus: pos, ..t });
         Ok(json!({"pos": pos}))
@@ -853,6 +940,41 @@ fn warichu_cmd(s: &mut Session, p: &Value) -> Result<Value> {
     format_chars(s, &Value::Object(body))
 }
 
+/// Character formatting chosen at a bare caret in text: applied to what is typed there next, as
+/// in every editor (Bold, then type). Editor state: the document does not change until the typing.
+#[derive(Clone, Debug)]
+pub(crate) struct TypingFormat {
+    doc: u64,
+    at: TextSel,
+    attrs: CharAttrs,
+    /// Overrides removed (`null` in `text.char`).
+    cleared: Vec<String>,
+}
+
+/// The typing format for the active document's caret, if it was chosen at this caret.
+pub(crate) fn typing_format(s: &Session) -> Option<&TypingFormat> {
+    let st = s.active()?;
+    let t = st.selection.text?;
+    s.typing_format.as_ref().filter(|f| f.doc == st.uid && f.at.story == t.story && f.at.cell == t.cell && f.at.range() == t.range())
+}
+
+fn apply_typing_format(cf: &mut kition_layout_doc::CharFormat, f: &TypingFormat) {
+    cf.over.merge(&f.attrs);
+    for k in &f.cleared {
+        let _ = cf.over.set_json(k, &Value::Null);
+    }
+}
+
+/// Byte offset of the character before `pos` when it starts a kerning pair with the character at
+/// `pos`: both exist and neither is a paragraph or line break.
+fn pair_start(text: &str, pos: usize) -> Option<usize> {
+    let pos = floor_char_boundary(text, pos);
+    let before = text.get(..pos)?.chars().next_back()?;
+    let after = text.get(pos..)?.chars().next()?;
+    let breaks = |c: char| c == '\n' || c == '\u{2028}' || kition_layout_doc::is_break_char(c);
+    (!breaks(before) && !breaks(after)).then(|| pos - before.len_utf8())
+}
+
 pub(crate) fn format_chars(s: &mut Session, attrs: &Value) -> Result<Value> {
     let mut a = CharAttrs::default();
     if let Some(o) = attrs.as_object() {
@@ -862,18 +984,64 @@ pub(crate) fn format_chars(s: &mut Session, attrs: &Value) -> Result<Value> {
     }
     let cleared: Vec<String> = attrs.as_object().map(|o| o.iter().filter(|(_, v)| v.is_null()).map(|(k, _)| k.clone()).collect()).unwrap_or_default();
     let targets = format_targets(s);
+    // A caret in text that has some: kerning goes to the pair at the caret (it spaces the
+    // character before it from the next); everything else is the format of what is typed next.
+    if let [t] = targets.as_slice()
+        && t.range.is_empty()
+        && let Some(at) = s.doc()?.selection.text
+        && let Some(text) = s.doc()?.doc.text_story(t.story, t.cell).filter(|st| !st.is_empty()).map(|st| st.text.clone())
+    {
+        let kerning = attrs.get("kerning").cloned();
+        let pair = kerning.as_ref().and_then(|_| pair_start(&text, t.range.start));
+        let mut rest = a.clone();
+        let mut rest_cleared = cleared.clone();
+        if pair.is_some() {
+            rest.kerning = None;
+            rest_cleared.retain(|k| k != "kerning");
+        }
+        let uid = s.doc()?.uid;
+        if rest != CharAttrs::default() || !rest_cleared.is_empty() {
+            let mut f = typing_format(s).cloned().unwrap_or(TypingFormat { doc: uid, at, attrs: CharAttrs::default(), cleared: vec![] });
+            f.attrs.merge(&rest);
+            f.cleared.retain(|k| attrs.get(k).is_none_or(Value::is_null) && !rest_cleared.contains(k));
+            f.cleared.extend(rest_cleared);
+            s.typing_format = Some(f);
+            // The panel follows the pending format.
+            s.doc_mut()?.revision += 1;
+        }
+        let (Some(start), Some(kerning)) = (pair, kerning) else { return ok() };
+        // Kerning chosen earlier for typing at this caret would hide the pair's value.
+        if let Some(f) = s.typing_format.as_mut() {
+            f.attrs.kerning = None;
+            f.cleared.retain(|k| k != "kerning");
+        }
+        let mut k = CharAttrs::default();
+        k.set_json("kerning", &kerning).map_err(|e| bad("text.char", e))?;
+        let (story, cell, end) = (t.story, t.cell, t.range.start);
+        return s.edit(|d, _| {
+            if let Some(st) = d.text_story_mut(story, cell) {
+                st.format_chars(start..end, |f| {
+                    f.over.merge(&k);
+                    if kerning.is_null() {
+                        let _ = f.over.set_json("kerning", &Value::Null);
+                    }
+                });
+            }
+            ok()
+        });
+    }
     s.edit(|d, _| {
         for t in &targets {
             let r = &t.range;
             let Some(st) = d.text_story_mut(t.story, t.cell) else { continue };
             if r.is_empty() {
-                // Caret: change the typing format (the empty run at the caret).
-                let pos = r.start;
+                // A caret in an empty story: its one empty run is the typing format.
                 if st.is_empty() {
                     st.chars[0].format.over.merge(&a);
+                    for k in &cleared {
+                        let _ = st.chars[0].format.over.set_json(k, &Value::Null);
+                    }
                     st.rev += 1;
-                } else {
-                    let _ = pos;
                 }
                 continue;
             }
@@ -999,7 +1167,14 @@ fn selection_attrs(s: &mut Session, _p: &Value) -> Result<Value> {
     let pi = story.para_at(r.start);
     let pf = &story.paras[pi];
     let (pp, base) = st.doc.styles.resolve_para(pf);
-    let cf = if r.is_empty() { story.char_format_at(r.start) } else { story.format_after(r.start) };
+    let mut cf = if r.is_empty() { story.char_format_at(r.start) } else { story.format_after(r.start) }.clone();
+    // At a caret, the format chosen there for the next typing.
+    if r.is_empty()
+        && let Some(f) = typing_format(s)
+    {
+        apply_typing_format(&mut cf, f);
+    }
+    let cf = &cf;
     let cp = st.doc.styles.resolve_char(&base, cf);
     Ok(json!({"story": sid.0, "paragraphStyle": pf.style, "characterStyle": cf.style, "para": pp, "chars": cp,
         "paraOverrides": pf.para.count(), "charOverrides": cf.over.count()}))
