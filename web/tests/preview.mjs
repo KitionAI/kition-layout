@@ -97,6 +97,7 @@ try {
   await kit.locator('.kui-app').focus()
   await page.keyboard.press('ControlOrMeta+z')
   step('Undo takes it back', await until(async () => (await shown(frame.id))?.columns === 1))
+  await kit.locator('.kui-app').focus()
   await page.keyboard.press('ControlOrMeta+Shift+z')
   step('Redo brings it again', await until(async () => (await shown(frame.id))?.columns === 2))
 

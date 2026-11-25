@@ -158,7 +158,7 @@ export function MarginsColumnsDialog({ info, page, onClose }: { info: DocumentIn
   const params = { margins, columns, gutter, ...(scope === 'page' ? { pages: [page] } : {}) }
   const preview = useCommandPreview('layout.marginsAndColumns', params)
   return (
-    <DialogFrame command="layout.marginsAndColumns" title={t('dialog.marginsAndColumns')} preview={preview} onOk={() => run('layout.marginsAndColumns', params)} onClose={onClose}>
+    <DialogFrame command="layout.marginsAndColumns" title={t('dialog.marginsAndColumns')} preview={preview} onOk={async () => ((await preview?.keep(params)) ? undefined : run('layout.marginsAndColumns', params))} onClose={onClose}>
       <div className="layout-dialog-fields">
         <ChoiceRow label={t('units')} value={unit} choices={unitChoices(t)} onChange={setUnit} testId="layout-margins-unit" />
         <SidesRows label={t('margins')} sides={margins} linked={linked} labels={sideLabels(t, info.settings.facingPages)} linkLabel={t('dialog.linkSides')} unit={unit} onChange={setMargins} onLink={setLinked} testId="layout-margins" />

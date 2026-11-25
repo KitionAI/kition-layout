@@ -51,7 +51,7 @@ export function TextFrameOptionsDialog({ info, onClose }: { info: DocumentInfo; 
     />
   )
   return (
-    <DialogFrame command="object.textFrameOptions" title={phrase('Text Frame Options')} preview={preview} onOk={() => (Object.keys(params).length ? run('object.textFrameOptions', params) : undefined)} onClose={onClose}>
+    <DialogFrame command="object.textFrameOptions" title={phrase('Text Frame Options')} preview={preview} onOk={async () => (Object.keys(params).length && !(await preview?.keep(params)) ? run('object.textFrameOptions', params) : undefined)} onClose={onClose}>
       <div className="layout-dialog-fields">
         <NumberRow label={t('columns')} value={columns} min={1} max={40} decimals={0} onChange={(next) => next !== null && next >= 1 && setColumns(Math.round(next))} testId="layout-tfo-columns" />
         <LengthRow label={t('gutter')} value={gutter} unit={view.unit} placeholder={t('unchanged')} onChange={(next) => setGutter(next !== null && next >= 0 ? next : null)} testId="layout-tfo-gutter" />

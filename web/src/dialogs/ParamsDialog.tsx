@@ -64,7 +64,8 @@ export function ParamsDialog({ command, info, values: given, fixed, onClose }: {
       okDisabled={!valid}
       preview={PREVIEWED.has(command.id) ? preview : undefined}
       onOk={async () => {
-        await run(command.id, { ...fixed, ...params })
+        const sent = { ...fixed, ...params }
+        if (!(PREVIEWED.has(command.id) && (await preview?.keep(sent)))) await run(command.id, sent)
         remembered.set(command.id, values)
       }}
       onReset={() => setValues(defaults)}
