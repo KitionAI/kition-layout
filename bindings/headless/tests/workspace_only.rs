@@ -166,7 +166,7 @@ fn relink_idml(bytes: &[u8], links: &[(&str, String)]) -> Vec<u8> {
 /// A layout whose one text frame holds `text`.
 fn layout_with_text(text: &str) -> LayoutDocument {
     let mut doc = LayoutDocument::create("planted.klayout", 612, 792).unwrap();
-    doc.execute("frame.create", json!({ "rect": [72, 72, 400, 200], "content": "text", "text": text, "caret": false })).unwrap();
+    doc.execute("frame.add", json!({ "rect": [72, 72, 400, 200], "content": "text", "text": text, "caret": false })).unwrap();
     doc
 }
 
@@ -346,7 +346,7 @@ fn target(command: &str, node: &Value, outside: &Path) -> String {
     let folder = node["kind"] == "folder";
     if folder {
         return match command {
-            "file.package" | "links.copyTo" | "file.recovery.save" | "file.exportIdml" => at(outside, &format!("dir-{command}")),
+            "file.package" | "linkedFile.copyTo" | "file.recovery.save" | "file.exportIdml" => at(outside, &format!("dir-{command}")),
             _ => outside.to_string_lossy().into_owned(),
         };
     }
@@ -361,7 +361,7 @@ fn target(command: &str, node: &Value, outside: &Path) -> String {
         "xml.loadDtd" => "secret.dtd",
         "file.importXml" => "secret.xml",
         "data.source.select" | "data.fields" | "data.merge" => "source.csv",
-        "links.relink" | "place.load" => "secret.png",
+        "linkedFile.relink" | "place.load" => "secret.png",
         _ => "secret.txt",
     };
     at(outside, name)
@@ -439,16 +439,16 @@ fn act(root: &Path) -> Vec<String> {
     if count(&found, "layout.missing-link") != 3 {
         wrong.push(format!("linked.idml: the three links outside the workspace are not each reported as layout.missing-link: {found}"));
     }
-    let _ = agent.run(&idml, "links.list", json!({}));
-    let _ = agent.run(&idml, "links.update", json!({}));
-    let _ = agent.run(&idml, "links.relinkFolder", json!({ "extension": "png" }));
+    let _ = agent.run(&idml, "linkedFile.list", json!({}));
+    let _ = agent.run(&idml, "linkedFile.update", json!({}));
+    let _ = agent.run(&idml, "linkedFile.relinkFolder", json!({ "extension": "png" }));
     if shows(&agent.picture(&idml), OUTSIDE_RGB) {
-        wrong.push("linked.idml: links.update or links.relinkFolder read a picture outside the workspace".to_owned());
+        wrong.push("linked.idml: linkedFile.update or linkedFile.relinkFolder read a picture outside the workspace".to_owned());
     }
 
     // An IDML package's external entity is not read: its story says only what the package says.
     let entity = agent.open("entity.idml");
-    let text = agent.run(&entity, "document.inspect", json!({})).unwrap_or_default();
+    let text = agent.run(&entity, "file.inspect", json!({})).unwrap_or_default();
     if !text.to_string().contains("Entity here") {
         wrong.push(format!("entity.idml: the story's own text is not there: {text}"));
     }
@@ -456,8 +456,8 @@ fn act(root: &Path) -> Vec<String> {
     // A layout whose data merge source and a linked graphic are files outside the workspace.
     let hostile = agent.open("hostile.klayout");
     for (command, value) in [
-        ("links.list", json!({})),
-        ("links.update", json!({})),
+        ("linkedFile.list", json!({})),
+        ("linkedFile.update", json!({})),
         ("data.source.update", json!({})),
         ("data.fields", json!({})),
         ("data.preview", json!({ "record": 1 })),
@@ -501,7 +501,7 @@ fn act(root: &Path) -> Vec<String> {
         }
         for (name, node) in files {
             let mut value = json!({ name.as_str(): target(&command.id, node, &outside) });
-            if command.id == "links.relink" {
+            if command.id == "linkedFile.relink" {
                 value["asset"] = asset.clone();
             }
             agent.every_way(&id, &command.id, &value);
@@ -512,7 +512,7 @@ fn act(root: &Path) -> Vec<String> {
     }
     // The commands that reach the file system without a file parameter.
     for command in
-        ["file.revert", "file.recovery.list", "file.recovery.save", "file.recovery.open", "links.update", "data.source.update", "book.list"]
+        ["file.revert", "file.recovery.list", "file.recovery.save", "file.recovery.open", "linkedFile.update", "data.source.update", "book.list"]
     {
         agent.every_way(&id, command, &json!({}));
     }

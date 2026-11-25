@@ -82,7 +82,7 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!("style.paragraph.apply", "Apply Paragraph Style", [], None, "{name, clearOverrides?: bool}", has_text_or_frames, apply_para),
         cmd!("style.character.apply", "Apply Character Style", [], None, "{name}", has_text_or_frames, apply_char),
         cmd!(
-            "style.paragraph.create",
+            "style.paragraph.add",
             "New Paragraph Style…",
             [],
             None,
@@ -110,7 +110,7 @@ pub fn specs() -> Vec<CommandSpec> {
             delete_char
         ),
         cmd!(
-            "style.character.create",
+            "style.character.add",
             "New Character Style…",
             [],
             None,
@@ -138,9 +138,9 @@ pub fn specs() -> Vec<CommandSpec> {
             }))
         }),
         cmd!("style.object.apply", "Apply Object Style", [], None, "{name, ids?}", super::has_selection, apply_object),
-        cmd!("style.object.create", "New Object Style…", [], None, "{name, fromSelection?: true, fill?, paragraphStyle?}", has_doc, create_object),
+        cmd!("style.object.add", "New Object Style…", [], None, "{name, fromSelection?: true, fill?, paragraphStyle?}", has_doc, create_object),
         cmd!(
-            "swatch.create",
+            "swatch.add",
             "New Color Swatch…",
             [],
             None,
@@ -439,7 +439,7 @@ fn create_para(s: &mut Session, p: &Value) -> Result<Value> {
     let mut para: ParaAttrs = attrs(p.get("para"), |a: &mut ParaAttrs, k, v| a.set_json(k, v))?;
     let mut chars: CharAttrs = attrs(p.get("chars"), |a: &mut CharAttrs, k, v| a.set_json(k, v))?;
     if p.get("fromSelection").and_then(Value::as_bool).unwrap_or(false)
-        && let Ok(cur) = s.execute("type.selectionAttrs", &json!({}))
+        && let Ok(cur) = s.execute("text.selectionAttrs", &json!({}))
         && !cur.is_null()
     {
         if let Ok(pp) = serde_json::from_value::<kition_layout_doc::ParaProps>(cur["para"].clone()) {
@@ -460,7 +460,7 @@ fn create_para(s: &mut Session, p: &Value) -> Result<Value> {
         if let Some(b) = &based_on
             && d.styles.para(b).is_none()
         {
-            return Err(bad("style.paragraph.create", format!("no style `{b}`")));
+            return Err(bad("style.paragraph.add", format!("no style `{b}`")));
         }
         d.styles_mut().paragraph.push(ParagraphStyle { name: name.clone(), based_on, next_style: next, para, chars, shortcut: String::new() });
         Ok(json!({"name": name}))
@@ -673,7 +673,7 @@ fn create_char(s: &mut Session, p: &Value) -> Result<Value> {
         if let Some(b) = &based_on
             && d.styles.char_style(b).is_none()
         {
-            return Err(bad("style.character.create", format!("no character style `{b}`")));
+            return Err(bad("style.character.add", format!("no character style `{b}`")));
         }
         let name = Styles::unique_name(|n| d.styles.char_style(n).is_some(), &base);
         d.styles_mut().character.push(CharacterStyle { name: name.clone(), based_on, chars, shortcut: String::new() });
@@ -732,8 +732,8 @@ fn edit_char(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn create_swatch(s: &mut Session, p: &Value) -> Result<Value> {
-    let c = p.get("color").ok_or_else(|| bad("swatch.create", "missing color"))?;
-    let color = parse_color(c).ok_or_else(|| bad("swatch.create", "bad color"))?;
+    let c = p.get("color").ok_or_else(|| bad("swatch.add", "missing color"))?;
+    let color = parse_color(c).ok_or_else(|| bad("swatch.add", "bad color"))?;
     let spot = p.get("spot").and_then(Value::as_bool).unwrap_or(false);
     let name = str_param(p, "name").map(str::to_string).unwrap_or_else(|| match color {
         kition_layout_color::Color::Cmyk { c, m, y, k } => kition_layout_color::swatch::cmyk_name(c, m, y, k),
@@ -1091,9 +1091,9 @@ mod color_tests {
     fn style_groups_rename_every_use() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("style.paragraph.create", &json!({"name": "Head"})).unwrap();
-        s.execute("style.paragraph.create", &json!({"name": "Sub", "basedOn": "Head"})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "Hi"})).unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Head"})).unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Sub", "basedOn": "Head"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "Hi"})).unwrap();
         let sid = r["story"].as_u64().unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 2})).unwrap();
         s.execute("style.paragraph.apply", &json!({"name": "Head"})).unwrap();
@@ -1112,11 +1112,11 @@ mod color_tests {
     fn deleting_a_character_style_hands_its_uses_to_the_replacement() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("style.character.create", &json!({"name": "Base", "chars": {"fontStyle": "Bold"}})).unwrap();
-        s.execute("style.character.create", &json!({"name": "Emphasis", "basedOn": "Base", "chars": {"fontStyle": "Italic"}})).unwrap();
-        s.execute("style.character.create", &json!({"name": "Loud", "basedOn": "Emphasis", "chars": {"size": 20}})).unwrap();
-        s.execute("style.paragraph.create", &json!({"name": "Lead", "para": {"grepStyles": [{"style": "Emphasis", "pattern": "\\d+"}]}})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "Hi there"})).unwrap();
+        s.execute("style.character.add", &json!({"name": "Base", "chars": {"fontStyle": "Bold"}})).unwrap();
+        s.execute("style.character.add", &json!({"name": "Emphasis", "basedOn": "Base", "chars": {"fontStyle": "Italic"}})).unwrap();
+        s.execute("style.character.add", &json!({"name": "Loud", "basedOn": "Emphasis", "chars": {"size": 20}})).unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Lead", "para": {"grepStyles": [{"style": "Emphasis", "pattern": "\\d+"}]}})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "Hi there"})).unwrap();
         let sid = r["story"].as_u64().unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 2})).unwrap();
         s.execute("style.character.apply", &json!({"name": "Emphasis"})).unwrap();
@@ -1147,10 +1147,10 @@ mod color_tests {
     fn character_style_edit_sets_unsets_rebases_and_renames_every_use() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("style.character.create", &json!({"name": "Base", "chars": {"fontStyle": "Bold"}})).unwrap();
-        s.execute("style.character.create", &json!({"name": "Emphasis", "chars": {"fontStyle": "Italic", "tracking": 20}})).unwrap();
+        s.execute("style.character.add", &json!({"name": "Base", "chars": {"fontStyle": "Bold"}})).unwrap();
+        s.execute("style.character.add", &json!({"name": "Emphasis", "chars": {"fontStyle": "Italic", "tracking": 20}})).unwrap();
         s.execute(
-            "style.paragraph.create",
+            "style.paragraph.add",
             &json!({"name": "Lead", "para": {
                 "nestedStyles": [{"style": "Emphasis", "through": true, "count": 1, "until": {"kind": "words"}}],
                 "grepStyles": [{"style": "Emphasis", "pattern": "\\d+"}],
@@ -1158,7 +1158,7 @@ mod color_tests {
         )
         .unwrap();
         s.execute("footnote.options", &json!({"refCharStyle": "Emphasis"})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "Hi there"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "Hi there"})).unwrap();
         let sid = r["story"].as_u64().unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 2})).unwrap();
         s.execute("style.character.apply", &json!({"name": "Emphasis"})).unwrap();
@@ -1204,8 +1204,8 @@ mod color_tests {
     fn new_character_style_checks_its_based_on() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        assert!(s.execute("style.character.create", &json!({"name": "Orphan", "basedOn": "Nope"})).is_err());
-        s.execute("style.character.create", &json!({"name": "Plain", "basedOn": "[None]", "chars": {"size": 9}})).unwrap();
+        assert!(s.execute("style.character.add", &json!({"name": "Orphan", "basedOn": "Nope"})).is_err());
+        s.execute("style.character.add", &json!({"name": "Plain", "basedOn": "[None]", "chars": {"size": 9}})).unwrap();
         let st = s.doc().unwrap().doc.styles.char_style("Plain").cloned().unwrap();
         assert_eq!((st.based_on, st.chars), (None, CharAttrs { size: Some(9.0), ..Default::default() }));
     }
@@ -1214,7 +1214,7 @@ mod color_tests {
     fn swatches_save_and_load_ase() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("swatch.create", &json!({"name": "Brand Teal", "color": "#108080"})).unwrap();
+        s.execute("swatch.add", &json!({"name": "Brand Teal", "color": "#108080"})).unwrap();
         let b64 = s.execute("swatch.save", &json!({"names": ["Brand Teal"]})).unwrap()["base64"].as_str().unwrap().to_string();
         s.execute("file.new", &json!({})).unwrap();
         let r = s.execute("swatch.load", &json!({"base64": b64})).unwrap();
@@ -1229,8 +1229,8 @@ mod color_tests {
     fn unnamed_colors_then_add_to_swatches() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let id = s.execute("frame.create", &json!({"rect": [0, 0, 50, 50]})).unwrap()["id"].as_u64().unwrap();
-        s.execute("selection.set", &json!({"ids": [id]})).unwrap();
+        let id = s.execute("frame.add", &json!({"rect": [0, 0, 50, 50]})).unwrap()["id"].as_u64().unwrap();
+        s.execute("select.set", &json!({"ids": [id]})).unwrap();
         let listed = |s: &Session| s.doc().unwrap().doc.swatches.iter().filter(|w| !w.hidden).count();
         let before = listed(&s);
         let r = s.execute("object.color", &json!({"color": {"c": 10, "m": 20, "y": 30, "k": 0}})).unwrap();
@@ -1282,11 +1282,11 @@ mod color_group_tests {
     fn color_groups_hold_swatches_and_round_trip() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("swatch.create", &json!({"name": "Brand Red", "color": {"c": 0, "m": 100, "y": 100, "k": 0}})).unwrap()["name"]
+        let a = s.execute("swatch.add", &json!({"name": "Brand Red", "color": {"c": 0, "m": 100, "y": 100, "k": 0}})).unwrap()["name"]
             .as_str()
             .unwrap()
             .to_string();
-        let b = s.execute("swatch.create", &json!({"name": "Brand Blue", "color": {"c": 100, "m": 60, "y": 0, "k": 0}})).unwrap()["name"]
+        let b = s.execute("swatch.add", &json!({"name": "Brand Blue", "color": {"c": 100, "m": 60, "y": 0, "k": 0}})).unwrap()["name"]
             .as_str()
             .unwrap()
             .to_string();
@@ -1319,9 +1319,9 @@ mod ink_tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         for (n, c) in [("Pantone A", [0, 50, 100, 0]), ("Pantone B", [100, 0, 0, 0])] {
-            s.execute("swatch.create", &json!({"name": n, "spot": true, "color": {"c": c[0], "m": c[1], "y": c[2], "k": c[3]}})).unwrap();
+            s.execute("swatch.add", &json!({"name": n, "spot": true, "color": {"c": c[0], "m": c[1], "y": c[2], "k": c[3]}})).unwrap();
         }
-        let id = s.execute("frame.create", &json!({"rect": [72, 72, 200, 200]})).unwrap()["id"].clone();
+        let id = s.execute("frame.add", &json!({"rect": [72, 72, 200, 200]})).unwrap()["id"].clone();
         s.execute("object.fill", &json!({"swatch": "Pantone A", "ids": [id]})).unwrap();
         let pdf = |s: &mut Session| {
             let b = s.execute("file.exportPdf", &json!({})).unwrap()["base64"].as_str().unwrap().to_string();
@@ -1353,12 +1353,12 @@ mod export_tag_tests {
     fn export_tagging_shapes_epub_markup() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("style.paragraph.create", &json!({"name": "Chapter Title", "chars": {"size": 24}})).unwrap();
-        s.execute("style.character.create", &json!({"name": "Key Term", "chars": {"fontStyle": "Bold"}})).unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Chapter Title", "chars": {"size": 24}})).unwrap();
+        s.execute("style.character.add", &json!({"name": "Key Term", "chars": {"fontStyle": "Bold"}})).unwrap();
         s.execute("style.exportTag", &json!({"style": "Chapter Title", "tag": "h1", "class": "chapter"})).unwrap();
         s.execute("style.exportTag", &json!({"style": "Key Term", "character": true, "tag": "strong"})).unwrap();
         assert!(s.execute("style.exportTag", &json!({"style": "Nope"})).is_err());
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Origins\nA word"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Origins\nA word"})).unwrap();
         let sid = r["story"].as_u64().unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 0})).unwrap();
         s.execute("style.paragraph.apply", &json!({"name": "Chapter Title"})).unwrap();
@@ -1383,12 +1383,12 @@ mod cjk_tests {
     fn cjk_composite_font_command_invalidates_layout_and_undo_restores_it() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [0, 0, 300, 150], "content": "text", "text": "AB"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [0, 0, 300, 150], "content": "text", "text": "AB"})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let definition = |scale| json!({"name": "Mixed", "entries": [{"family": "Source Serif 4", "relativeSize": scale}]});
         s.execute("style.compositeFont.set", &definition(1.0)).unwrap();
         s.execute("text.select", &json!({"story": sid.0, "anchor": 0, "focus": 2})).unwrap();
-        s.execute("type.char", &json!({"fontFamily": "Mixed", "leadingAki": 0.25, "jidori": 4})).unwrap();
+        s.execute("text.char", &json!({"fontFamily": "Mixed", "leadingAki": 0.25, "jidori": 4})).unwrap();
         let old = s.cache.get(&s.doc().unwrap().doc, sid, None);
         s.execute("style.compositeFont.set", &definition(2.0)).unwrap();
         let new = s.cache.get(&s.doc().unwrap().doc, sid, None);

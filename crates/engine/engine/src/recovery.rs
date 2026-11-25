@@ -252,7 +252,7 @@ mod tests {
     fn dirty_session() -> Session {
         let mut session = Session::new();
         session.execute("file.new", &json!({})).unwrap();
-        session.execute("frame.create", &json!({"rect": [10, 10, 100, 100]})).unwrap();
+        session.execute("frame.add", &json!({"rect": [10, 10, 100, 100]})).unwrap();
         session
     }
 
@@ -264,7 +264,7 @@ mod tests {
         s.execute("file.new", &json!({})).unwrap();
         s.execute("file.new", &json!({})).unwrap();
         // Only the edited document is written.
-        s.execute("frame.create", &json!({"rect": [10, 10, 100, 100]})).unwrap();
+        s.execute("frame.add", &json!({"rect": [10, 10, 100, 100]})).unwrap();
         assert_eq!(save(&s, &dir).unwrap(), 1);
         assert_eq!(list(&dir).len(), 1);
         // "Crash": a new session reopens it, unsaved, with the item.
@@ -390,7 +390,7 @@ mod file_tests {
         s.execute("file.new", &json!({})).unwrap();
         assert!(s.execute("file.revert", &json!({})).is_err(), "never saved");
         s.execute("file.saveAs", &json!({"path": a.to_string_lossy()})).unwrap();
-        s.execute("frame.create", &json!({"rect": [10, 10, 100, 100]})).unwrap();
+        s.execute("frame.add", &json!({"rect": [10, 10, 100, 100]})).unwrap();
         // A copy keeps the document unsaved and on its own file.
         s.execute("file.saveACopy", &json!({"path": copy.to_string_lossy()})).unwrap();
         assert!(copy.exists());

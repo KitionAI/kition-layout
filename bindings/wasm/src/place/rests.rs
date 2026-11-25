@@ -101,9 +101,9 @@ fn rules(command: &str, params: &Value) -> Vec<Rule> {
         // The handler refuses to delete the last layer: the count, not the layers' content.
         "layer.delete" => vec![rule(On::Root, &["~layerCount"], &[])],
         "layer.merge" => vec![rule(On::AllItems, &["layer"], &[])],
-        "guide.add" | "layout.createGuides" => {
+        "guide.add" | "layout.addGuides" => {
             let mut rules = vec![rule(On::ActiveLayer, &[], &[])];
-            if command == "layout.createGuides" {
+            if command == "layout.addGuides" {
                 rules.push(rule(On::SpreadPage, &["size", "margins", "side", "x"], &["pages"]));
             }
             rules
@@ -115,10 +115,10 @@ fn rules(command: &str, params: &Value) -> Vec<Rule> {
         "file.place" => vec![rule(On::SelectedStory, &["text"], &[])],
         "transform.set" => vec![rule(On::TargetPage, &["x", "size"], &[])],
         // Stacking order: the target's siblings' places in the item tree.
-        "object.arrange" | "object.bringToFront" | "object.bringForward" | "object.sendBackward" | "object.sendToBack" => {
+        "object.arrange" | "arrange.bringToFront" | "arrange.bringForward" | "arrange.sendBackward" | "arrange.sendToBack" => {
             vec![rule(On::TargetSpreadItems, &[], &["items"])]
         }
-        "object.ungroup" => vec![rule(On::TargetChildren, &[], &["xf", "items", "spread"])],
+        "arrange.ungroup" => vec![rule(On::TargetChildren, &[], &["xf", "items", "spread"])],
         "object.unlockAll" => vec![rule(On::TopItems, &["locked"], &[])],
         "object.showAll" => vec![rule(On::TopItems, &["hidden"], &[])],
         "frame.fitText" => vec![rule(On::Root, &["settings.hyphenationExceptions", "setup.advancedType", "setup.glyphFallback"], &[])],
@@ -134,16 +134,16 @@ fn rules(command: &str, params: &Value) -> Vec<Rule> {
         "table.dropCells" => vec![rule(On::StoryFrames, &["path", "textOptions"], &["xf"]), rule(On::StoriesText, &["text"], &[])],
         // A selection is clamped to, and a whole row/column/table spans, the table's lines.
         "table.select" | "table.selectTable" | "table.selectRow" | "table.selectColumn" => vec![rule(On::AddressedTable, &["rows", "columns"], &[])],
-        "find.objects" => vec![rule(On::AllItems, &["content", "shape"], &[])],
-        "find.next" => vec![rule(On::StoriesText, &["text"], &[])],
+        "edit.findObjects" => vec![rule(On::AllItems, &["content", "shape"], &[])],
+        "edit.findNext" => vec![rule(On::StoriesText, &["text"], &[])],
         "footnote.goToReference" => vec![rule(On::SelectedStory, &["text", "inlines"], &[])],
         "endnote.insert" => vec![rule(On::Root, &["spreads"], &[])],
-        "changes.acceptAll" | "changes.rejectAll" | "condition.delete" => vec![rule(On::StoriesText, &["text"], &[])],
+        "change.acceptAll" | "change.rejectAll" | "condition.delete" => vec![rule(On::StoriesText, &["text"], &[])],
         // The engine's instance stores the variable's index in the list (cmd/variables.rs:81): the
         // order of the variables before it, not just its own entry ("value naming another
         // object"). The model's instance names the variable's object (its `variable` mark).
-        "variables.insert" => vec![rule(On::Root, &["textVariables"], &[])],
-        "variables.delete" => vec![rule(On::StoriesText, &["text"], &[]), rule(On::Root, &["textVariables"], &[])],
+        "variable.insert" => vec![rule(On::Root, &["textVariables"], &[])],
+        "variable.delete" => vec![rule(On::StoriesText, &["text"], &[]), rule(On::Root, &["textVariables"], &[])],
         // Misc family (C8-layout-read-3): settings registers the handlers read whole (names for
         // uniqueness and defaults, counts, the records they patch and shift).
         "article.new" | "article.add" | "article.remove" | "article.options" | "article.delete" => {
@@ -155,9 +155,9 @@ fn rules(command: &str, params: &Value) -> Vec<Rule> {
         "data.options" => vec![rule(On::Root, &["settings.dataMerge.options"], &[])],
         // A merge copies the whole template; a script's steps name nothing fixed.
         "data.merge" | "script.run" => vec![rule(On::Root, WHOLE, &[])],
-        "hyperlink.create" | "hyperlink.delete" | "hyperlink.edit" | "hyperlink.goToSource" => vec![rule(On::Root, &["hyperlinks"], &[])],
+        "link.add" | "link.delete" | "link.edit" | "link.goToSource" => vec![rule(On::Root, &["hyperlinks"], &[])],
         "bookmark.rename" | "bookmark.add" | "bookmark.delete" => vec![rule(On::Root, &["settings.bookmarks"], &[])],
-        "links.goTo" => vec![rule(On::AllItems, &["content", "graphic"], &[])],
+        "linkedFile.goTo" => vec![rule(On::AllItems, &["content", "graphic"], &[])],
         // A new frame without x/y goes on the spread's first page margins, on the active layer.
         "math.insert" => vec![rule(On::SpreadPage, &["margins", "size", "x"], &[]), rule(On::ActiveLayer, &[], &[])],
         "object.layerOptions" => vec![rule(On::TargetAssets, &["blob"], &[])],
@@ -176,7 +176,7 @@ fn rules(command: &str, params: &Value) -> Vec<Rule> {
         // Creation defaults (C8-layout-read-3 "default" class). A new text frame takes the
         // default paragraph and text-frame styles and the binding's story direction
         // (doc/src/edit.rs:176-190).
-        "frame.create" | "frame.grid"
+        "frame.add" | "frame.grid"
             if params.get("content").and_then(Value::as_str).map_or(params.get("text").is_some(), |content| content == "text") =>
         {
             vec![rule(On::Root, NEW_TEXT_FRAME, &[]), rule(On::DefaultTextFrameStyle, &[], &[])]
@@ -187,10 +187,12 @@ fn rules(command: &str, params: &Value) -> Vec<Rule> {
                 rule(On::DefaultTextFrameStyle, &[], &[]),
             ]
         }
-        "type.onPath" => vec![rule(On::Root, &["setup.rightToLeftBinding"], &[])],
+        "text.onPath" => vec![rule(On::Root, &["setup.rightToLeftBinding"], &[])],
         // A size step or feature toggle starts from the resolved look of the first target;
         // breaking a link writes the resolved look out.
-        "type.sizeUp" | "type.sizeDown" | "type.openType" | "style.breakLink" => vec![rule(On::TargetStyles, &["attrs", "basedOn"], &[])],
+        "format.increaseFontSize" | "format.decreaseFontSize" | "text.openType" | "style.breakLink" => {
+            vec![rule(On::TargetStyles, &["attrs", "basedOn"], &[])]
+        }
         // A table takes the insertion point's formats and, by default, the caret frame's width.
         "table.insert" | "table.convertFromText" => {
             vec![rule(On::SelectedStory, &["text"], &[]), rule(On::SelectedStoryFrames, &["path", "textOptions"], &["xf"])]
@@ -210,8 +212,8 @@ fn rules(command: &str, params: &Value) -> Vec<Rule> {
             rules
         }
         // Two paths computing one fact ("two paths" class).
-        "type.para" => vec![rule(On::TargetStyles, &["attrs", "basedOn"], &[])],
-        "style.paragraph.create" if flag("fromSelection") => {
+        "text.para" => vec![rule(On::TargetStyles, &["attrs", "basedOn"], &[])],
+        "style.paragraph.add" if flag("fromSelection") => {
             vec![rule(On::SelectedStory, &["text"], &[]), rule(On::TargetStyles, &["attrs", "basedOn"], &[])]
         }
         // Pasting text inserts into the selected story (tracked when tracking is on); pasting

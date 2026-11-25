@@ -50,7 +50,7 @@ export function LayersSection({ info, spread }: { info: DocumentInfo; spread: Sp
     if (!openMenu) return
     event.preventDefault()
     const chosen = selected.has(item.id)
-    if (!chosen) void run('selection.set', { ids: [item.id] })
+    if (!chosen) void run('select.set', { ids: [item.id] })
     openMenu({ kind: 'object', textFrame: item.story != null, image: item.asset != null, group: item.kind === '<group>', count: chosen ? info.selection.length : 1 }, event.clientX, event.clientY)
   }
   const layerMenu = (layer: Layer) => (event: MouseEvent) => {
@@ -58,7 +58,7 @@ export function LayersSection({ info, spread }: { info: DocumentInfo; spread: Sp
     event.preventDefault()
     openMenu({ kind: 'layer', layer: layer.id }, event.clientX, event.clientY)
   }
-  const pick = (event: MouseEvent, id: number) => void run(event.shiftKey ? 'selection.toggle' : 'selection.set', event.shiftKey ? { id } : { ids: [id] })
+  const pick = (event: MouseEvent, id: number) => void run(event.shiftKey ? 'select.toggle' : 'select.set', event.shiftKey ? { id } : { ids: [id] })
   const finishRename = (commit: boolean) => {
     const current = renaming
     setRenaming(null)
@@ -134,10 +134,10 @@ export function LayersSection({ info, spread }: { info: DocumentInfo; spread: Sp
         }
         end={
           <>
-            <IconButton icon={Group} label={p('Group')} disabled={readOnly || info.selection.length < 2} onClick={() => void run('object.group', { ids: info.selection })} data-testid="layout-group" />
-            <IconButton icon={Ungroup} label={p('Ungroup')} disabled={readOnly || !info.selection.length} onClick={() => void run('object.ungroup', { ids: info.selection })} data-testid="layout-ungroup" />
+            <IconButton icon={Group} label={p('Group')} disabled={readOnly || info.selection.length < 2} onClick={() => void run('arrange.group', { ids: info.selection })} data-testid="layout-group" />
+            <IconButton icon={Ungroup} label={p('Ungroup')} disabled={readOnly || !info.selection.length} onClick={() => void run('arrange.ungroup', { ids: info.selection })} data-testid="layout-ungroup" />
             <IconButton icon={Copy} label={p('Duplicate')} disabled={readOnly || !info.selection.length} onClick={() => void run('edit.duplicate', {})} data-testid="layout-duplicate" />
-            <IconButton icon={Trash} label={p('Clear')} disabled={readOnly || !info.selection.length} onClick={() => void run('edit.clear', {})} data-testid="layout-delete" />
+            <IconButton icon={Trash} label={p('Clear')} disabled={readOnly || !info.selection.length} onClick={() => void run('edit.delete', {})} data-testid="layout-delete" />
           </>
         }
       />

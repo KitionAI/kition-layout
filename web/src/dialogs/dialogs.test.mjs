@@ -17,9 +17,9 @@ test('a command that asks opens its dialog; one that does not runs; a hidden one
   assert.equal(dialogFor('object.textFrameOptions'), 'textFrameOptions')
   assert.equal(dialogFor('layout.pages.insert'), 'insertPages')
   assert.equal(dialogFor('table.insert'), 'insertTable')
-  assert.equal(dialogFor('find.find'), 'findChange')
+  assert.equal(dialogFor('edit.find'), 'findChange')
   assert.equal(dialogFor('object.cornerOptions'), 'params')
-  assert.equal(dialogFor('object.group'), null)
+  assert.equal(dialogFor('arrange.group'), null)
   assert.equal(dialogFor('note.new'), null)
   assert.equal(asks('edit.stepAndRepeat'), true)
   assert.equal(asks('edit.undo'), false)
@@ -48,7 +48,7 @@ test('the generic dialog asks for a command\'s own values, not the keys every co
   // Points are labelled.
   assert.equal(fieldFor({ id: 'x' }, 'gutter', { type: 'number', description: 'points' }).unit, 'pt')
   // Type on a Path's options leave Delete to its own row.
-  assert.deepEqual(paramFields({ id: 'type.pathOptions', schema: { delete: { type: 'boolean', default: true }, flip: { type: 'boolean' } } }).map((field) => field.key), ['flip'])
+  assert.deepEqual(paramFields({ id: 'text.pathOptions', schema: { delete: { type: 'boolean', default: true }, flip: { type: 'boolean' } } }).map((field) => field.key), ['flip'])
   // Add Page to Spread asks which spread, a key other commands share.
   assert.deepEqual(paramFields({ id: 'layout.pages.toSpread', schema: { page: { type: 'integer' }, spread: { oneOf: [{ type: 'integer' }, { type: 'object' }] } } }).map((field) => field.key), ['page', 'spread'])
 })
@@ -87,7 +87,7 @@ test('the catalog: every variant names its command, rows never repeat in a menu,
   assert.deepEqual([...new Set(rows.map((row) => row.path[0]))], ['File', 'Edit', 'Layout', 'Type', 'Object', 'Table', 'View', 'Help'])
   // A row that asks first ends in "…"; one that runs does not.
   assert.equal(rows.find((row) => row.command === 'object.textFrameOptions').label, 'object.textFrameOptions…')
-  assert.equal(rows.find((row) => row.command === 'object.group').label, 'object.group')
+  assert.equal(rows.find((row) => row.command === 'arrange.group').label, 'arrange.group')
   // Insert Table is the Table menu's first row; the Window rows moved to Object.
   assert.equal(rows.find((row) => row.path[0] === 'Table').command, 'table.insert')
   assert.ok(rows.some((row) => row.command === 'object.align|left' && row.path.join('/') === 'Object/Align'))
@@ -123,7 +123,7 @@ test('lengths in millimetres, inches and points', () => {
 
 test('greyed-out rows say why, and the engine\'s refusals a menu meets are worded for the person', () => {
   const one = { items: [{ kind: '<rectangle>', image: false, story: false }], editingText: false }
-  assert.equal(contextReason('object.group', one), 'needTwo')
+  assert.equal(contextReason('arrange.group', one), 'needTwo')
   assert.equal(contextReason('object.distribute', { ...one, items: [...one.items, ...one.items] }), 'needThree')
   assert.equal(contextReason('object.clippingPath', one), 'needImage')
   assert.equal(contextReason('object.clippingPath', { items: [{ kind: '<rectangle>', image: true, story: false }], editingText: false }), null)

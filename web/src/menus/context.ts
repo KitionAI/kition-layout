@@ -15,7 +15,7 @@ export type Reason = 'needTwo' | 'needThree' | 'needTwoShapes' | 'needImage' | '
 export function contextReason(command: string, context: MenuContext): Reason | null {
   const count = context.items.length
   switch (command) {
-    case 'object.group':
+    case 'arrange.group':
       return count < 2 ? 'needTwo' : null
     case 'object.makeCompoundPath':
     case 'object.pathfinder':
@@ -24,7 +24,7 @@ export function contextReason(command: string, context: MenuContext): Reason | n
       return count < 3 ? 'needThree' : null
     case 'object.clippingPath':
       return context.items.some((item) => item.image) ? null : 'needImage'
-    case 'type.pathOptions':
+    case 'text.pathOptions':
       return context.items.some((item) => item.kind === '<text path>') ? null : 'needTypeOnPath'
     case 'object.primaryTextFrame':
       return context.items.some((item) => item.kind === '<text frame>') ? null : 'needTextFrame'
@@ -48,8 +48,8 @@ export function disabledReason(command: string): Reason {
   if (command === 'table.insert' || command === 'table.convertFromText') return command === 'table.insert' ? 'needCaret' : 'needTextSelection'
   if (command.startsWith('table.')) return 'needTable'
   if (command.startsWith('edit.paste')) return 'needClipboard'
-  if (['footnote.insert', 'endnote.insert', 'text.insert', 'text.insertSpecial', 'xref.insert', 'index.addReference', 'variables.insert', 'math.insert', 'type.changeCase', 'type.char', 'story.setDirection'].includes(command)) return 'needCaret'
-  if (/^(object|transform|select|path|frame)\./.test(command) || ['edit.duplicate', 'edit.cut', 'edit.copy', 'edit.clear', 'edit.stepAndRepeat', 'type.createOutlines'].includes(command)) return 'needSelection'
+  if (['footnote.insert', 'endnote.insert', 'text.insert', 'text.insertSpecial', 'xref.insert', 'index.addReference', 'variable.insert', 'math.insert', 'text.changeCase', 'text.char', 'story.setDirection'].includes(command)) return 'needCaret'
+  if ((/^(object|arrange|transform|select|path|frame)\./.test(command) && command !== 'select.set' && command !== 'select.toggle') || ['edit.duplicate', 'edit.cut', 'edit.copy', 'edit.delete', 'edit.stepAndRepeat', 'text.convertToOutlines'].includes(command)) return 'needSelection'
   return 'notNow'
 }
 

@@ -23,7 +23,7 @@ fn placing_a_snippet_keeps_its_own_image_when_asset_ids_collide() {
     let make = |shade: u8| {
         let mut session = Session::new();
         session.execute("file.new", &json!({"pages":1})).unwrap();
-        let frame = session.execute("frame.create", &json!({"rect":[10,10,60,60],"content":"unassigned"})).unwrap()["id"].as_u64().unwrap();
+        let frame = session.execute("frame.add", &json!({"rect":[10,10,60,60],"content":"unassigned"})).unwrap()["id"].as_u64().unwrap();
         session.execute("file.place", &json!({"frame":frame,"name":"image.png","base64":png(shade)})).unwrap();
         (session, frame)
     };
@@ -31,7 +31,7 @@ fn placing_a_snippet_keeps_its_own_image_when_asset_ids_collide() {
     let (mut target, target_frame) = make(220);
     let (source_asset, target_asset) = (graphic_asset(&source, source_frame), graphic_asset(&target, target_frame));
     assert_eq!(source_asset, target_asset, "the fixture needs colliding asset ids");
-    source.execute("selection.set", &json!({"ids":[source_frame]})).unwrap();
+    source.execute("select.set", &json!({"ids":[source_frame]})).unwrap();
     let snippet = source.execute("snippet.export", &json!({})).unwrap()["base64"].as_str().unwrap().to_owned();
     let placed = target.execute("snippet.place", &json!({"base64":snippet})).unwrap()["ids"][0].as_u64().unwrap();
     let doc = &target.doc().unwrap().doc;
@@ -47,11 +47,11 @@ fn placing_a_snippet_keeps_its_own_image_when_asset_ids_collide() {
 fn deleting_path_text_keeps_the_story_of_threaded_frames() {
     let mut session = Session::new();
     session.execute("file.new", &json!({"pages":1})).unwrap();
-    let path = session.execute("path.create", &json!({"anchors":[{"p":[20,100]},{"p":[300,100]}]})).unwrap()["id"].as_u64().unwrap();
-    session.execute("type.onPath", &json!({"id":path,"text":"Along the path and on into the next frame"})).unwrap();
-    let next = session.execute("frame.create", &json!({"rect":[20,200,300,400],"content":"unassigned"})).unwrap()["id"].as_u64().unwrap();
+    let path = session.execute("path.add", &json!({"anchors":[{"p":[20,100]},{"p":[300,100]}]})).unwrap()["id"].as_u64().unwrap();
+    session.execute("text.onPath", &json!({"id":path,"text":"Along the path and on into the next frame"})).unwrap();
+    let next = session.execute("frame.add", &json!({"rect":[20,200,300,400],"content":"unassigned"})).unwrap()["id"].as_u64().unwrap();
     session.execute("frame.thread", &json!({"from":path,"to":next})).unwrap();
-    session.execute("type.pathOptions", &json!({"id":path,"delete":true})).unwrap();
+    session.execute("text.pathOptions", &json!({"id":path,"delete":true})).unwrap();
     let doc = &session.doc().unwrap().doc;
     let Content::Text(frame) = &doc.item(ItemId(next)).unwrap().content else { panic!("the threaded frame keeps its text") };
     let story = doc.story(frame.story).expect("the threaded frame's story survives");
@@ -65,7 +65,7 @@ fn deleting_path_text_keeps_the_story_of_threaded_frames() {
 fn transform_set_on_a_spread_without_pages_does_not_panic() {
     let mut session = Session::new();
     session.execute("file.new", &json!({"pages":1})).unwrap();
-    let id = session.execute("frame.create", &json!({"rect":[10,10,60,60],"content":"unassigned"})).unwrap()["id"].as_u64().unwrap();
+    let id = session.execute("frame.add", &json!({"rect":[10,10,60,60],"content":"unassigned"})).unwrap()["id"].as_u64().unwrap();
     {
         let state = session.doc_mut().unwrap();
         let mut doc = (*state.doc).clone();
@@ -82,7 +82,7 @@ fn transform_set_on_a_spread_without_pages_does_not_panic() {
 fn table_cell_session() -> (Session, u64, u64) {
     let mut session = Session::new();
     session.execute("file.new", &json!({"pages":1})).unwrap();
-    let story = session.execute("frame.create", &json!({"rect":[20,20,400,400],"content":"text","text":"Body"})).unwrap()["story"].as_u64().unwrap();
+    let story = session.execute("frame.add", &json!({"rect":[20,20,400,400],"content":"text","text":"Body"})).unwrap()["story"].as_u64().unwrap();
     session.execute("text.select", &json!({"story":story,"anchor":0,"focus":0})).unwrap();
     let table = session.execute("table.insert", &json!({"rows":1,"cols":1})).unwrap()["table"].as_u64().unwrap();
     (session, story, table)
@@ -94,7 +94,7 @@ fn table_cell_session() -> (Session, u64, u64) {
 fn deleting_a_paragraph_style_replaces_it_in_cells() {
     let (mut session, story, table) = table_cell_session();
     for name in ["P", "Q"] {
-        session.execute("style.paragraph.create", &json!({"name":name})).unwrap();
+        session.execute("style.paragraph.add", &json!({"name":name})).unwrap();
     }
     session.execute("table.select", &json!({"story":story,"table":table,"row":0,"col":0})).unwrap();
     session.execute("style.paragraph.apply", &json!({"name":"P"})).unwrap();
@@ -111,7 +111,7 @@ fn renaming_a_paragraph_style_to_an_existing_name_refuses() {
     let mut session = Session::new();
     session.execute("file.new", &json!({"pages":1})).unwrap();
     for name in ["P", "Q"] {
-        session.execute("style.paragraph.create", &json!({"name":name})).unwrap();
+        session.execute("style.paragraph.add", &json!({"name":name})).unwrap();
     }
     assert!(session.execute("style.paragraph.edit", &json!({"name":"P","rename":"Q"})).is_err());
     let doc = &session.doc().unwrap().doc;
@@ -125,7 +125,7 @@ fn editing_a_paragraph_style_sets_its_next_style() {
     let mut session = Session::new();
     session.execute("file.new", &json!({"pages":1})).unwrap();
     for name in ["P", "Q"] {
-        session.execute("style.paragraph.create", &json!({"name":name})).unwrap();
+        session.execute("style.paragraph.add", &json!({"name":name})).unwrap();
     }
     session.execute("style.paragraph.edit", &json!({"name":"P","nextStyle":"Q"})).unwrap();
     assert_eq!(session.doc().unwrap().doc.styles.para("P").unwrap().next_style.as_deref(), Some("Q"));
@@ -137,7 +137,7 @@ fn editing_a_paragraph_style_sets_its_next_style() {
 fn replacing_a_font_reaches_endnote_text() {
     let mut session = Session::new();
     session.execute("file.new", &json!({"pages":1})).unwrap();
-    let story = session.execute("frame.create", &json!({"rect":[20,20,400,400],"content":"text","text":"Body"})).unwrap()["story"].as_u64().unwrap();
+    let story = session.execute("frame.add", &json!({"rect":[20,20,400,400],"content":"text","text":"Body"})).unwrap()["story"].as_u64().unwrap();
     session.execute("text.select", &json!({"story":story,"anchor":2,"focus":2})).unwrap();
     session.execute("endnote.insert", &json!({"text":"Endnote text"})).unwrap();
     let sid = kition_layout_engine::doc::StoryId(story);
@@ -162,7 +162,7 @@ fn replacing_a_font_reaches_endnote_text() {
 fn placing_an_image_into_a_text_frame_releases_its_story() {
     let mut session = Session::new();
     session.execute("file.new", &json!({"pages":1})).unwrap();
-    let answer = session.execute("frame.create", &json!({"rect":[20,20,200,200],"content":"text","text":"Was text"})).unwrap();
+    let answer = session.execute("frame.add", &json!({"rect":[20,20,200,200],"content":"text","text":"Was text"})).unwrap();
     let (frame, story) = (answer["id"].as_u64().unwrap(), answer["story"].as_u64().unwrap());
     session.execute("file.place", &json!({"frame":frame,"name":"image.png","base64":png(90)})).unwrap();
     let doc = &session.doc().unwrap().doc;
@@ -177,7 +177,7 @@ fn placing_an_image_into_a_text_frame_releases_its_story() {
 fn replacing_a_story_text_drops_its_endnotes() {
     let mut session = Session::new();
     session.execute("file.new", &json!({"pages":1})).unwrap();
-    let story = session.execute("frame.create", &json!({"rect":[20,20,400,400],"content":"text","text":"Body"})).unwrap()["story"].as_u64().unwrap();
+    let story = session.execute("frame.add", &json!({"rect":[20,20,400,400],"content":"text","text":"Body"})).unwrap()["story"].as_u64().unwrap();
     session.execute("text.select", &json!({"story":story,"anchor":2,"focus":2})).unwrap();
     session.execute("endnote.insert", &json!({"text":"Endnote text"})).unwrap();
     session.execute("story.setText", &json!({"story":story,"text":"Replaced"})).unwrap();
@@ -191,12 +191,12 @@ fn replacing_a_story_text_drops_its_endnotes() {
 #[test]
 fn deleting_a_variable_reaches_instances_in_cells() {
     let (mut session, story, table) = table_cell_session();
-    session.execute("variables.define", &json!({"name":"Gone","type":"custom","text":"Gone value"})).unwrap();
-    session.execute("variables.define", &json!({"name":"Kept","type":"custom","text":"Kept value"})).unwrap();
+    session.execute("variable.define", &json!({"name":"Gone","type":"custom","text":"Gone value"})).unwrap();
+    session.execute("variable.define", &json!({"name":"Kept","type":"custom","text":"Kept value"})).unwrap();
     session.execute("table.select", &json!({"story":story,"table":table,"row":0,"col":0})).unwrap();
-    session.execute("variables.insert", &json!({"name":"Gone"})).unwrap();
-    session.execute("variables.insert", &json!({"name":"Kept"})).unwrap();
-    session.execute("variables.delete", &json!({"name":"Gone"})).unwrap();
+    session.execute("variable.insert", &json!({"name":"Gone"})).unwrap();
+    session.execute("variable.insert", &json!({"name":"Kept"})).unwrap();
+    session.execute("variable.delete", &json!({"name":"Gone"})).unwrap();
     let doc = &session.doc().unwrap().doc;
     let kept = doc.variable("Kept").unwrap();
     let cell = &doc.story(kition_layout_engine::doc::StoryId(story)).unwrap().tables[&table].cells[0].text.text;
@@ -212,7 +212,7 @@ fn pasting_text_with_an_endnote_keeps_the_endnote_text() {
     let mut session = Session::new();
     session.execute("file.new", &json!({"pages":1})).unwrap();
     let story =
-        session.execute("frame.create", &json!({"rect":[20,20,400,400],"content":"text","text":"Body text"})).unwrap()["story"].as_u64().unwrap();
+        session.execute("frame.add", &json!({"rect":[20,20,400,400],"content":"text","text":"Body text"})).unwrap()["story"].as_u64().unwrap();
     session.execute("text.select", &json!({"story":story,"anchor":4,"focus":4})).unwrap();
     session.execute("endnote.insert", &json!({"text":"Endnote text"})).unwrap();
     let sid = kition_layout_engine::doc::StoryId(story);

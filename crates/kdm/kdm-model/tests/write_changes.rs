@@ -297,7 +297,7 @@ fn hyperlinks_placeholders_and_named_definitions() {
         d.xref_formats.push(kition_layout_doc::XrefFormat { name: "Title".into(), definition: "<paraText />".into() });
     });
     let back = check_from(linked(), "a variable deleted: its instances shift", |d| {
-        // What `variables.delete` does: the first variable's instances become text, later ones
+        // What `variable.delete` does: the first variable's instances become text, later ones
         // name one place lower.
         let story = linked_story(d);
         let client = var_char(d.text_variables.len() - 1).unwrap();

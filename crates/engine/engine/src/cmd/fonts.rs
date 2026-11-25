@@ -182,10 +182,10 @@ mod tests {
     fn find_and_replace_font() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Some text here."})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Some text here."})).unwrap();
         let sid = s.doc().unwrap().doc.item(kition_layout_doc::ItemId(r["id"].as_u64().unwrap())).unwrap().text_frame().unwrap().story;
         s.execute("text.select", &json!({"story": sid.0, "anchor": 0, "focus": 4})).unwrap();
-        s.execute("type.char", &json!({"fontFamily": "Nonexistent Sans", "fontStyle": "Bold"})).unwrap();
+        s.execute("text.char", &json!({"fontFamily": "Nonexistent Sans", "fontStyle": "Bold"})).unwrap();
         let families = s.execute("font.families", &json!({})).unwrap();
         assert!(families.as_array().unwrap().iter().any(|f| f == "Inter"), "{families}");
         let styles = s.execute("font.families", &json!({"family": "Inter"})).unwrap();
@@ -201,7 +201,7 @@ mod tests {
         let l = s.execute("font.list", &json!({})).unwrap();
         assert!(l.as_array().unwrap().iter().all(|f| f["missing"] == false), "{l}");
         // Style definitions are redefined too.
-        s.execute("style.paragraph.create", &json!({"name": "Odd", "chars": {"fontFamily": "Nonexistent Sans"}})).unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Odd", "chars": {"fontFamily": "Nonexistent Sans"}})).unwrap();
         let r = s.execute("font.replace", &json!({"family": "Nonexistent Sans", "toFamily": avail})).unwrap();
         assert_eq!(r["changed"], 1);
         assert_eq!(s.doc().unwrap().doc.styles.para("Odd").unwrap().chars.font_family.as_deref(), Some(avail.as_str()));
@@ -213,10 +213,10 @@ mod tests {
     fn a_family_with_a_format_suffix_uses_the_plain_family() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Some text here."})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Some text here."})).unwrap();
         let sid = s.doc().unwrap().doc.item(kition_layout_doc::ItemId(r["id"].as_u64().unwrap())).unwrap().text_frame().unwrap().story;
         s.execute("text.select", &json!({"story": sid.0, "anchor": 0, "focus": 15})).unwrap();
-        s.execute("type.char", &json!({"fontFamily": "Source Serif 4 (OTF)", "fontStyle": "Bold"})).unwrap();
+        s.execute("text.char", &json!({"fontFamily": "Source Serif 4 (OTF)", "fontStyle": "Bold"})).unwrap();
         let l = s.execute("font.list", &json!({})).unwrap();
         let entry = l.as_array().unwrap().iter().find(|f| f["family"] == "Source Serif 4 (OTF)").unwrap();
         assert_eq!((&entry["missing"], &entry["styleMissing"], &entry["source"]), (&json!(false), &json!(false), &json!("bundled")), "{l}");
@@ -236,7 +236,7 @@ mod tests {
         assert!(!kinds(&mut s).iter().any(|k| k == "missingFont"));
 
         s.execute("text.select", &json!({"story": sid.0, "anchor": 0, "focus": 4})).unwrap();
-        s.execute("type.char", &json!({"fontFamily": "Nope (OTF)"})).unwrap();
+        s.execute("text.char", &json!({"fontFamily": "Nope (OTF)"})).unwrap();
         let l = s.execute("font.list", &json!({})).unwrap();
         assert_eq!((&l[0]["family"], &l[0]["missing"]), (&json!("Nope (OTF)"), &json!(true)), "{l}");
         assert!(kinds(&mut s).iter().any(|k| k == "missingFont"));

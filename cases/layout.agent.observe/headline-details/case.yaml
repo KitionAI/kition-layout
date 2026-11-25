@@ -2,7 +2,7 @@ format: 1
 id: layout.agent.observe/headline-details
 feature: layout.agent.observe
 intent: >-
-  The agent reads the headline through the kit (the stories in document.inspect) and reuses it in a new text frame on the page, leaving the headline and the rectangle as they were.
+  The agent reads the headline through the kit (the stories in file.inspect) and reuses it in a new text frame on the page, leaving the headline and the rectangle as they were.
 layer: eval
 source:
   kind: synthetic
@@ -34,6 +34,6 @@ expected:
       details.spreads.0.items: { any: { kind: "<rectangle>", bounds: [72, 200, 540, 260] } }
 solution:
   - tool: layout_run
-    args: { path: poster.klayout, steps: [{ command: frame.create, params: { content: text, rect: [72, 300, 540, 360], text: Spring concert – details } }] }
+    args: { path: poster.klayout, steps: [{ command: frame.add, params: { content: text, rect: [72, 300, 540, 360], text: Spring concert – details } }] }
 since: "2026-11-17"
 timeout_s: 600

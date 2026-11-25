@@ -15,11 +15,11 @@ use crate::{EngineError, Result, Session};
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!(query "links.list", "Links", [], None, "{} → [{asset, name, path, status: ok|modified|missing|embedded, pixels, uses: [{id, page, ppi}]}]", has_doc, |s, _| {
+        cmd!(query "linkedFile.list", "Links", [], None, "{} → [{asset, name, path, status: ok|modified|missing|embedded, pixels, uses: [{id, page, ppi}]}]", has_doc, |s, _| {
             Ok(Value::Array(list(&s.doc()?.doc)))
         }),
         cmd!(
-            "links.relink",
+            "linkedFile.relink",
             "Relink…",
             ["Window", "Links"],
             None,
@@ -28,7 +28,7 @@ pub fn specs() -> Vec<CommandSpec> {
             relink
         ),
         cmd!(
-            "links.relinkFolder",
+            "linkedFile.relinkFolder",
             "Relink to Folder…",
             ["Window", "Links"],
             None,
@@ -37,7 +37,7 @@ pub fn specs() -> Vec<CommandSpec> {
             relink_folder
         ),
         cmd!(
-            "links.update",
+            "linkedFile.update",
             "Update Link",
             ["Window", "Links"],
             None,
@@ -45,20 +45,20 @@ pub fn specs() -> Vec<CommandSpec> {
             has_doc,
             update
         ),
-        cmd!("links.embed", "Embed Link", ["Window", "Links"], None, "{asset} — keep only the copy in the document", has_doc, |s, p| {
-            let aid = asset_param(p, "links.embed")?;
+        cmd!("linkedFile.embed", "Embed Link", ["Window", "Links"], None, "{asset} — keep only the copy in the document", has_doc, |s, p| {
+            let aid = asset_param(p, "linkedFile.embed")?;
             s.edit(|d, _| {
-                let a = d.assets.get_mut(&aid).ok_or_else(|| bad("links.embed", "no such graphic"))?;
+                let a = d.assets.get_mut(&aid).ok_or_else(|| bad("linkedFile.embed", "no such graphic"))?;
                 Arc::make_mut(a).link = None;
                 Ok(Value::Null)
             })
         }),
-        cmd!(noundo "links.goTo", "Go To Link", ["Window", "Links"], None, "{asset} — selects the frames showing the graphic", has_doc, |s, p| {
-            let aid = asset_param(p, "links.goTo")?;
+        cmd!(noundo "linkedFile.goTo", "Go To Link", ["Window", "Links"], None, "{asset} — selects the frames showing the graphic", has_doc, |s, p| {
+            let aid = asset_param(p, "linkedFile.goTo")?;
             let st = s.doc_mut()?;
             let ids = uses(&st.doc, aid);
             if ids.is_empty() {
-                return Err(bad("links.goTo", "the graphic isn't placed"));
+                return Err(bad("linkedFile.goTo", "the graphic isn't placed"));
             }
             st.selection = Selection::items(ids.clone());
             st.revision += 1;
@@ -155,12 +155,12 @@ fn reload(path: &str) -> Result<(Vec<u8>, (u32, u32))> {
 }
 
 fn relink(s: &mut Session, p: &Value) -> Result<Value> {
-    let aid = asset_param(p, "links.relink")?;
-    let path = str_param(p, "path").ok_or_else(|| bad("links.relink", "missing path"))?.to_string();
+    let aid = asset_param(p, "linkedFile.relink")?;
+    let path = str_param(p, "path").ok_or_else(|| bad("linkedFile.relink", "missing path"))?.to_string();
     let (bytes, px) = reload(&path)?;
     let name = std::path::Path::new(&path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| path.clone());
     s.edit(|d, _| {
-        let a = d.assets.get_mut(&aid).ok_or_else(|| bad("links.relink", "no such graphic"))?;
+        let a = d.assets.get_mut(&aid).ok_or_else(|| bad("linkedFile.relink", "no such graphic"))?;
         let a = Arc::make_mut(a);
         a.mime = kition_layout_render::image_mime(&bytes).to_string();
         a.data = Arc::new(bytes.clone());
@@ -175,11 +175,11 @@ fn relink_folder(s: &mut Session, p: &Value) -> Result<Value> {
     let dir = str_param(p, "dir").map(std::path::PathBuf::from);
     let ext = str_param(p, "extension").map(|e| e.trim_start_matches('.').to_string());
     if dir.is_none() && ext.is_none() {
-        return Err(bad("links.relinkFolder", "give `dir` and/or `extension`"));
+        return Err(bad("linkedFile.relinkFolder", "give `dir` and/or `extension`"));
     }
     if dir.is_some() {
         // A folder is listed and searched by path: a hosted session has none.
-        crate::disk::need("links.relinkFolder")?;
+        crate::disk::need("linkedFile.relinkFolder")?;
     }
     let missing_only = p.get("missingOnly").and_then(Value::as_bool).unwrap_or(dir.is_some() && ext.is_none());
     let only: Option<Vec<u64>> = p.get("assets").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_u64).collect());
@@ -260,28 +260,28 @@ mod tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         s.execute("file.place", &json!({"path": a.to_string_lossy(), "x": 72, "y": 72, "width": 72})).unwrap();
-        let l = s.execute("links.list", &json!({})).unwrap();
+        let l = s.execute("linkedFile.list", &json!({})).unwrap();
         assert_eq!(l[0]["status"], "ok");
         assert_eq!(l[0]["uses"][0]["ppi"], 10.0, "10 px over 1 inch");
         let aid = l[0]["asset"].as_u64().unwrap();
         // The file changes on disk.
         std::fs::write(&a, png(30, 10)).unwrap();
-        assert_eq!(s.execute("links.list", &json!({})).unwrap()[0]["status"], "modified");
-        s.execute("links.update", &json!({})).unwrap();
-        let l = s.execute("links.list", &json!({})).unwrap();
+        assert_eq!(s.execute("linkedFile.list", &json!({})).unwrap()[0]["status"], "modified");
+        s.execute("linkedFile.update", &json!({})).unwrap();
+        let l = s.execute("linkedFile.list", &json!({})).unwrap();
         assert_eq!(l[0]["status"], "ok");
         assert_eq!(l[0]["pixels"], json!([30, 10]));
         // Missing, then relinked.
         std::fs::remove_file(&a).unwrap();
-        assert_eq!(s.execute("links.list", &json!({})).unwrap()[0]["status"], "missing");
-        s.execute("links.relink", &json!({"asset": aid, "path": b.to_string_lossy()})).unwrap();
-        let l = s.execute("links.list", &json!({})).unwrap();
+        assert_eq!(s.execute("linkedFile.list", &json!({})).unwrap()[0]["status"], "missing");
+        s.execute("linkedFile.relink", &json!({"asset": aid, "path": b.to_string_lossy()})).unwrap();
+        let l = s.execute("linkedFile.list", &json!({})).unwrap();
         assert_eq!((l[0]["status"].as_str(), l[0]["name"].as_str()), (Some("ok"), Some("b.png")));
         // Go to selects the frame; embed forgets the file.
-        let r = s.execute("links.goTo", &json!({"asset": aid})).unwrap();
+        let r = s.execute("linkedFile.goTo", &json!({"asset": aid})).unwrap();
         assert_eq!(r["ids"].as_array().unwrap().len(), 1);
-        s.execute("links.embed", &json!({"asset": aid})).unwrap();
-        assert_eq!(s.execute("links.list", &json!({})).unwrap()[0]["status"], "embedded");
+        s.execute("linkedFile.embed", &json!({"asset": aid})).unwrap();
+        assert_eq!(s.execute("linkedFile.list", &json!({})).unwrap()[0]["status"], "embedded");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
@@ -306,12 +306,12 @@ mod relink_folder_tests {
         s.execute("file.place", &json!({"path": orig.to_string_lossy()})).unwrap();
         // The file moves away: relink from the new folder.
         std::fs::rename(&orig, dir.join("new").join("logo.svg")).unwrap();
-        let r = s.execute("links.relinkFolder", &json!({"dir": dir.join("new").to_string_lossy()})).unwrap();
+        let r = s.execute("linkedFile.relinkFolder", &json!({"dir": dir.join("new").to_string_lossy()})).unwrap();
         assert_eq!(r["relinked"], 1);
         let link = s.doc().unwrap().doc.assets.values().next().unwrap().link.clone().unwrap();
         assert!(link.contains("new"), "{link}");
         // Relink File Extension: the same name as .png doesn't exist → reported.
-        let r = s.execute("links.relinkFolder", &json!({"extension": "png"})).unwrap();
+        let r = s.execute("linkedFile.relinkFolder", &json!({"extension": "png"})).unwrap();
         assert_eq!(r["relinked"], 0);
         assert_eq!(r["notFound"], json!(["logo.png"]));
         let _ = std::fs::remove_dir_all(&dir);

@@ -7,11 +7,11 @@ use serde_json::json;
 #[test]
 fn object_find_resolves_layer_addresses_and_names() {
     let mut doc = LayoutDocument::create("Find.klayout", 612, 792).unwrap();
-    let a = doc.execute("frame.create", json!({"rect":[20,20,60,60]})).unwrap()["id"].clone();
+    let a = doc.execute("frame.add", json!({"rect":[20,20,60,60]})).unwrap()["id"].clone();
     let layer = doc.execute("layer.new", json!({"name":"Find layer"})).unwrap()["id"].clone();
-    doc.execute("frame.create", json!({"rect":[80,20,120,60]})).unwrap();
+    doc.execute("frame.add", json!({"rect":[80,20,120,60]})).unwrap();
     for address in [json!("Layer 1"), json!(1), json!("1")] {
-        assert_eq!(doc.execute("find.objects", json!({"layer":address,"select":false})).unwrap()["ids"], json!([a]), "{address}");
+        assert_eq!(doc.execute("edit.findObjects", json!({"layer":address,"select":false})).unwrap()["ids"], json!([a]), "{address}");
     }
-    assert_eq!(doc.execute("find.changeObjects", json!({"layer":layer,"change":{"opacity":0.25}})).unwrap()["changed"], 1);
+    assert_eq!(doc.execute("edit.replaceObjects", json!({"layer":layer,"change":{"opacity":0.25}})).unwrap()["changed"], 1);
 }

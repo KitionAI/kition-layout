@@ -13,7 +13,7 @@ const remembered = new Map<string, ParamValues>()
 function documentChoices(command: string, key: string, info: DocumentInfo, variables: readonly string[]): readonly string[] | null {
   if (key === 'parent') return ['', ...info.parents.map((parent) => parent.label ?? '').filter(Boolean)]
   if (key === 'style' && info.paragraphStyles.length) return ['', ...info.paragraphStyles]
-  if (command === 'variables.insert' && key === 'name') return variables
+  if (command === 'variable.insert' && key === 'name') return variables
   return null
 }
 
@@ -27,8 +27,8 @@ export function ParamsDialog({ command, info, values: given, fixed, onClose }: {
   const words = useKitEditor()
   const run = useRunInDialog()
   // Insert Variable offers the document's text variables.
-  const listed = useEngineQuery<Array<{ name: string }>>(command.id === 'variables.insert' ? 'variables.list' : 'style.list', {}, command.id)
-  const variables = useMemo(() => (command.id === 'variables.insert' && Array.isArray(listed) ? listed.map((variable) => variable.name) : []), [command.id, listed])
+  const listed = useEngineQuery<Array<{ name: string }>>(command.id === 'variable.insert' ? 'variable.list' : 'style.list', {}, command.id)
+  const variables = useMemo(() => (command.id === 'variable.insert' && Array.isArray(listed) ? listed.map((variable) => variable.name) : []), [command.id, listed])
   const fields = useMemo<ParamField[]>(
     () =>
       paramFields(command).map((field) => {

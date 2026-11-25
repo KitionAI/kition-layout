@@ -44,7 +44,7 @@ async fn review3_xml_delete_tag_holds_the_tagged_items() {
                     colleague_by(
                         &f,
                         outside,
-                        &[("frame.create", json!({"rect":[400,400,440,440],"content":"unassigned"})), ("xml.tag", json!({"tag":"story"}))],
+                        &[("frame.add", json!({"rect":[400,400,440,440],"content":"unassigned"})), ("xml.tag", json!({"tag":"story"}))],
                     )
                     .await
                 }
@@ -72,7 +72,7 @@ async fn review3_compound_and_split_hold_ancestor_transforms() {
         for (command, params) in [("path.split", json!({"at":[40,20]})), ("object.gradientFeather", json!({"from":[20,40],"to":[60,40]}))] {
             for needed in [true, false] {
                 let f = Fixture::new(Guard::Premise);
-                let group = prepare(&f, &[("object.group", json!({"ids":[f.a,f.b]}))]).remove(0)["id"].clone();
+                let group = prepare(&f, &[("arrange.group", json!({"ids":[f.a,f.b]}))]).remove(0)["id"].clone();
                 let basis = f.basis().await;
                 colleague_by(
                     &f,
@@ -105,7 +105,7 @@ async fn review3_toc_generate_holds_its_style_names() {
     for form in [json!({"styles":["Review"]}), json!({"entries":[{"style":"Review","level":1}]})] {
         for needed in [true, false] {
             let f = Fixture::new(Guard::Premise);
-            prepare(&f, &[("style.paragraph.create", json!({"name":"Review"})), ("style.paragraph.create", json!({"name":"Other"}))]);
+            prepare(&f, &[("style.paragraph.add", json!({"name":"Review"})), ("style.paragraph.add", json!({"name":"Other"}))]);
             let basis = f.basis().await;
             f.colleague(&[if needed {
                 ("style.paragraph.edit", json!({"name":"Review","rename":"Gone"}))
@@ -158,13 +158,13 @@ async fn review3_alternate_layouts_hold_their_pages_and_sources() {
         ("layout.deleteAlternate", true, true),
         ("layout.deleteAlternate", true, false),
         ("layout.deleteAlternate", false, true),
-        ("layout.createAlternate", true, true),
-        ("layout.createAlternate", true, false),
-        ("layout.createAlternate", false, true),
+        ("layout.addAlternate", true, true),
+        ("layout.addAlternate", true, false),
+        ("layout.addAlternate", false, true),
     ] {
         let f = Fixture::new(Guard::Premise);
         let first = if command == "layout.deleteAlternate" {
-            prepare(&f, &[("layout.createAlternate", json!({"name":"Phone","width":300,"height":500}))]).remove(0)["firstPage"].clone()
+            prepare(&f, &[("layout.addAlternate", json!({"name":"Phone","width":300,"height":500}))]).remove(0)["firstPage"].clone()
         } else {
             json!(1)
         };
@@ -175,12 +175,12 @@ async fn review3_alternate_layouts_hold_their_pages_and_sources() {
             outside,
             &[if needed {
                 if command == "layout.deleteAlternate" {
-                    ("frame.create", json!({"rect":[20,20,60,60],"content":"unassigned","spread":spread}))
+                    ("frame.add", json!({"rect":[20,20,60,60],"content":"unassigned","spread":spread}))
                 } else {
-                    ("edit.clear", json!({"ids":[f.a]}))
+                    ("edit.delete", json!({"ids":[f.a]}))
                 }
             } else {
-                ("swatch.create", json!({"name":"Unrelated","color":{"c":0,"m":0,"y":100,"k":0}}))
+                ("swatch.add", json!({"name":"Unrelated","color":{"c":0,"m":0,"y":100,"k":0}}))
             }],
         )
         .await;
@@ -331,7 +331,7 @@ async fn review3_layer_deletion_is_held_per_layer() {
                 &if change.starts_with("moved") {
                     vec![("object.setLayer", json!({"ids":[f.c],"layer":target}))]
                 } else {
-                    vec![("layer.activate", json!({"id":target})), ("frame.create", json!({"rect":[400,400,440,440],"content":"unassigned"}))]
+                    vec![("layer.activate", json!({"id":target})), ("frame.add", json!({"rect":[400,400,440,440],"content":"unassigned"}))]
                 },
             )
             .await;
@@ -353,7 +353,7 @@ async fn waiting_for_sdk_root_composition_frames_are_compared_whole() {
     // a premise's sub-path or lets a kit name the objects whose derived values a change affects.
     for outside in [true, false] {
         let f = Fixture::new(Guard::Premise);
-        let frame = prepare(&f, &[("frame.create", json!({"rect":[20,20,250,200],"content":"text","text":"Words to fit."}))]).remove(0);
+        let frame = prepare(&f, &[("frame.add", json!({"rect":[20,20,250,200],"content":"text","text":"Words to fit."}))]).remove(0);
         let basis = f.basis().await;
         let other =
             f.disk().inspect().unwrap()["stories"].as_array().unwrap().iter().find(|story| story["id"] == f.story).unwrap()["frames"][0].clone();

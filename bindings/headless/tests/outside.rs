@@ -50,18 +50,18 @@ impl Fixture {
         let mut doc = LayoutDocument::create(FILE, 612, 792).unwrap();
         let mut frames = Vec::new();
         for (n, rect) in [[20, 20, 60, 60], [100, 20, 140, 60], [300, 300, 340, 340]].into_iter().enumerate() {
-            let id = doc.execute("frame.create", json!({"rect":rect,"content":"unassigned"})).unwrap()["id"].clone();
+            let id = doc.execute("frame.add", json!({"rect":rect,"content":"unassigned"})).unwrap()["id"].clone();
             doc.execute("object.rename", json!({"id":id,"name":format!("F{n}")})).unwrap();
             frames.push(id);
         }
         for name in ["A", "B"] {
-            doc.execute("style.character.create", json!({"name":name,"chars":{"size":12}})).unwrap();
+            doc.execute("style.character.add", json!({"name":name,"chars":{"size":12}})).unwrap();
         }
         for name in ["L1", "L2", "L3"] {
             doc.execute("layer.new", json!({"name":name})).unwrap();
         }
         doc.execute("layout.pages.insert", json!({"count":5})).unwrap();
-        let story = doc.execute("frame.create", json!({"rect":[20,500,300,700],"content":"text","text":"0123456789"})).unwrap()["story"].clone();
+        let story = doc.execute("frame.add", json!({"rect":[20,500,300,700],"content":"text","text":"0123456789"})).unwrap()["story"].clone();
         let layers = doc.inspect().unwrap()["layers"].as_array().unwrap().iter().map(|layer| layer["id"].clone()).collect();
         std::fs::write(root.join(FILE), doc.save(None).unwrap()).unwrap();
         let kit = KitDefinition::from_manifest_text(include_str!("../../../kit.json")).unwrap();
@@ -132,7 +132,7 @@ async fn same_field_is_changed_and_deleted_target_is_deleted() {
     for deleted in [false, true] {
         let f = Fixture::new(Guard::Premise);
         let basis = f.basis().await;
-        f.colleague(&[if deleted { ("edit.clear", json!({"ids":[f.a]})) } else { ("object.rename", json!({"id":f.a,"name":"Theirs"})) }]);
+        f.colleague(&[if deleted { ("edit.delete", json!({"ids":[f.a]})) } else { ("object.rename", json!({"id":f.a,"name":"Theirs"})) }]);
         let error = f.write(basis, "object.rename", json!({"id":f.a,"name":"Mine"})).await.unwrap_err();
         conflict(&error, if deleted { "deleted" } else { "changed" });
         f.close().await;
@@ -195,7 +195,7 @@ async fn target_motion_refuses_by_id_and_by_point() {
 async fn moving_a_parent_refuses_a_child_move() {
     let f = Fixture::new(Guard::Premise);
     let mut doc = f.disk();
-    let group = doc.execute("object.group", json!({"ids":[f.a,f.b]})).unwrap()["id"].clone();
+    let group = doc.execute("arrange.group", json!({"ids":[f.a,f.b]})).unwrap()["id"].clone();
     std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
     let basis = f.basis().await;
     f.colleague(&[("transform.move", json!({"ids":[group],"dx":20,"dy":0}))]);
@@ -302,8 +302,8 @@ fn change(f: &Fixture, kind: usize, round: usize) -> (&'static str, Value) {
         2 => ("object.opacity", json!({"ids":[f.a],"opacity":0.5})),
         3 => ("transform.move", json!({"ids":[f.a],"dx":200,"dy":0})),
         4 => ("transform.move", json!({"ids":[f.c],"dx":10,"dy":0})),
-        5 => ("frame.create", json!({"rect":[400,400,440,440],"content":"unassigned"})),
-        6 => ("edit.clear", json!({"ids":[f.c]})),
+        5 => ("frame.add", json!({"rect":[400,400,440,440],"content":"unassigned"})),
+        6 => ("edit.delete", json!({"ids":[f.c]})),
         7 => ("style.character.edit", json!({"name":"A","rename":"Gone"})),
         8 => ("layer.set", json!({"id":f.layers[0],"name":"Changed"})),
         9 => ("object.hide", json!({"ids":[f.a]})),
@@ -318,7 +318,7 @@ fn write(f: &Fixture, form: usize) -> (&'static str, Value) {
         0 => ("object.rename", json!({"id":f.a,"name":"Mine"})),
         1 => ("style.character.edit", json!({"name":"A","chars":{"size":18}})),
         2 => ("gap.move", json!({"at":[80,40],"delta":2})),
-        3 => ("object.group", json!({"ids":[f.a,f.b]})),
+        3 => ("arrange.group", json!({"ids":[f.a,f.b]})),
         4 => ("layout.pageSize", json!({"pages":[3],"width":400})),
         _ => ("story.replaceRange", json!({"story":f.story,"start":4,"end":6,"text":"Mine"})),
     }
@@ -393,10 +393,10 @@ async fn receipt_bytes_and_saved_values() {
         let mut doc = f.disk();
         let mut ids = vec![f.a.clone()];
         for n in 1..children {
-            ids.push(doc.execute("frame.create", json!({"rect":[10+n,100,20+n,110],"content":"unassigned"})).unwrap()["id"].clone());
+            ids.push(doc.execute("frame.add", json!({"rect":[10+n,100,20+n,110],"content":"unassigned"})).unwrap()["id"].clone());
         }
         if group {
-            ids = vec![doc.execute("object.group", json!({"ids":ids})).unwrap()["id"].clone()];
+            ids = vec![doc.execute("arrange.group", json!({"ids":ids})).unwrap()["id"].clone()];
         }
         std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
         let basis = f.basis().await;

@@ -55,33 +55,33 @@ const EXTRA: &[(&str, &[(&str, Kind)])] = &[
     ("file.open", &[("base64", Kind::String), ("name", Kind::String)]),
     ("file.openIdml", &[("dir", Kind::String), ("instructions", Kind::String), ("idml", Kind::Boolean), ("pdf", Kind::Boolean)]),
     ("file.place", &[("height", Kind::Number), ("rect", Kind::Array), ("autoflow", Kind::Boolean), ("page", Kind::Integer)]),
-    ("find.next", &[("wholeWord", Kind::Boolean), ("caseSensitive", Kind::Boolean), ("scope", Kind::String), ("story", Kind::Integer)]),
+    ("edit.findNext", &[("wholeWord", Kind::Boolean), ("caseSensitive", Kind::Boolean), ("scope", Kind::String), ("story", Kind::Integer)]),
     ("footnote.options", &[("text", Kind::String)]),
     ("form.set", &[("autoflow", Kind::Boolean), ("keepLoaded", Kind::Boolean)]),
-    ("frame.create", &[("starInset", Kind::Number)]),
+    ("frame.add", &[("starInset", Kind::Number)]),
     ("frame.thread", &[("position", Kind::String), ("at", Kind::Integer), ("spreadGuide", Kind::Boolean), ("orientation", Kind::String)]),
     ("guide.list", &[("orientation", Kind::String)]),
     ("index.update", &[("asset", Kind::Integer)]),
     ("ink.options", &[("story", Kind::Integer)]),
-    ("layout.createGuides", &[("story", Kind::Integer)]),
+    ("layout.addGuides", &[("story", Kind::Integer)]),
     ("layout.marginsAndColumns", &[("story", Kind::Integer)]),
     ("layout.overrideParentItems", &[("story", Kind::Integer)]),
     ("layout.pages.duplicateSpread", &[("to", Kind::String)]),
     ("library.place", &[("base64", Kind::String)]),
-    ("links.copyTo", &[("story", Kind::Integer), ("path", Kind::String), ("asset", Kind::Integer)]),
-    ("links.update", &[("story", Kind::Integer)]),
+    ("linkedFile.copyTo", &[("story", Kind::Integer), ("path", Kind::String), ("asset", Kind::Integer)]),
+    ("linkedFile.update", &[("story", Kind::Integer)]),
     ("liquid.pageRule", &[("story", Kind::Integer)]),
     ("math.insert", &[("id", Kind::IndexOrName)]),
     ("media.options", &[("what", Kind::String)]),
-    ("object.bringForward", &[("to", Kind::String)]),
-    ("object.bringToFront", &[("to", Kind::String)]),
+    ("arrange.bringForward", &[("to", Kind::String)]),
+    ("arrange.bringToFront", &[("to", Kind::String)]),
     ("object.directionalFeather", &[("story", Kind::Integer)]),
     ("object.exportOptions", &[("edge", Kind::String), ("to", Kind::String)]),
     ("object.fittingOptions", &[("edge", Kind::String), ("to", Kind::String)]),
     ("object.layerOptions", &[("story", Kind::Integer), ("what", Kind::String)]),
     ("object.primaryTextFrame", &[("what", Kind::String)]),
-    ("object.sendBackward", &[("to", Kind::String)]),
-    ("object.sendToBack", &[("to", Kind::String)]),
+    ("arrange.sendBackward", &[("to", Kind::String)]),
+    ("arrange.sendToBack", &[("to", Kind::String)]),
     ("object.stroke", &[("edge", Kind::String), ("to", Kind::String)]),
     ("page.transition", &[("story", Kind::Integer)]),
     (
@@ -106,14 +106,14 @@ const EXTRA: &[(&str, &[(&str, Kind)])] = &[
     ("select.nextInGroup", &[("what", Kind::String)]),
     ("select.previousInGroup", &[("what", Kind::String)]),
     ("snippet.place", &[("name", Kind::String)]),
-    ("states.create", &[("what", Kind::String), ("id", Kind::IndexOrName)]),
+    ("state.add", &[("what", Kind::String), ("id", Kind::IndexOrName)]),
     ("story.get", &[("lines", Kind::Integer)]),
     ("story.setDirection", &[("frame", Kind::IndexOrName)]),
     ("strokeStyle.new", &[("story", Kind::Integer)]),
     ("style.cell.apply", &[("rows", Kind::Integer), ("cols", Kind::Integer)]),
     ("style.compositeFont.set", &[("story", Kind::Integer), ("autoflow", Kind::Boolean), ("keepLoaded", Kind::Boolean)]),
     ("style.table.apply", &[("rows", Kind::Integer), ("cols", Kind::Integer)]),
-    ("style.table.create", &[("basedOn", Kind::String)]),
+    ("style.table.add", &[("basedOn", Kind::String)]),
     ("swatch.save", &[("story", Kind::Integer)]),
     ("table.convertFromText", &[("width", Kind::Number)]),
     ("table.convertToText", &[("rows", Kind::Integer), ("cols", Kind::Integer), ("table", Kind::Integer), ("story", Kind::Integer)]),
@@ -141,15 +141,15 @@ const EXTRA: &[(&str, &[(&str, Kind)])] = &[
     ("tool.select", &[("what", Kind::String)]),
     ("transform.again", &[("copy", Kind::Boolean)]),
     ("transform.resize", &[("axis", Kind::String), ("by", Kind::String), ("spacing", Kind::Number)]),
-    ("type.align", &[("edge", Kind::String), ("to", Kind::String), ("text", Kind::String), ("raw", Kind::Boolean)]),
-    ("type.alignCenter", &[("text", Kind::String), ("raw", Kind::Boolean), ("edge", Kind::String), ("to", Kind::String)]),
-    ("type.alignLeft", &[("text", Kind::String), ("raw", Kind::Boolean), ("edge", Kind::String), ("to", Kind::String)]),
-    ("type.alignRight", &[("text", Kind::String), ("raw", Kind::Boolean), ("edge", Kind::String), ("to", Kind::String)]),
-    ("type.fillWithPlaceholder", &[("story", Kind::Integer)]),
-    ("type.justify", &[("text", Kind::String), ("raw", Kind::Boolean), ("edge", Kind::String), ("to", Kind::String)]),
-    ("type.onPath", &[("edge", Kind::String), ("to", Kind::String)]),
-    ("type.pathOptions", &[("edge", Kind::String), ("to", Kind::String)]),
-    ("type.warichu", &[("edge", Kind::String), ("to", Kind::String), ("text", Kind::String), ("raw", Kind::Boolean)]),
+    ("text.align", &[("edge", Kind::String), ("to", Kind::String), ("text", Kind::String), ("raw", Kind::Boolean)]),
+    ("format.alignCenter", &[("text", Kind::String), ("raw", Kind::Boolean), ("edge", Kind::String), ("to", Kind::String)]),
+    ("format.alignLeft", &[("text", Kind::String), ("raw", Kind::Boolean), ("edge", Kind::String), ("to", Kind::String)]),
+    ("format.alignRight", &[("text", Kind::String), ("raw", Kind::Boolean), ("edge", Kind::String), ("to", Kind::String)]),
+    ("text.fillWithPlaceholder", &[("story", Kind::Integer)]),
+    ("format.justify", &[("text", Kind::String), ("raw", Kind::Boolean), ("edge", Kind::String), ("to", Kind::String)]),
+    ("text.onPath", &[("edge", Kind::String), ("to", Kind::String)]),
+    ("text.pathOptions", &[("edge", Kind::String), ("to", Kind::String)]),
+    ("text.warichu", &[("edge", Kind::String), ("to", Kind::String), ("text", Kind::String), ("raw", Kind::Boolean)]),
     ("xml.tag", &[("what", Kind::String)]),
     ("xml.tagText", &[("what", Kind::String)]),
 ];
@@ -164,7 +164,7 @@ pub fn complete(id: &str, schema: &mut Value) {
             json!({"oneOf":[{"type":"string","x-khp-name":"parentLabel","x-khp-types":["Spread"]},{"type":"null"}],"description":"parent prefix or full prefix-name label; null clears"}),
         );
     }
-    if matches!(id, "style.cell.create" | "style.cell.edit") {
+    if matches!(id, "style.cell.add" | "style.cell.edit") {
         for (key, node) in [
             ("basedOn", Kind::String.node()),
             ("tint", Kind::Number.node()),
@@ -174,7 +174,7 @@ pub fn complete(id: &str, schema: &mut Value) {
             properties.entry(key).or_insert(node);
         }
     }
-    if matches!(id, "style.table.create" | "style.table.edit") {
+    if matches!(id, "style.table.add" | "style.table.edit") {
         for key in ["spaceBefore", "spaceAfter"] {
             properties.entry(key).or_insert_with(|| Kind::Number.node());
         }
@@ -183,7 +183,7 @@ pub fn complete(id: &str, schema: &mut Value) {
         properties.entry(*key).or_insert_with(|| kind.node());
     }
     if (id.starts_with("table.") && !matches!(id, "table.insert" | "table.convertFromText" | "table.dropCells"))
-        || matches!(id, "style.cell.create" | "style.cell.apply" | "style.table.apply")
+        || matches!(id, "style.cell.add" | "style.cell.apply" | "style.table.apply")
     {
         for key in ["story", "table", "row", "col"] {
             properties.entry(key).or_insert_with(|| Kind::Integer.node());

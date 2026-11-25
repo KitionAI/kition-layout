@@ -19,9 +19,9 @@ pub fn class(command: &str, field: &str) -> &'static str {
         || field.contains("setup.rightToLeftBinding")
         || matches!(
             command,
-            "type.sizeUp"
-                | "type.sizeDown"
-                | "type.openType"
+            "format.increaseFontSize"
+                | "format.decreaseFontSize"
+                | "text.openType"
                 | "style.breakLink"
                 | "table.insert"
                 | "table.convertFromText"
@@ -32,22 +32,22 @@ pub fn class(command: &str, field: &str) -> &'static str {
         "default"
     } else if matches!(
         command,
-        "edit.clear"
+        "edit.delete"
             | "edit.copy"
             | "edit.cut"
             | "edit.paste"
             | "edit.pasteInPlace"
             | "edit.pasteWithoutFormatting"
             | "object.textFrameOptions"
-            | "type.pathOptions"
-            | "type.para"
-            | "style.paragraph.create"
-            | "style.cell.create"
+            | "text.pathOptions"
+            | "text.para"
+            | "style.paragraph.add"
+            | "style.cell.add"
             | "style.cell.edit"
             | "style.table.edit"
     ) {
         "two paths"
-    } else if matches!(command, "xref.insert" | "xref.setFormat" | "variables.insert" | "condition.apply")
+    } else if matches!(command, "xref.insert" | "xref.setFormat" | "variable.insert" | "condition.apply")
         && matches!(field.split(['.', '[']).next(), Some("xrefFormats" | "textVariables" | "conditions"))
     {
         "value naming another object"
@@ -99,7 +99,7 @@ pub fn project(check: &Check) -> Projection {
 
 fn project_inner(check: &Check, report: &mut Projection) -> Result<(), String> {
     let mut fixture = Fixture::new(check.id, &mut report.notes)?;
-    if matches!(check.id, "style.cell.create" | "style.cell.apply" | "style.cell.edit" | "style.table.apply" | "style.table.edit") {
+    if matches!(check.id, "style.cell.add" | "style.cell.apply" | "style.cell.edit" | "style.table.apply" | "style.table.edit") {
         fixture.execute("table.select", r#"{"story":"$TABLESTORY","table":"$TABLE","row":0,"col":0}"#)?;
     }
     for (command, params) in check.setup {
@@ -210,18 +210,18 @@ impl Fixture {
         let mut tokens = BTreeMap::from([("$ROOT".to_owned(), json!("layout"))]);
         // A has siblings on both sides in stacking order; the horizontal gaps are unequal.
         for (role, rect) in [("$B", [140, 10, 230, 100]), ("$A", [10, 10, 100, 100]), ("$C", [300, 10, 390, 100])] {
-            let answer = doc.execute("frame.create", json!({"rect":rect,"content":"unassigned","caret":false}))?;
+            let answer = doc.execute("frame.add", json!({"rect":rect,"content":"unassigned","caret":false}))?;
             tokens.insert(role.to_owned(), member(&answer, "id")?);
         }
-        let frame = doc.execute("frame.create", json!({"rect":[10,150,300,300],"content":"text","text":"Layout audit text.","caret":false}))?;
+        let frame = doc.execute("frame.add", json!({"rect":[10,150,300,300],"content":"text","text":"Layout audit text.","caret":false}))?;
         tokens.insert("$FRAME".to_owned(), member(&frame, "id")?);
         tokens.insert("$STORY".to_owned(), member(&frame, "story")?);
         let other = doc.execute("layer.new", json!({"name":"Other"}))?;
         tokens.insert("$OTHER_LAYER".to_owned(), member(&other, "id")?);
-        doc.execute("swatch.create", json!({"name":"Ink","color":"#108080"}))?;
-        doc.execute("style.paragraph.create", json!({"name":"Body"}))?;
-        doc.execute("style.character.create", json!({"name":"Em","chars":{"size":14}}))?;
-        let table_frame = doc.execute("frame.create", json!({"rect":[10,350,400,650],"content":"text","text":"Table source","caret":false}))?;
+        doc.execute("swatch.add", json!({"name":"Ink","color":"#108080"}))?;
+        doc.execute("style.paragraph.add", json!({"name":"Body"}))?;
+        doc.execute("style.character.add", json!({"name":"Em","chars":{"size":14}}))?;
+        let table_frame = doc.execute("frame.add", json!({"rect":[10,350,400,650],"content":"text","text":"Table source","caret":false}))?;
         let table_story = member(&table_frame, "story")?;
         tokens.insert("$TABLEFRAME".to_owned(), member(&table_frame, "id")?);
         tokens.insert("$TABLESTORY".to_owned(), table_story.clone());
@@ -307,9 +307,9 @@ impl Fixture {
         if command == "place.drop" {
             fixture.execute("place.load", r#"{"name":"input.png","base64":"$PNG"}"#)?;
         }
-        fixture.execute("selection.set", r#"{"ids":["$A"]}"#)?;
-        if matches!(command, "type.fillWithPlaceholder" | "file.exportText") {
-            fixture.execute("selection.set", r#"{"ids":["$FRAME"]}"#)?;
+        fixture.execute("select.set", r#"{"ids":["$A"]}"#)?;
+        if matches!(command, "text.fillWithPlaceholder" | "file.exportText") {
+            fixture.execute("select.set", r#"{"ids":["$FRAME"]}"#)?;
         }
         if matches!(command, "object.fit" | "object.fittingOptions" | "object.clippingPath") {
             let pixels = (0..16 * 16)
@@ -345,26 +345,26 @@ impl Fixture {
             notes.push(format!("fixture repair after review: all fixture items start with {key}=true"));
         }
         if command == "path.close" {
-            let path = fixture.doc.execute("path.create", json!({"anchors":[{"p":[10,10]},{"p":[100,10]},{"p":[100,100]}]}))?;
+            let path = fixture.doc.execute("path.add", json!({"anchors":[{"p":[10,10]},{"p":[100,10]},{"p":[100,100]}]}))?;
             fixture.tokens.insert("$A".to_owned(), member(&path, "id")?);
             notes.push("fixture repair after review: path.close uses an open path".to_owned());
         }
         if command == "object.releaseCompoundPath" {
-            let extra = fixture.doc.execute("frame.create", json!({"rect":[30,30,50,50],"caret":false}))?;
+            let extra = fixture.doc.execute("frame.add", json!({"rect":[30,30,50,50],"caret":false}))?;
             let a = fixture.tokens.get("$A").cloned().ok_or("fixture has no A")?;
             fixture.doc.execute("object.makeCompoundPath", json!({"ids":[a,member(&extra,"id")?]}))?;
             notes.push("fixture repair after review: releaseCompoundPath has two subpaths; B remains unrelated".to_owned());
         }
         if matches!(command, "select.container" | "select.content" | "select.nextInGroup" | "select.previousInGroup") {
-            fixture.execute("object.group", r#"{"ids":["$A","$B"]}"#)?;
+            fixture.execute("arrange.group", r#"{"ids":["$A","$B"]}"#)?;
             if command != "select.content" {
                 let role = if command == "select.previousInGroup" { "$B" } else { "$A" };
                 let id = fixture.tokens.get(role).cloned().ok_or("fixture has no selected child")?;
-                fixture.doc.execute("selection.set", json!({"ids":[id]}))?;
+                fixture.doc.execute("select.set", json!({"ids":[id]}))?;
             }
             notes.push("fixture repair after review: group navigation uses a real two-child group".to_owned());
-        } else if !matches!(command, "object.releaseCompoundPath" | "path.close" | "type.fillWithPlaceholder" | "file.exportText") {
-            fixture.execute("selection.set", r#"{"ids":["$A"]}"#)?;
+        } else if !matches!(command, "object.releaseCompoundPath" | "path.close" | "text.fillWithPlaceholder" | "file.exportText") {
+            fixture.execute("select.set", r#"{"ids":["$A"]}"#)?;
         }
         if matches!(
             command,
@@ -378,11 +378,11 @@ impl Fixture {
                 | "book.syncStyles"
                 | "book.exportPdf"
                 | "data.source.update"
-                | "links.relink"
-                | "links.relinkFolder"
-                | "links.update"
-                | "links.embed"
-                | "links.goTo"
+                | "linkedFile.relink"
+                | "linkedFile.relinkFolder"
+                | "linkedFile.update"
+                | "linkedFile.embed"
+                | "linkedFile.goTo"
                 | "object.layerOptions"
         ) {
             misc_files(&mut fixture, command, notes)?;
@@ -440,7 +440,7 @@ impl Fixture {
 
     fn finish_setup(&mut self, command: &str, notes: &mut Vec<String>) -> Result<(), String> {
         if matches!(command, "layout.overrideParentItems" | "layout.removeOverrides" | "layout.detachAll") {
-            self.execute("frame.create", r#"{"spread":"A","rect":[20,20,70,70],"content":"unassigned","caret":false}"#)?;
+            self.execute("frame.add", r#"{"spread":"A","rect":[20,20,70,70],"content":"unassigned","caret":false}"#)?;
             if command != "layout.overrideParentItems" {
                 let answer = self.execute("layout.overrideParentItems", r#"{"page":0}"#)?;
                 let copy = answer.get("ids").and_then(Value::as_array).and_then(|ids| ids.first()).cloned().ok_or("fixture made no override copy")?;
@@ -448,7 +448,7 @@ impl Fixture {
             }
             notes.push("fixture provides a real parent item and, for removal/detach, its override copy".to_owned());
         }
-        if matches!(command, "style.cell.create" | "style.cell.apply" | "style.cell.edit" | "style.table.apply" | "style.table.edit") {
+        if matches!(command, "style.cell.add" | "style.cell.apply" | "style.cell.edit" | "style.table.apply" | "style.table.edit") {
             self.execute("table.select", r#"{"story":"$TABLESTORY","table":"$TABLE","row":0,"col":0}"#)?;
             notes.push("fixture supplies the table caret used by style handlers".to_owned());
         }
@@ -463,13 +463,7 @@ impl Fixture {
         }
         if matches!(
             command,
-            "data.placeholder.remove"
-                | "hyperlink.delete"
-                | "hyperlink.edit"
-                | "hyperlink.goToSource"
-                | "states.show"
-                | "states.rename"
-                | "states.release"
+            "data.placeholder.remove" | "link.delete" | "link.edit" | "link.goToSource" | "state.show" | "state.rename" | "state.release"
         ) {
             misc_records(self, command, notes)?;
         }
@@ -509,7 +503,7 @@ fn misc_files(fixture: &mut Fixture, command: &str, notes: &mut Vec<String>) -> 
         write("data.csv", b"name,qty\nAda,1\nBob,2\nCy,3\n")?;
         notes.push("misc fixture: a linked CSV source whose file gained a row after it was read".to_owned());
     }
-    if command.starts_with("links.") || command == "object.layerOptions" {
+    if command.starts_with("linkedFile.") || command == "object.layerOptions" {
         let a = fixture.role("$A")?;
         if command == "object.layerOptions" {
             let pdf = fixture.doc.execute("file.exportPdf", json!({}))?;
@@ -522,10 +516,10 @@ fn misc_files(fixture: &mut Fixture, command: &str, notes: &mut Vec<String>) -> 
             write("other.png", &png(200, 4))?;
             fixture.tokens.insert("$RELINK_PATH".to_owned(), json!(path("other.png")));
             fixture.tokens.insert("$LINK_DIR".to_owned(), json!(dir.to_string_lossy()));
-            if command == "links.update" {
+            if command == "linkedFile.update" {
                 write("link.png", &png(30, 3))?;
             }
-            notes.push("misc fixture: A shows a graphic linked to a file (modified on disk for links.update)".to_owned());
+            notes.push("misc fixture: A shows a graphic linked to a file (modified on disk for linkedFile.update)".to_owned());
         }
         let mut exchange = Exchange::new();
         let replica = exchange.replica(&mut fixture.doc).map_err(|error| error.to_string())?;
@@ -533,7 +527,7 @@ fn misc_files(fixture: &mut Fixture, command: &str, notes: &mut Vec<String>) -> 
         let asset = replica.list(&ObjectId::from_string("layout"), "assets").map_err(|error| error.to_string())?;
         let asset = asset.into_iter().last().ok_or("misc fixture placed no asset")?;
         fixture.tokens.insert("$ASSET".to_owned(), json!(ids.show(&asset)));
-        fixture.execute("selection.set", r#"{"ids":["$A"]}"#)?;
+        fixture.execute("select.set", r#"{"ids":["$A"]}"#)?;
     }
     Ok(())
 }
@@ -546,16 +540,16 @@ fn misc_records(fixture: &mut Fixture, command: &str, notes: &mut Vec<String>) -
         fixture.tokens.insert("$PLACEHOLDER".to_owned(), member(&answer, "id")?);
         notes.push("misc fixture: a text placeholder at the start of STORY".to_owned());
     }
-    if matches!(command, "hyperlink.delete" | "hyperlink.edit" | "hyperlink.goToSource") {
-        let answer = fixture.execute("hyperlink.create", r#"{"url":"https://example.com","ids":["$B"]}"#)?;
+    if matches!(command, "link.delete" | "link.edit" | "link.goToSource") {
+        let answer = fixture.execute("link.add", r#"{"url":"https://example.com","ids":["$B"]}"#)?;
         let id = answer.get("ids").and_then(Value::as_array).and_then(|ids| ids.first()).cloned().ok_or("misc fixture made no hyperlink")?;
         fixture.tokens.insert("$HYPERLINK".to_owned(), id);
         notes.push("misc fixture: a hyperlink whose source is B".to_owned());
     }
-    if matches!(command, "states.show" | "states.rename" | "states.release") {
-        let answer = fixture.execute("states.create", r#"{"ids":["$A","$B"]}"#)?;
+    if matches!(command, "state.show" | "state.rename" | "state.release") {
+        let answer = fixture.execute("state.add", r#"{"ids":["$A","$B"]}"#)?;
         fixture.tokens.insert("$STATES".to_owned(), member(&answer, "id")?);
-        fixture.execute("selection.set", r#"{"ids":["$STATES"]}"#)?;
+        fixture.execute("select.set", r#"{"ids":["$STATES"]}"#)?;
         notes.push("misc fixture: A and B are the two states of a multi-state group".to_owned());
     }
     Ok(())
@@ -771,14 +765,14 @@ impl<'a> Guard<'a> {
             return Held::Equivalent("covered() includes this object at the declared field; text is the addressed offset prefix/range".to_owned());
         }
         if required
-            && command == "find.changeObjects"
+            && command == "edit.replaceObjects"
             && matches!(field, "content" | "shape")
             && self.covered.get(id).is_some_and(|fields| fields.iter().any(|field| field == "~queryKind"))
         {
             return Held::Equivalent("the query reads kind derived from content/shape (cmd/find.rs:298), held by covers ~queryKind".to_owned());
         }
         if required
-            && command == "style.cell.create"
+            && command == "style.cell.add"
             && ty.as_deref() == Some("Cell")
             && matches!(field, "props.fill" | "props.insets" | "props.strokes" | "text")
             && self.has_field(id, "~styleSource")
@@ -795,7 +789,7 @@ impl<'a> Guard<'a> {
                 | ("condition.options" | "condition.delete", "conditions")
                 | ("swatch.ungroupColorGroup", "settings.colorGroups")
                 | ("list.define" | "list.delete", "setup.lists") => Some(("name", "")),
-                ("variables.define", "textVariables")
+                ("variable.define", "textVariables")
                     if self.params.get("name").and_then(Value::as_str).is_some_and(|name| {
                         self.replica.list(id, "textVariables").ok().is_some_and(|vars| {
                             vars.iter().any(|v| self.replica.get(v, "name").ok().and_then(|n| n.as_str().map(str::to_owned)).as_deref() == Some(name))
@@ -865,7 +859,7 @@ impl<'a> Guard<'a> {
         if required
             && ty.as_deref() == Some("Layout")
             && field == "items"
-            && matches!(command, "object.arrange" | "object.bringToFront" | "object.bringForward" | "object.sendBackward" | "object.sendToBack")
+            && matches!(command, "object.arrange" | "arrange.bringToFront" | "arrange.bringForward" | "arrange.sendBackward" | "arrange.sendToBack")
             && self.stacking_held(id)
         {
             return Held::Equivalent("stacking order is each sibling's place in the item tree (positions items)".to_owned());

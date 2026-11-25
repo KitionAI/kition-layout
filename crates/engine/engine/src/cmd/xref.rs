@@ -18,7 +18,7 @@ pub fn specs() -> Vec<CommandSpec> {
             insert
         ),
         cmd!(
-            "anchor.create",
+            "anchor.add",
             "New Hyperlink Destination…",
             ["Type", "Hyperlinks & Cross-References"],
             None,
@@ -102,9 +102,9 @@ fn insert(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn create_anchor(s: &mut Session, p: &Value) -> Result<Value> {
-    let name = str_param(p, "name").ok_or_else(|| bad("anchor.create", "missing name"))?.to_string();
+    let name = str_param(p, "name").ok_or_else(|| bad("anchor.add", "missing name"))?.to_string();
     s.edit(|d, sel| {
-        let t = sel.text.ok_or_else(|| bad("anchor.create", "no insertion point"))?;
+        let t = sel.text.ok_or_else(|| bad("anchor.add", "no insertion point"))?;
         let st = d.story_mut(t.story).ok_or(kition_layout_doc::DocError::NoStory(t.story))?;
         let at = t.range().start.min(st.len());
         let id = st.insert_anchor(at, &name);
@@ -177,11 +177,10 @@ mod tests {
         s.execute("file.new", &json!({"pages": 3, "facingPages": false})).unwrap();
         // A heading on page 3 and a referring frame on page 1.
         let sp = s.doc().unwrap().doc.page_loc(2).unwrap().0;
-        let r = s
-            .execute("frame.create", &json!({"spread": sp, "rect": [72, 72, 400, 200], "content": "text", "text": "Results: what we found"}))
-            .unwrap();
+        let r =
+            s.execute("frame.add", &json!({"spread": sp, "rect": [72, 72, 400, 200], "content": "text", "text": "Results: what we found"})).unwrap();
         let head = s.doc().unwrap().doc.item(kition_layout_doc::ItemId(r["id"].as_u64().unwrap())).unwrap().text_frame().unwrap().story;
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "See ."})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "See ."})).unwrap();
         let src = s.doc().unwrap().doc.item(kition_layout_doc::ItemId(r["id"].as_u64().unwrap())).unwrap().text_frame().unwrap().story;
         s.execute("text.select", &json!({"story": src.0, "anchor": 4, "focus": 4})).unwrap();
         s.execute("xref.insert", &json!({"paragraph": "Results"})).unwrap();

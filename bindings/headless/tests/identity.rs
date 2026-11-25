@@ -46,14 +46,14 @@ async fn launch(dir: &Path) -> HeadlessKit {
 /// does not know.
 fn layout() -> Vec<u8> {
     let mut doc = LayoutDocument::create("Plan.klayout", 612, 792).unwrap();
-    doc.execute("frame.create", json!({ "rect": [72, 72, 300, 200], "content": "text", "text": "Kept" })).unwrap();
-    doc.execute("frame.create", json!({ "rect": [72, 220, 300, 340], "content": "text", "text": "Also kept" })).unwrap();
-    let secret = doc.execute("frame.create", json!({ "rect": [72, 360, 300, 480], "content": "text", "text": SECRET })).unwrap()["id"].clone();
+    doc.execute("frame.add", json!({ "rect": [72, 72, 300, 200], "content": "text", "text": "Kept" })).unwrap();
+    doc.execute("frame.add", json!({ "rect": [72, 220, 300, 340], "content": "text", "text": "Also kept" })).unwrap();
+    let secret = doc.execute("frame.add", json!({ "rect": [72, 360, 300, 480], "content": "text", "text": SECRET })).unwrap()["id"].clone();
     doc.execute("file.place", json!({ "base64": PICTURE, "name": "dot.png", "x": 320, "y": 72, "width": 100 })).unwrap();
     let first = doc.save(None).unwrap();
     assert!(file_holds(&first, SECRET), "the control: the first file holds the frame's text");
     let mut doc = LayoutDocument::open("Plan.klayout", &first).unwrap();
-    doc.execute("edit.clear", json!({ "ids": [secret] })).unwrap();
+    doc.execute("edit.delete", json!({ "ids": [secret] })).unwrap();
     let saved = doc.save(None).unwrap();
     let mut parts = container::read(&saved).unwrap();
     assert!(!holds_history(&parts.content), "the file holds no history");
@@ -158,7 +158,7 @@ async fn a_layout_tells_its_identity_and_forks_into_a_new_document_without_histo
     // The fork edits, saves and opens again as any layout, under its own id.
     let mut opened = LayoutDocument::open("Fork.klayout", &fork_bytes).unwrap();
     assert_eq!(opened.doc_id().as_deref(), Some(fork_id.as_str()));
-    opened.execute("frame.create", json!({ "rect": [72, 500, 300, 600], "content": "text", "text": "New" })).unwrap();
+    opened.execute("frame.add", json!({ "rect": [72, 500, 300, 600], "content": "text", "text": "New" })).unwrap();
     let edited = opened.save(None).unwrap();
     let reopened = LayoutDocument::open("Fork.klayout", &edited).unwrap();
     assert_eq!(reopened.doc_id().as_deref(), Some(fork_id.as_str()));
@@ -195,7 +195,7 @@ async fn files_without_a_replica_have_no_identity_and_bytes_that_are_no_layout_a
     // An IDML package is another program's file: it opens as a new layout each time and carries
     // no identity; its fork is the same bytes.
     let mut doc = LayoutDocument::create("Plan.klayout", 612, 792).unwrap();
-    doc.execute("frame.create", json!({ "rect": [72, 72, 300, 200], "content": "text", "text": "Imported" })).unwrap();
+    doc.execute("frame.add", json!({ "rect": [72, 72, 300, 200], "content": "text", "text": "Imported" })).unwrap();
     let exported = doc.execute("file.exportBytes", json!({ "format": "idml" })).unwrap();
     let idml = kition_layout_engine::cmd::base64_decode(exported["data"].as_str().unwrap());
     assert!(LayoutDocument::open("Plan.idml", &idml).is_ok(), "the package opens");

@@ -11,7 +11,7 @@ async fn review2_same_server_derived_composition_frames() {
         let frame = prepare_steps(
             &f,
             &[(
-                "frame.create",
+                "frame.add",
                 json!({"rect":[20,20,250,200],"content":"text","text":"Words that fit around a wrapping object and occupy several lines."}),
             )],
         )
@@ -42,9 +42,9 @@ async fn review2_same_server_derived_page_items() {
         same_server(
             &f,
             &[if change == "created-on-page" {
-                ("frame.create", json!({"rect":[400,400,440,440],"content":"unassigned"}))
+                ("frame.add", json!({"rect":[400,400,440,440],"content":"unassigned"}))
             } else {
-                ("frame.create", json!({"rect":[100,100,140,140],"content":"unassigned","spread":4}))
+                ("frame.add", json!({"rect":[100,100,140,140],"content":"unassigned","spread":4}))
             }],
         )
         .await;
@@ -67,7 +67,7 @@ async fn review2_same_server_derived_layer_items() {
             &match change {
                 "moved-onto-layer" => vec![("object.setLayer", json!({"ids":[f.c],"layer":layer}))],
                 "created-on-layer" => {
-                    vec![("layer.activate", json!({"id":layer})), ("frame.create", json!({"rect":[400,400,440,440],"content":"unassigned"}))]
+                    vec![("layer.activate", json!({"id":layer})), ("frame.add", json!({"rect":[400,400,440,440],"content":"unassigned"}))]
                 }
                 _ => vec![("object.opacity", json!({"ids":[f.c],"opacity":0.25}))],
             },
@@ -95,7 +95,7 @@ async fn review2_derived_composition_departures_and_other_stories() {
             let frame = prepare_steps(
                 &f,
                 &[(
-                    "frame.create",
+                    "frame.add",
                     json!({"rect":[20,20,250,200],"content":"text","text":"Words that fit around a wrapping object and occupy several lines."}),
                 )],
             )
@@ -106,7 +106,7 @@ async fn review2_derived_composition_departures_and_other_stories() {
                 f.disk().inspect().unwrap()["stories"].as_array().unwrap().iter().find(|story| story["id"] == f.story).unwrap()["frames"][0].clone();
             let step = match change {
                 "wrap-moved-away" => ("transform.move", json!({"ids":[f.b],"dx":300,"dy":300})),
-                "wrap-deleted" => ("edit.clear", json!({"ids":[f.b]})),
+                "wrap-deleted" => ("edit.delete", json!({"ids":[f.b]})),
                 _ => ("transform.move", json!({"ids":[other],"dx":0,"dy":20})),
             };
             if outside {

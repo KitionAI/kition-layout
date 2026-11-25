@@ -5,7 +5,7 @@ intent: >-
   The document keeps the text a hyperlink starts from and the text a data merge placeholder covers
   as a mark on that text, so the range moves with the text when someone types before it. A
   character carries one hyperlink and one placeholder at most, and a mark needs a character:
-  hyperlink.create refuses text another hyperlink already starts from, and data.placeholder.add
+  link.add refuses text another hyperlink already starts from, and data.placeholder.add
   refuses an empty range and text another placeholder covers. Before, such hyperlinks and
   placeholders were made and lost one of their sources when the document was read again.
 layer: gate

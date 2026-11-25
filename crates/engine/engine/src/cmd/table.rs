@@ -25,7 +25,7 @@ pub fn specs() -> Vec<CommandSpec> {
 fn style_specs() -> Vec<CommandSpec> {
     vec![
         cmd!(
-            "style.cell.create",
+            "style.cell.add",
             "New Cell Style…",
             [],
             None,
@@ -47,12 +47,12 @@ fn style_specs() -> Vec<CommandSpec> {
             "Cell Style Options…",
             [],
             None,
-            "{name, …same as style.cell.create} — cells using the style follow",
+            "{name, …same as style.cell.add} — cells using the style follow",
             has_doc,
             cell_style_edit
         ),
         cmd!(
-            "style.table.create",
+            "style.table.add",
             "New Table Style…",
             [],
             None,
@@ -66,7 +66,7 @@ fn style_specs() -> Vec<CommandSpec> {
             "Table Style Options…",
             [],
             None,
-            "{name, …same as style.table.create} — tables using the style follow",
+            "{name, …same as style.table.add} — tables using the style follow",
             has_doc,
             table_style_edit
         ),
@@ -1096,13 +1096,13 @@ fn cell_style_create(s: &mut Session, p: &Value) -> Result<Value> {
     let base = str_param(p, "name").unwrap_or("Cell Style 1").to_string();
     let mut cs = kition_layout_doc::CellStyle::default();
     if p.get("fromSelection").and_then(Value::as_bool).unwrap_or(false) {
-        let g = target(s, p, "style.cell.create")?;
+        let g = target(s, p, "style.cell.add")?;
         let d = &s.doc()?.doc;
         let cell = d
             .story(g.story)
             .and_then(|st| st.tables.get(&g.table))
             .and_then(|t| t.cell(g.range.r0, g.range.c0))
-            .ok_or_else(|| bad("style.cell.create", "no cell"))?;
+            .ok_or_else(|| bad("style.cell.add", "no cell"))?;
         cs.fill = Some(cell.fill.clone());
         cs.fill_tint = Some(cell.fill_tint);
         cs.insets = Some(cell.insets);
@@ -1110,7 +1110,7 @@ fn cell_style_create(s: &mut Session, p: &Value) -> Result<Value> {
         cs.stroke = Some(cell.strokes[0].clone());
         cs.paragraph_style = cell.text.paras.first().map(|p| p.style.clone());
     }
-    cell_style_fields(&mut cs, p, "style.cell.create")?;
+    cell_style_fields(&mut cs, p, "style.cell.add")?;
     s.edit(|d, _| {
         let name = kition_layout_doc::Styles::unique_name(|n| d.styles.cell.iter().any(|c| c.name == n), &base);
         cs.name = name.clone();
@@ -1300,15 +1300,14 @@ mod style_tests {
     fn cell_and_table_styles_apply_and_follow_edits() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 500, 400], "content": "text", "text": ""})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 500, 400], "content": "text", "text": ""})).unwrap();
         let sid = r["story"].as_u64().unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 0})).unwrap();
         s.execute("table.insert", &json!({"rows": 3, "cols": 2, "headerRows": 1})).unwrap();
-        s.execute("style.paragraph.create", &json!({"name": "Cell Head"})).unwrap();
-        s.execute("style.cell.create", &json!({"name": "Head", "fill": "Black", "paragraphStyle": "Cell Head", "insets": 6})).unwrap();
-        s.execute("style.cell.create", &json!({"name": "Body", "fill": "[Paper]"})).unwrap();
-        s.execute("style.table.create", &json!({"name": "Data", "header": "Head", "body": "Body", "border": {"weight": 2, "color": "Black"}}))
-            .unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Cell Head"})).unwrap();
+        s.execute("style.cell.add", &json!({"name": "Head", "fill": "Black", "paragraphStyle": "Cell Head", "insets": 6})).unwrap();
+        s.execute("style.cell.add", &json!({"name": "Body", "fill": "[Paper]"})).unwrap();
+        s.execute("style.table.add", &json!({"name": "Data", "header": "Head", "body": "Body", "border": {"weight": 2, "color": "Black"}})).unwrap();
         s.execute("style.table.apply", &json!({"name": "Data"})).unwrap();
         let t = |s: &Session| -> kition_layout_doc::Table {
             let d = &s.doc().unwrap().doc;
@@ -1505,7 +1504,7 @@ mod sort_tests {
     fn distribution_session() -> Session {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 500, 700], "content": "text", "text": ""})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 500, 700], "content": "text", "text": ""})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 0})).unwrap();
         s.execute("table.insert", &json!({"rows": 3, "cols": 2, "headerRows": 1})).unwrap();
         for (row, height) in [(0, 25), (1, 40), (2, 80), (3, 30)] {
@@ -1605,7 +1604,7 @@ mod sort_tests {
     fn sort_body_rows_by_a_column() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 500, 400], "content": "text", "text": ""})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 500, 400], "content": "text", "text": ""})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 0})).unwrap();
         s.execute("table.insert", &json!({"rows": 3, "cols": 2, "headerRows": 1})).unwrap();
         let cells = [("Name", "Qty"), ("pear", "10"), ("Apple", "9"), ("fig", "100")];
@@ -1631,7 +1630,7 @@ mod sort_tests {
     fn graphic_cells_draw_their_image() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 500, 400], "content": "text", "text": ""})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 500, 400], "content": "text", "text": ""})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 0})).unwrap();
         s.execute("table.insert", &json!({"rows": 2, "cols": 2})).unwrap();
         s.execute("table.rowHeight", &json!({"height": 100})).ok();
@@ -1663,7 +1662,7 @@ mod sort_tests {
     fn move_rows_and_columns() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 500, 400], "content": "text", "text": ""})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 500, 400], "content": "text", "text": ""})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 0})).unwrap();
         s.execute("table.insert", &json!({"rows": 3, "cols": 2})).unwrap();
         for (r, c, t) in [(0, 0, "a"), (1, 0, "b"), (2, 0, "c"), (0, 1, "x")] {
@@ -1705,7 +1704,7 @@ mod arabic_tests {
     fn arabic_table_direction_and_physical_left_insertion_support_undo() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [0, 0, 400, 300], "content": "text", "text": ""})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [0, 0, 400, 300], "content": "text", "text": ""})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 0})).unwrap();
         s.execute("table.insert", &json!({"rows": 1, "cols": 2})).unwrap();
         s.execute("table.setCell", &json!({"rows": [0, 0], "cols": [0, 0], "text": "Right"})).unwrap();
@@ -1727,8 +1726,8 @@ mod arabic_tests {
     fn styled_frame(direction: &str, text: &str) -> (Session, u64) {
         let mut s = Session::new();
         s.execute("file.new", &json!({"preset": "A4", "pages": 1})).unwrap();
-        s.execute("style.paragraph.create", &json!({"name": "Dir", "para": {"direction": direction}})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [40, 330, 555, 420], "content": "text", "text": text, "caret": true})).unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Dir", "para": {"direction": direction}})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [40, 330, 555, 420], "content": "text", "text": text, "caret": true})).unwrap();
         s.execute("edit.selectAll", &json!({})).unwrap();
         s.execute("style.paragraph.apply", &json!({"name": "Dir"})).unwrap();
         s.execute("edit.selectAll", &json!({})).unwrap();

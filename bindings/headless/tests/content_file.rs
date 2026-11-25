@@ -37,7 +37,7 @@ fn an_agents_batches_save_content_without_history() {
     std::fs::create_dir_all(&root).unwrap();
     let root = std::fs::canonicalize(root).unwrap();
     let mut poster = LayoutDocument::create("Poster.klayout", 612, 792).unwrap();
-    poster.execute("frame.create", json!({ "rect": [72, 72, 300, 200], "content": "text", "text": "Spring" })).unwrap();
+    poster.execute("frame.add", json!({ "rect": [72, 72, 300, 200], "content": "text", "text": "Spring" })).unwrap();
     std::fs::write(root.join("Poster.klayout"), poster.save(None).unwrap()).unwrap();
     assert!(!holds_history(&std::fs::read(root.join("Poster.klayout")).unwrap()), "the fixture's file");
 
@@ -51,7 +51,7 @@ fn an_agents_batches_save_content_without_history() {
     title(&mut kit, &id, "Final");
     kit.execute(
         &id,
-        "frame.create",
+        "frame.add",
         Map::from_iter([("rect".into(), json!([72, 300, 300, 400])), ("content".into(), json!("unassigned"))]),
         Origin::Agent,
     )

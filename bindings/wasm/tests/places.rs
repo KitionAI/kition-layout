@@ -7,15 +7,15 @@ use serde_json::{Value, json};
 
 fn fixture() -> (LayoutDocument, Value, Value) {
     let mut doc = LayoutDocument::create("Premises.klayout", 612, 792).unwrap();
-    let a = doc.execute("frame.create", json!({"rect":[20,20,60,60],"content":"unassigned"})).unwrap()["id"].clone();
-    let b = doc.execute("frame.create", json!({"rect":[100,20,140,60],"content":"unassigned"})).unwrap()["id"].clone();
+    let a = doc.execute("frame.add", json!({"rect":[20,20,60,60],"content":"unassigned"})).unwrap()["id"].clone();
+    let b = doc.execute("frame.add", json!({"rect":[100,20,140,60],"content":"unassigned"})).unwrap()["id"].clone();
     (doc, a, b)
 }
 
 #[test]
 fn context_is_reversible_without_an_edit() {
     let (mut doc, a, b) = fixture();
-    doc.execute("selection.set", json!({"ids":[a]})).unwrap();
+    doc.execute("select.set", json!({"ids":[a]})).unwrap();
     let saved = doc.editor_state();
     assert!(saved.is_object(), "the complete editor state must be available");
     kition_kit::testing::check_context(
@@ -49,7 +49,7 @@ fn property_calls_hold_only_their_fields() {
 #[test]
 fn moves_hold_transform_lock_and_parent_transform() {
     let (mut doc, a, b) = fixture();
-    let group = doc.execute("object.group", json!({"ids":[a,b]})).unwrap()["id"].clone();
+    let group = doc.execute("arrange.group", json!({"ids":[a,b]})).unwrap()["id"].clone();
     let under = doc.under("transform.move", &json!({"ids":[a],"dx":10,"dy":0})).unwrap().unwrap();
     let moved = under.premises.iter().find(|premise| premise.id == a).unwrap();
     assert_eq!(moved.fields, Some(vec!["locked".to_owned()]));
@@ -92,7 +92,7 @@ fn layer_index_move_declares_the_gap_in_stored_order() {
 #[test]
 fn moves_carry_children_but_renames_do_not() {
     let (mut doc, a, b) = fixture();
-    let group = doc.execute("object.group", json!({"ids":[a,b]})).unwrap()["id"].clone();
+    let group = doc.execute("arrange.group", json!({"ids":[a,b]})).unwrap()["id"].clone();
     let carried =
         doc.carried(std::slice::from_ref(&group), &[json!({"id":group,"fields":["xf"],"edits":[{"field":"xf.4","before":0,"after":10}]})]).unwrap();
     assert_eq!(carried.len(), 1);
@@ -130,15 +130,15 @@ fn point_places_replay_all_changed_geometry_together() {
 #[test]
 fn grouping_nested_children_returns_a_parameter_error_without_panicking() {
     let (mut doc, a, b) = fixture();
-    doc.execute("object.group", json!({"ids":[a,b]})).unwrap();
-    let error = doc.execute("object.group", json!({"ids":[a,b]})).unwrap_err();
+    doc.execute("arrange.group", json!({"ids":[a,b]})).unwrap();
+    let error = doc.execute("arrange.group", json!({"ids":[a,b]})).unwrap_err();
     assert!(error.contains("top-level"), "must validate before indexing the top-level members: {error}");
 }
 
 #[test]
 fn table_numbers_resolve_with_their_holder_and_hold_owned_cells() {
     let mut doc = LayoutDocument::create("Table.klayout", 612, 792).unwrap();
-    let frame = doc.execute("frame.create", json!({"rect":[20,20,300,300],"content":"text"})).unwrap();
+    let frame = doc.execute("frame.add", json!({"rect":[20,20,300,300],"content":"text"})).unwrap();
     let table = doc.execute("table.insert", json!({"rows":2,"cols":2})).unwrap();
     let under = doc.under("table.setRowHeight", &json!({"story":frame["story"],"table":table["table"],"row":0,"height":30})).unwrap().unwrap();
     assert!(under.objects.iter().any(Value::is_string), "a table's local number resolves to its stable model address: {under:?}");

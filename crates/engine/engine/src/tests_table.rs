@@ -5,7 +5,7 @@ use super::*;
 fn session_with_frame() -> (Session, u64, u64) {
     let mut s = Session::new();
     s.execute("file.new", &json!({"pages": 1})).unwrap();
-    let r = s.execute("frame.create", &json!({"rect": [36, 36, 336, 500], "content": "text"})).unwrap();
+    let r = s.execute("frame.add", &json!({"rect": [36, 36, 336, 500], "content": "text"})).unwrap();
     let sid = r["story"].as_u64().unwrap();
     let fid = r["id"].as_u64().unwrap();
     s.execute("text.insert", &json!({"text": "Intro"})).unwrap();
@@ -146,12 +146,12 @@ fn caret_placement_in_cells_and_cell_formatting() {
     assert_eq!(s.execute("table.get", &json!({"table": tid})).unwrap()["cells"][3]["text"], "Hello!");
     // Formatting at a cell caret/selection goes to the cell story.
     s.execute("edit.selectAll", &json!({})).unwrap();
-    s.execute("type.char", &json!({"attrs": {"size": 20}})).unwrap();
-    assert_eq!(s.execute("type.selectionAttrs", &json!({})).unwrap()["chars"]["size"], 20.0);
+    s.execute("text.char", &json!({"attrs": {"size": 20}})).unwrap();
+    assert_eq!(s.execute("text.selectionAttrs", &json!({})).unwrap()["chars"]["size"], 20.0);
     check(&s);
     // Selected cells format whole cells.
     s.execute("table.select", &json!({"table": tid, "what": "table"})).unwrap();
-    s.execute("type.para", &json!({"attrs": {"align": "center"}})).unwrap();
+    s.execute("text.para", &json!({"attrs": {"align": "center"}})).unwrap();
     let st = s.doc().unwrap();
     let t = &st.doc.story(kition_layout_doc::StoryId(sid)).unwrap().tables[&tid];
     assert!(t.cells.iter().all(|c| c.text.paras[0].para.align == Some(kition_layout_doc::Align::Center)));
@@ -275,15 +275,15 @@ fn inherited_cell_and_table_styles_apply_and_follow_base_edits() {
     let (mut s, sid, _) = session_with_frame();
     let r = s.execute("table.insert", &json!({"rows": 1, "cols": 2})).unwrap();
     let tid = r["table"].as_u64().unwrap();
-    s.execute("style.cell.create", &json!({"name": "Cell Base", "insets": 7, "stroke": {"weight": 2}})).unwrap();
-    s.execute("style.cell.create", &json!({"name": "Cell Child", "basedOn": "Cell Base", "fill": "[Paper]"})).unwrap();
+    s.execute("style.cell.add", &json!({"name": "Cell Base", "insets": 7, "stroke": {"weight": 2}})).unwrap();
+    s.execute("style.cell.add", &json!({"name": "Cell Child", "basedOn": "Cell Base", "fill": "[Paper]"})).unwrap();
     s.execute("style.cell.apply", &json!({"name": "Cell Child", "table": tid})).unwrap();
     let t = table_for(&s, sid, tid);
     assert!(t.cells.iter().all(|cell| cell.style == "Cell Child" && cell.insets == [7.0; 4] && cell.strokes[0].weight == 2.0));
     s.execute("style.cell.edit", &json!({"name": "Cell Base", "insets": 5})).unwrap();
     assert!(table_for(&s, sid, tid).cells.iter().all(|cell| cell.insets == [5.0; 4]));
-    s.execute("style.table.create", &json!({"name": "Table Base", "body": "Cell Child", "border": {"weight": 6}, "spaceBefore": 8})).unwrap();
-    s.execute("style.table.create", &json!({"name": "Table Child", "basedOn": "Table Base", "spaceAfter": 3})).unwrap();
+    s.execute("style.table.add", &json!({"name": "Table Base", "body": "Cell Child", "border": {"weight": 6}, "spaceBefore": 8})).unwrap();
+    s.execute("style.table.add", &json!({"name": "Table Child", "basedOn": "Table Base", "spaceAfter": 3})).unwrap();
     s.execute("style.table.apply", &json!({"name": "Table Child"})).unwrap();
     let t = table_for(&s, sid, tid);
     assert_eq!(t.style, "Table Child");

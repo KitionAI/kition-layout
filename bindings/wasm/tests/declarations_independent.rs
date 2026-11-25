@@ -112,7 +112,7 @@ fn blind_projection_catalogue_has_valid_inputs_and_covers_every_journaled_comman
 //   later text. within counts identities/places; it does not hold all list contents.
 // - Composition frame probes denote effective areas/options/grid, not unused raw geometry:
 //   ~compositionFrames is equivalent for the story/frame actually used by the handler.
-//   find.changeObjects' content/shape predicate is ~queryKind (cmd/find.rs:298).
+//   edit.replaceObjects' content/shape predicate is ~queryKind (cmd/find.rs:298).
 // - A coarse named-setting probe denotes just the handler-read member when the handler
 //   patches/deletes by name: conditions.rs:46/73/85; lists.rs:24/44; style.rs:39/354/365;
 //   variables.rs:113 (existing definition only); xref.rs:85/define_format/set_format.
@@ -120,7 +120,7 @@ fn blind_projection_catalogue_has_valid_inputs_and_covers_every_journaled_comman
 // - New/unused-layer predicates use count/identity/usage, guide editability its effective
 //   visible/unlocked predicate, and allToProcess its effective default false value. These
 //   are predicate equivalences, never permission to satisfy arbitrary fields on an object.
-// - style.cell.create's coarse source text/strokes probes mean first paragraph style and
+// - style.cell.add's coarse source text/strokes probes mean first paragraph style and
 //   stroke[0], the only members copied at cmd/table.rs:1106-1111. The cell's ~styleSource holds exactly
 //   that cell's copied values, excluding its text characters, remaining strokes and cell span.
 // The finite required/free probes do not enumerate every possible field or conditional path.

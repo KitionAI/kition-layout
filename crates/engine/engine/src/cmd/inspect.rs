@@ -8,8 +8,8 @@ use crate::{Result, Session};
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!(query "document.inspect", "Inspect Document", [], None, "{} → pages, spreads, items, stories (with overset), styles, swatches, selection", has_doc, inspect),
-        cmd!(query "document.list", "List Documents", [], None, "{}", always, |s, _| {
+        cmd!(query "file.inspect", "Inspect Document", [], None, "{} → pages, spreads, items, stories (with overset), styles, swatches, selection", has_doc, inspect),
+        cmd!(query "file.list", "List Documents", [], None, "{}", always, |s, _| {
             Ok(json!(s.documents().iter().enumerate().map(|(i, d)| json!({"index": i, "title": d.title(), "dirty": d.is_dirty(), "active": Some(i) == s.active_index()})).collect::<Vec<_>>()))
         }),
         cmd!(noundo "tool.select", "Select Tool", [], None, "{tool: selection|directSelection|type|rectangleFrame|…}", always, |s, p| {
@@ -21,7 +21,7 @@ pub fn specs() -> Vec<CommandSpec> {
             Ok(json!({"tool": s.tool_id()}))
         }),
         cmd!(query "tool.list", "List Tools", [], None, "{}", always, |_, _| Ok(serde_json::to_value(kition_layout_tools::TOOL_GROUPS).unwrap_or_default())),
-        cmd!(query "document.history", "History", [], None, "{}", has_doc, |s, _| {
+        cmd!(query "file.history", "History", [], None, "{}", has_doc, |s, _| {
             let st = s.doc()?;
             let (undo, redo) = st.history_labels();
             Ok(json!({"undo": undo, "redo": redo}))
@@ -125,7 +125,7 @@ fn inspect(s: &mut Session, _p: &Value) -> Result<Value> {
         "title": st.title(), "path": st.path, "dirty": st.is_dirty(), "pageCount": d.page_count(),
         "settings": {"pageWidth": d.settings.page_width, "pageHeight": d.settings.page_height, "facingPages": d.settings.facing_pages, "intent": d.settings.intent},
         "spreads": spreads,
-        // The original layout and its alternate layouts (`layout.createAlternate`).
+        // The original layout and its alternate layouts (`layout.addAlternate`).
         "layouts": super::liquid::layouts_json(d),
         "parents": d.parents.iter().map(|p| json!({"id": p.id.0, "label": p.parent.as_ref().map(|i| i.label()), "pages": p.pages.len(), "items": p.items.len()})).collect::<Vec<_>>(),
         "layers": d.layers,

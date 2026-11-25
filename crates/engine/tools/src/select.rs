@@ -432,10 +432,10 @@ impl Tool for SelectionTool {
                                 // Keep it selected so a Shift-drag can constrain. A click still toggles, on release.
                                 self.shift_release = Some(id.0);
                             } else {
-                                out.push(Action::Exec("selection.toggle".into(), json!({"id": id.0})));
+                                out.push(Action::Exec("select.toggle".into(), json!({"id": id.0})));
                             }
                         } else if !cx.selection.contains(id) {
-                            out.push(Action::Exec("selection.set".into(), json!({"ids": [id.0], "content": self.direct})));
+                            out.push(Action::Exec("select.set".into(), json!({"ids": [id.0], "content": self.direct})));
                         }
                         self.drag = Drag::Pending { start: p, hit: true };
                         let _ = sr;
@@ -443,7 +443,7 @@ impl Tool for SelectionTool {
                     }
                     None => {
                         self.drag = Drag::Pending { start: p, hit: false };
-                        if ev.mods.shift { vec![] } else { vec![Action::Exec("selection.set".into(), json!({"ids": []}))] }
+                        if ev.mods.shift { vec![] } else { vec![Action::Exec("select.set".into(), json!({"ids": []}))] }
                     }
                 }
             }
@@ -697,7 +697,7 @@ impl Tool for SelectionTool {
                     Drag::Move { .. } | Drag::Resize { .. } | Drag::Anchor { .. } | Drag::Rotate { .. } => vec![Action::Commit],
                     Drag::Port { id, side } => vec![Action::Exec("frame.loadText".into(), json!({"frame": id.0, "side": side.as_str()}))],
                     Drag::Pending { .. } => match release {
-                        Some(id) => vec![Action::Exec("selection.toggle".into(), json!({"id": id}))],
+                        Some(id) => vec![Action::Exec("select.toggle".into(), json!({"id": id}))],
                         None => vec![],
                     },
                     Drag::Marquee { start, cur } => {
@@ -714,7 +714,7 @@ impl Tool for SelectionTool {
                                 }
                             }
                         }
-                        vec![Action::Exec("selection.set".into(), json!({"ids": ids, "add": ev.mods.shift}))]
+                        vec![Action::Exec("select.set".into(), json!({"ids": ids, "add": ev.mods.shift}))]
                     }
                     Drag::None => vec![],
                 }
@@ -752,8 +752,8 @@ impl Tool for SelectionTool {
             ToolKey::Right => mv(inc, 0.0),
             ToolKey::Up => mv(0.0, -inc),
             ToolKey::Down => mv(0.0, inc),
-            ToolKey::Delete | ToolKey::Backspace => vec![Action::Exec("edit.clear".into(), json!({}))],
-            ToolKey::Escape => vec![Action::Exec("selection.set".into(), json!({"ids": []}))],
+            ToolKey::Delete | ToolKey::Backspace => vec![Action::Exec("edit.delete".into(), json!({}))],
+            ToolKey::Escape => vec![Action::Exec("select.set".into(), json!({"ids": []}))],
             _ => vec![],
         }
     }

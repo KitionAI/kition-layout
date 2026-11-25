@@ -67,9 +67,9 @@ async fn review_names_all_style_families_hold_resolution() {
     ] {
         for change in ["rename", "delete", "definition", "grouped", "unrelated"] {
             let f = Fixture::new(Guard::Premise);
-            let create = format!("style.{family}.create");
+            let create = format!("style.{family}.add");
             let apply = format!("style.{family}.apply");
-            let frame = f.prepare_names(&[("frame.create", json!({"rect":[20,200,500,700],"content":"text","text":"Name resolution"}))]).remove(0);
+            let frame = f.prepare_names(&[("frame.add", json!({"rect":[20,200,500,700],"content":"text","text":"Name resolution"}))]).remove(0);
             f.prepare_names(&[(&create, json!({"name":"Review/Shared"})), (&create, json!({"name":"Other/Shared"}))]);
             let address = f.named_address(list, "Review/Shared");
             let other = f.named_address(list, "Other/Shared");

@@ -95,7 +95,7 @@ try {
 
   // A right-click on an object selects it; its menu's Rotate 90° turns it.
   await deselect()
-  const shape = await one('frame.create', { rect: [box[0] + 60, 420, box[0] + 260, 480], content: 'graphic' })
+  const shape = await one('frame.add', { rect: [box[0] + 60, 420, box[0] + 260, 480], content: 'graphic' })
   const onShape = await toScreen(box[0] + 160, 450)
   await page.mouse.click(onShape.x, onShape.y, { button: 'right' })
   const objectMenu = kit.getByTestId('layout-context-object')
@@ -140,7 +140,7 @@ try {
   await escape()
 
   // In the text being typed: the text menu; Cmd+C and Cmd+V with the system clipboard.
-  const frame = await one('frame.create', { rect: [box[0] + 60, 520, box[0] + 400, 600], content: 'text', text: 'Kition 排版', caret: false })
+  const frame = await one('frame.add', { rect: [box[0] + 60, 520, box[0] + 400, 600], content: 'text', text: 'Kition 排版', caret: false })
   const story = (await details()).stories.find((item) => item.frames.includes(frame.id)).id
   await kit.locator('.kui-app').focus()
   await page.keyboard.press('t')
@@ -196,7 +196,7 @@ try {
     }, { x: at.x - frameBox.x, y: at.y - frameBox.y, b64: data })
   }
   await deselect()
-  const empty = await one('frame.create', { rect: [box[0] + 300, 400, box[0] + 400, 480], content: 'graphic' })
+  const empty = await one('frame.add', { rect: [box[0] + 300, 400, box[0] + 400, 480], content: 'graphic' })
   await drop(await toScreen(box[0] + 350, 440))
   step('an image dropped on an empty frame fills it', await until(async () => (await itemOf(empty.id))?.asset != null), JSON.stringify(await itemOf(empty.id)))
   const count = (await items()).length

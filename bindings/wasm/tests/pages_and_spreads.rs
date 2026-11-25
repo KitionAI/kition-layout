@@ -32,7 +32,7 @@ fn facing_pages_make_parents_spreads() {
     run(&mut doc, "layout.documentSetup", json!({ "facingPages": true }));
     assert_eq!(inspect(&doc)["parents"][0]["pages"], json!(2), "parent A becomes a spread: {}", inspect(&doc)["parents"]);
     // A folio on the parent's right-hand page lands on the parent, by its prefix.
-    let folio = run(&mut doc, "frame.create", json!({ "spread": "A", "rect": [700, 560, 760, 580], "text": "folio" }));
+    let folio = run(&mut doc, "frame.add", json!({ "spread": "A", "rect": [700, 560, 760, 580], "text": "folio" }));
     assert!(folio["id"].is_u64(), "{folio}");
     assert_eq!(inspect(&doc)["parents"][0]["items"], json!(1));
     // Back to single pages: one page again.
@@ -52,7 +52,7 @@ fn pages_count_from_one_and_spreads_must_exist() {
     assert!(doc.execute("layout.pages.applyParent", json!({ "pages": [4], "parent": null })).is_err(), "nor a page 4");
     // A spread that names nothing is refused, not read as spread 0.
     for spread in [json!("Z"), json!({ "kind": "nope", "index": 0 }), json!(99), json!("1")] {
-        let made = doc.execute("frame.create", json!({ "spread": spread.clone(), "rect": [10, 10, 100, 100], "content": "graphic" }));
+        let made = doc.execute("frame.add", json!({ "spread": spread.clone(), "rect": [10, 10, 100, 100], "content": "graphic" }));
         assert!(made.is_err(), "spread {spread}: {made:?}");
     }
 }
@@ -61,7 +61,7 @@ fn pages_count_from_one_and_spreads_must_exist() {
 fn a_threaded_frame_goes_on_the_source_frames_spread() {
     let mut doc = LayoutDocument::create("story.klayout", 400, 600).unwrap();
     run(&mut doc, "layout.documentSetup", json!({ "pages": 3, "facingPages": false }));
-    let first = run(&mut doc, "frame.create", json!({ "spread": 2, "rect": [36, 36, 364, 300], "text": "Lorem ipsum ".repeat(200) }));
+    let first = run(&mut doc, "frame.add", json!({ "spread": 2, "rect": [36, 36, 364, 300], "text": "Lorem ipsum ".repeat(200) }));
     let next = run(&mut doc, "frame.thread", json!({ "from": first["id"], "rect": [36, 320, 364, 560] }));
     let inspected = inspect(&doc);
     let on_spread = |spread: usize| inspected["spreads"][spread]["items"].as_array().unwrap().iter().any(|item| item["id"] == next["frame"]);

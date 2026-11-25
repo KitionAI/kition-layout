@@ -39,7 +39,7 @@ mod tests {
     fn scripts_run_as_one_undo_step() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let text = "frame.create {\"rect\": [72, 72, 200, 200]}\nobject.fill {\"swatch\": \"[Black]\", \"ids\": [\"$0.id\"]}\nframe.create {\"rect\": [300, 72, 400, 200]}";
+        let text = "frame.add {\"rect\": [72, 72, 200, 200]}\nobject.fill {\"swatch\": \"[Black]\", \"ids\": [\"$0.id\"]}\nframe.create {\"rect\": [300, 72, 400, 200]}";
         let r = s.execute("script.run", &json!({"text": text})).unwrap();
         assert_eq!(r["steps"], 3);
         let count = |s: &Session| s.doc().unwrap().doc.spreads[0].items.len();

@@ -120,7 +120,7 @@ fn idml_commands() {
 fn gradient_vector_round_trips_through_idml() {
     let mut s = Session::new();
     s.execute("file.new", &json!({})).unwrap();
-    let id = s.execute("frame.create", &json!({"rect": [100, 100, 300, 200]})).unwrap()["id"].as_u64().unwrap();
+    let id = s.execute("frame.add", &json!({"rect": [100, 100, 300, 200]})).unwrap()["id"].as_u64().unwrap();
     s.execute("object.gradient", &json!({"from": [120, 180], "to": [280, 120]})).unwrap();
     let d = s.doc().unwrap().doc.clone();
     let v = d.item(ItemId(id)).unwrap().fill.gradient_vector.unwrap();
@@ -136,11 +136,11 @@ fn gradient_vector_round_trips_through_idml() {
 fn open_type_features_round_trip_through_idml() {
     let mut s = Session::new();
     s.execute("file.new", &json!({})).unwrap();
-    let r = s.execute("frame.create", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "1/2 Office"})).unwrap();
+    let r = s.execute("frame.add", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "1/2 Office"})).unwrap();
     let sid = r["story"].as_u64().unwrap();
     s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 3})).unwrap();
-    s.execute("type.openType", &json!({"feature": "frac"})).unwrap();
-    s.execute("type.openType", &json!({"figures": "tabularOldstyle", "stylisticSets": [3]})).unwrap();
+    s.execute("text.openType", &json!({"feature": "frac"})).unwrap();
+    s.execute("text.openType", &json!({"figures": "tabularOldstyle", "stylisticSets": [3]})).unwrap();
     let d = s.doc().unwrap().doc.clone();
     let back = kition_layout_idml::import_idml(&kition_layout_idml::export_idml(&d)).unwrap();
     let st = back.stories.values().find(|st| st.text.starts_with("1/2")).unwrap();
@@ -157,10 +157,10 @@ fn open_type_features_round_trip_through_idml() {
 fn underline_options_render_and_round_trip() {
     let mut s = Session::new();
     s.execute("file.new", &json!({})).unwrap();
-    let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "Underlined words"})).unwrap();
+    let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "Underlined words"})).unwrap();
     let sid = r["story"].as_u64().unwrap();
     s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 10})).unwrap();
-    s.execute("type.char", &json!({"attrs": {"underline": true, "underlineWeight": 3, "underlineOffset": 4, "underlineColor": "C=100 M=0 Y=0 K=0"}}))
+    s.execute("text.char", &json!({"attrs": {"underline": true, "underlineWeight": 3, "underlineOffset": 4, "underlineColor": "C=100 M=0 Y=0 K=0"}}))
         .unwrap();
     let d = s.doc().unwrap().doc.clone();
     let cs = kition_layout_compose::compose_story(&d, kition_layout_doc::StoryId(sid), &Default::default());
@@ -188,9 +188,9 @@ fn newer_features_round_trip_through_idml() {
     let mut s = Session::new();
     s.execute("file.new", &json!({})).unwrap();
     // Nested and GREP styles on a paragraph style.
-    s.execute("style.character.create", &json!({"name": "Lead", "chars": {"fontStyle": "Bold"}})).unwrap();
+    s.execute("style.character.add", &json!({"name": "Lead", "chars": {"fontStyle": "Bold"}})).unwrap();
     s.execute(
-        "style.paragraph.create",
+        "style.paragraph.add",
         &json!({"name": "Intro", "para": {
             "nestedStyles": [{"style": "Lead", "through": false, "count": 2, "until": {"kind": "chars", "chars": ":"}}],
             "grepStyles": [{"style": "Lead", "pattern": "\\d+"}]
@@ -198,15 +198,15 @@ fn newer_features_round_trip_through_idml() {
     )
     .unwrap();
     // Cell and table styles on a table.
-    let r = s.execute("frame.create", &json!({"rect": [72, 72, 500, 300], "content": "text", "text": ""})).unwrap();
+    let r = s.execute("frame.add", &json!({"rect": [72, 72, 500, 300], "content": "text", "text": ""})).unwrap();
     s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 0})).unwrap();
     s.execute("table.insert", &json!({"rows": 2, "cols": 2, "headerRows": 1})).unwrap();
-    s.execute("style.cell.create", &json!({"name": "Head", "fill": "[Black]", "insets": 5, "paragraphStyle": "Intro"})).unwrap();
-    s.execute("style.table.create", &json!({"name": "Grid", "header": "Head", "border": {"weight": 3, "color": "[Black]"}})).unwrap();
+    s.execute("style.cell.add", &json!({"name": "Head", "fill": "[Black]", "insets": 5, "paragraphStyle": "Intro"})).unwrap();
+    s.execute("style.table.add", &json!({"name": "Grid", "header": "Head", "border": {"weight": 3, "color": "[Black]"}})).unwrap();
     s.execute("style.table.apply", &json!({"name": "Grid"})).unwrap();
     // Type on a path.
-    let line = s.execute("line.create", &json!({"a": [100, 500], "b": [400, 500]})).unwrap()["id"].as_u64().unwrap();
-    s.execute("type.onPath", &json!({"id": line, "text": "On the line", "start": 12, "flip": true, "align": "center"})).unwrap();
+    let line = s.execute("line.add", &json!({"a": [100, 500], "b": [400, 500]})).unwrap()["id"].as_u64().unwrap();
+    s.execute("text.onPath", &json!({"id": line, "text": "On the line", "start": 12, "flip": true, "align": "center"})).unwrap();
     let d = s.doc().unwrap().doc.clone();
     let back = kition_layout_idml::import_idml(&kition_layout_idml::export_idml(&d)).unwrap();
     let intro = back.styles.para("Intro").unwrap();
@@ -241,9 +241,9 @@ fn named_lists_round_trip_through_idml() {
     let mut s = Session::new();
     s.execute("file.new", &json!({})).unwrap();
     s.execute("list.define", &json!({"name": "Steps", "continueAcrossStories": false})).unwrap();
-    let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "One\nTwo"})).unwrap();
+    let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "One\nTwo"})).unwrap();
     s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 3})).unwrap();
-    s.execute("type.para", &json!({"attrs": {"listType": "numbers", "listName": "Steps", "startAt": 5}})).unwrap();
+    s.execute("text.para", &json!({"attrs": {"listType": "numbers", "listName": "Steps", "startAt": 5}})).unwrap();
     let d = s.doc().unwrap().doc.clone();
     let back = kition_layout_idml::import_idml(&kition_layout_idml::export_idml(&d)).unwrap();
     assert_eq!(back.settings.lists, vec![kition_layout_doc::NumberedList { name: "Steps".into(), continue_across_stories: false }]);

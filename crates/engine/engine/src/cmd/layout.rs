@@ -748,7 +748,7 @@ mod setup_tests {
         s.execute("file.new", &json!({"pages": 4})).unwrap();
         // A frame on page 2 stays on page 2.
         let w = s.doc().unwrap().doc.settings.page_width;
-        let f = s.execute("frame.create", &json!({"rect": [w + 72.0, 72, w + 200.0, 200], "content": "text", "text": "two"})).unwrap();
+        let f = s.execute("frame.add", &json!({"rect": [w + 72.0, 72, w + 200.0, 200], "content": "text", "text": "two"})).unwrap();
         let r = s.execute("layout.documentSetup", &json!({"binding": "rightToLeft"})).unwrap();
         assert_eq!(r["binding"], "rightToLeft");
         let d = &s.doc().unwrap().doc;
@@ -778,7 +778,7 @@ mod setup_tests {
             let mut s = crate::Session::new();
             s.execute("file.new", &json!({"preset": "A4", "pages": 1})).unwrap();
             s.execute("layout.documentSetup", &json!({"binding": binding})).unwrap();
-            let f = s.execute("frame.create", &json!({"rect": [40, 170, 555, 260], "content": "text", "text": text})).unwrap();
+            let f = s.execute("frame.add", &json!({"rect": [40, 170, 555, 260], "content": "text", "text": text})).unwrap();
             s.execute("object.textFrameOptions", &json!({"ids": [f["id"]], "columns": 2, "gutter": 20})).unwrap();
             let sid = kition_layout_doc::StoryId(f["story"].as_u64().unwrap());
             let st = s.doc().unwrap();
@@ -789,7 +789,7 @@ mod setup_tests {
             assert!(fr.columns.len() == 2 && first.x0 != last.x0, "the text fills both columns: {:?}", fr.columns);
             assert_eq!(first.x0 > last.x0, expected == RightToLeft, "{binding}: the first line is in the first column");
             // An empty frame given text content starts a story too.
-            let g = s.execute("frame.create", &json!({"rect": [40, 400, 555, 500]})).unwrap();
+            let g = s.execute("frame.add", &json!({"rect": [40, 400, 555, 500]})).unwrap();
             s.execute("object.content", &json!({"ids": [g["id"]], "type": "text"})).unwrap();
             let d = &s.doc().unwrap().doc;
             let tf = d.item(kition_layout_doc::ItemId(g["id"].as_u64().unwrap())).unwrap().text_frame().unwrap().story;
@@ -810,7 +810,7 @@ mod layer_tests {
         let l2 = s.execute("layer.new", &json!({"name": "Art"})).unwrap()["id"].as_u64().unwrap();
         let l3 = s.execute("layer.new", &json!({"name": "Empty"})).unwrap()["id"].as_u64().unwrap();
         s.execute("layer.activate", &json!({"id": l2})).unwrap();
-        let f = s.execute("frame.create", &json!({"rect": [0, 0, 10, 10]})).unwrap()["id"].as_u64().unwrap();
+        let f = s.execute("frame.add", &json!({"rect": [0, 0, 10, 10]})).unwrap()["id"].as_u64().unwrap();
         s.execute("layer.others", &json!({"id": l2, "hide": true, "lock": true})).unwrap();
         let d = s.doc().unwrap().doc.clone();
         assert!(d.layers.iter().all(|l| (l.id.0 == l2) == l.visible && (l.id.0 != l2) == l.locked));
@@ -839,7 +839,7 @@ mod page_size_tests {
         let d = s.doc().unwrap().doc.clone();
         let (si, pi) = d.page_loc(2).unwrap();
         let x0 = d.spreads[si].pages[pi].x;
-        let id = s.execute("frame.create", &json!({"spread": si, "rect": [x0 + 100.0, 100, x0 + 200.0, 200]})).unwrap()["id"].as_u64().unwrap();
+        let id = s.execute("frame.add", &json!({"spread": si, "rect": [x0 + 100.0, 100, x0 + 200.0, 200]})).unwrap()["id"].as_u64().unwrap();
         s.execute("layout.pageSize", &json!({"pages": [2], "width": 300, "height": 500})).unwrap();
         let d = s.doc().unwrap().doc.clone();
         let left = &d.spreads[si].pages[0];
@@ -867,7 +867,7 @@ mod spread_tests {
         let d = s.doc().unwrap().doc.clone();
         let (si, pi) = d.page_loc(3).unwrap();
         let x = d.spreads[si].pages[pi].x;
-        let id = s.execute("frame.create", &json!({"spread": si, "rect": [x + 50.0, 50, x + 150.0, 150]})).unwrap()["id"].as_u64().unwrap();
+        let id = s.execute("frame.add", &json!({"spread": si, "rect": [x + 50.0, 50, x + 150.0, 150]})).unwrap()["id"].as_u64().unwrap();
         s.execute("layout.pages.toSpread", &json!({"page": 4, "spread": 1})).unwrap();
         let d = s.doc().unwrap().doc.clone();
         assert_eq!(d.spreads[1].pages.len(), 3);
@@ -916,7 +916,7 @@ mod adjust_tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 1, "facingPages": false})).unwrap();
         // Letter, 36 pt margins: a frame filling the left half of the margin box.
-        let id = s.execute("frame.create", &json!({"rect": [36, 36, 306, 756]})).unwrap()["id"].as_u64().unwrap();
+        let id = s.execute("frame.add", &json!({"rect": [36, 36, 306, 756]})).unwrap()["id"].as_u64().unwrap();
         s.execute("layout.documentSetup", &json!({"width": 1224, "adjustLayout": true})).unwrap();
         let b = s.doc().unwrap().doc.item(kition_layout_doc::ItemId(id)).unwrap().bounds();
         assert!((b.x0 - 36.0).abs() < 1e-6 && (b.x1 - 612.0).abs() < 1e-6, "half of the wider margin box: {b:?}");

@@ -57,7 +57,7 @@ pub struct Link {
     /// this build does not know).
     pub(crate) file: Option<FileBase>,
     /// The labels of the undo and redo steps of the person's scope and of the agents'
-    /// ([`slot`]), newest last (for Edit › Undo's name and `document.history`); the replica
+    /// ([`slot`]), newest last (for Edit › Undo's name and `file.history`); the replica
     /// decides what undo does (Kition platform KitModel 1.1 M12a: each scope undoes its own).
     pub(crate) labels: [Labels; 2],
     /// The replica's state hash when the document was last saved, so an undo back to it is clean.
@@ -675,7 +675,7 @@ mod tests {
     }
 
     fn frame(s: &mut Session, rect: [f64; 4]) -> u64 {
-        s.execute("frame.create", &json!({"rect": rect, "content": "unassigned"})).unwrap()["id"].as_u64().unwrap()
+        s.execute("frame.add", &json!({"rect": rect, "content": "unassigned"})).unwrap()["id"].as_u64().unwrap()
     }
 
     fn items(s: &Session) -> usize {
@@ -689,7 +689,7 @@ mod tests {
         let mut s = session();
         let agent = Origin::agent("agent:helper");
         frame(&mut s, [10.0, 10.0, 60.0, 60.0]);
-        s.execute_as("frame.create", &json!({"rect": [100.0, 10.0, 160.0, 60.0], "content": "unassigned"}), &agent).unwrap();
+        s.execute_as("frame.add", &json!({"rect": [100.0, 10.0, 160.0, 60.0], "content": "unassigned"}), &agent).unwrap();
         assert_eq!(items(&s), 2);
         s.execute("edit.undo", &json!({})).unwrap();
         assert_eq!(items(&s), 1, "the person's undo takes the person's frame");
@@ -705,7 +705,7 @@ mod tests {
     fn an_agent_undo_under_the_persons_later_step_keeps_the_persons_edit() {
         let mut s = session();
         let agent = Origin::agent("agent:helper");
-        s.execute_as("frame.create", &json!({"rect": [100.0, 10.0, 160.0, 60.0], "content": "unassigned"}), &agent).unwrap();
+        s.execute_as("frame.add", &json!({"rect": [100.0, 10.0, 160.0, 60.0], "content": "unassigned"}), &agent).unwrap();
         let mine = frame(&mut s, [10.0, 10.0, 60.0, 60.0]);
         s.execute("edit.undo", &json!({"scope": "agent"})).unwrap();
         assert_eq!(items(&s), 1, "the agent's frame is undone");
@@ -747,7 +747,7 @@ mod tests {
         assert_eq!(items(&s), 2);
         assert!(s.doc().unwrap().is_dirty());
         assert!(s.doc().unwrap().kdm().is_some_and(|kdm| kdm.can_undo()));
-        let inspected = s.execute("document.inspect", &json!({})).unwrap();
+        let inspected = s.execute("file.inspect", &json!({})).unwrap();
         assert_eq!((inspected["canUndo"].as_bool(), inspected["canRedo"].as_bool()), (Some(true), Some(false)));
     }
 
@@ -763,7 +763,7 @@ mod tests {
         assert!(!s.doc().unwrap().can_undo(), "nothing written while the drag lasts");
         s.pointer(&PointerEvent::new(PointerKind::Up, 60.0, 50.0), v).unwrap();
         assert_eq!(s.doc().unwrap().undo_steps(), 1);
-        let script = "frame.create {\"rect\": [300, 300, 350, 350]}\nframe.create {\"rect\": [400, 400, 450, 450]}";
+        let script = "frame.add {\"rect\": [300, 300, 350, 350]}\nframe.create {\"rect\": [400, 400, 450, 450]}";
         s.execute("script.run", &json!({"text": script})).unwrap();
         assert_eq!(s.doc().unwrap().undo_steps(), 2);
         s.execute("edit.undo", &json!({})).unwrap();
@@ -855,7 +855,7 @@ mod tests {
     fn the_selection_keeps_what_an_undo_left() {
         let mut s = session();
         let id = frame(&mut s, [72.0, 72.0, 144.0, 144.0]);
-        s.execute("selection.set", &json!({"ids": [id]})).unwrap();
+        s.execute("select.set", &json!({"ids": [id]})).unwrap();
         s.execute("edit.undo", &json!({})).unwrap();
         assert!(s.doc().unwrap().selection.items.is_empty());
     }

@@ -5,7 +5,7 @@ use kition_layout_engine::doc::{Content, ItemId};
 use kition_layout_geom::{Point, Rect};
 use serde_json::{Value, json};
 
-/// The derived fact a cell holds for `style.cell.create` ([`LayoutDocument::cell_style_sources`]).
+/// The derived fact a cell holds for `style.cell.add` ([`LayoutDocument::cell_style_sources`]).
 const STYLE_SOURCE: &str = "styleSource";
 
 mod composition;
@@ -158,7 +158,7 @@ impl LayoutDocument {
         if let Some(members) = members::Members::of(self, command, &params)? {
             self.member_premises(&members, &mut under)?;
         }
-        if command == "find.changeObjects" {
+        if command == "edit.replaceObjects" {
             self.query_premises(&params, &mut under)?;
             return Ok(Some(under));
         }
@@ -248,7 +248,7 @@ impl LayoutDocument {
                     }
                 }
             }
-        } else if command == "object.group" {
+        } else if command == "arrange.group" {
             for id in targets {
                 under.premises.push(Premise::on(id).fields(["layer"]).positions(["xf", "items", "spread"]));
             }
@@ -272,7 +272,7 @@ impl LayoutDocument {
     }
 
     pub(crate) fn covered_call(&self, command: &str, params: &Value, asks: &[CoveredAsk]) -> Result<Option<CoveredAt>, String> {
-        if command == "find.changeObjects" {
+        if command == "edit.replaceObjects" {
             return self.query_covered(params, asks).map(Some);
         }
         let resolved = crate::addresses::resolve(command, params, self.session.kdm().map(|kdm| kdm.replica()))?;

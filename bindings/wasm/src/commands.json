@@ -1,5 +1,5 @@
 {
- "anchor.create": {
+ "anchor.add": {
   "description": "Creates a named text anchor (hyperlink destination) at the insertion point."
  },
  "anchor.list": {
@@ -22,7 +22,7 @@
     "type": "number"
    },
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    },
    "xOffset": {
@@ -42,7 +42,7 @@
   },
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -57,7 +57,7 @@
     "type": "number"
    },
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    },
    "xOffset": {
@@ -74,7 +74,7 @@
   "description": "Releases an anchored object back onto the page.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -192,49 +192,49 @@
    }
   }
  },
- "changes.accept": {
+ "change.accept": {
   "description": "Accepts the tracked change at a story position.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
  },
- "changes.acceptAll": {
+ "change.acceptAll": {
   "description": "Accepts every tracked change (in one story or all).",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
  },
- "changes.list": {
+ "change.list": {
   "description": "Lists tracked changes with their story, position, kind (inserted or deleted) and text.",
   "output": {
    "type": "array"
   }
  },
- "changes.reject": {
+ "change.reject": {
   "description": "Rejects the tracked change at a story position.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
  },
- "changes.rejectAll": {
+ "change.rejectAll": {
   "description": "Rejects every tracked change (in one story or all).",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
  },
- "changes.track": {
+ "change.track": {
   "description": "Turns Track Changes in stories on or off; without on it toggles."
  },
  "color.convert": {
@@ -475,7 +475,7 @@
     "type": "string"
    },
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -508,10 +508,10 @@
  "data.source.update": {
   "description": "Re-reads the linked data merge source."
  },
- "document.applyTemplate": {
+ "file.applyTemplate": {
   "description": "Replaces the document's pages, parents and styles with a starter template (editorial, event, sale, quote)."
  },
- "document.history": {
+ "file.history": {
   "description": "Answers the undo and redo history.",
   "output": {
    "additionalProperties": true,
@@ -526,7 +526,7 @@
    "type": "object"
   }
  },
- "document.inspect": {
+ "file.inspect": {
   "description": "Answers the document's structure: pages, spreads, items with ids, stories with overset, styles, swatches and the selection. Use story.get for text.",
   "output": {
    "additionalProperties": true,
@@ -877,7 +877,7 @@
    "type": "object"
   }
  },
- "document.list": {
+ "file.list": {
   "description": "Lists the open documents with their indexes.",
   "output": {
    "items": {
@@ -901,7 +901,7 @@
    "type": "array"
   }
  },
- "document.preferences": {
+ "file.preferences": {
   "description": "Sets document preferences: units, keyboard increments, guide colours, glyph fallback and black overprint.",
   "params": {
    "bleedColor": {
@@ -936,7 +936,7 @@
    }
   }
  },
- "edit.clear": {
+ "edit.delete": {
   "description": "Deletes the selected items (or the given ids), or the selected text."
  },
  "edit.copy": {
@@ -988,7 +988,7 @@
   "description": "Deletes an endnote's reference and text, by its story and id.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -997,7 +997,7 @@
   "description": "Replaces an endnote's text, by its story and id.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -1173,7 +1173,7 @@
   "description": "Exports a story's text as plain text, RTF or Tagged Text.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -1453,7 +1453,7 @@
    "type": "object"
   }
  },
- "find.change": {
+ "edit.replace": {
   "description": "Replaces every match of text (or a GREP pattern) with new text, in a scope; answers how many changed.",
   "params": {
    "caseSensitive": {
@@ -1472,7 +1472,7 @@
     "type": "string"
    },
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    },
    "wholeWord": {
@@ -1480,10 +1480,10 @@
    }
   }
  },
- "find.changeObjects": {
+ "edit.replaceObjects": {
   "description": "Finds objects by criteria and changes their fill, stroke, weight or opacity; answers how many changed."
  },
- "find.find": {
+ "edit.find": {
   "description": "Finds text (or a GREP pattern) in the document, a story or the selection and answers every match with its story and byte offsets; changes nothing.",
   "output": {
    "type": "array"
@@ -1493,12 +1493,12 @@
     "type": "string"
    },
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
  },
- "find.next": {
+ "edit.findNext": {
   "description": "Selects the next match of a text after the caret.",
   "params": {
    "find": {
@@ -1509,7 +1509,7 @@
    }
   }
  },
- "find.objects": {
+ "edit.findObjects": {
   "description": "Finds and selects objects by fill, stroke, weight, opacity and kind; answers their ids.",
   "params": {
    "fill": {
@@ -1587,7 +1587,7 @@
   "description": "Deletes a footnote's reference and text.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -1605,7 +1605,7 @@
   },
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -1659,7 +1659,7 @@
   "description": "Replaces a footnote's text, by its story and id.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -1691,7 +1691,7 @@
    }
   }
  },
- "frame.create": {
+ "frame.add": {
   "description": "Creates a frame on a spread from a rectangle [x0, y0, x1, y1] in spread coordinates, with a shape and content type (graphic, text, unassigned); answers its id.",
   "params": {
    "content": {
@@ -1778,7 +1778,7 @@
   "description": "Loads the text cursor from a text frame's out port (or in port) to continue its story elsewhere.",
   "params": {
    "frame": {
-    "description": "an object id from document.inspect or object.list",
+    "description": "an object id from file.inspect or object.list",
     "type": "integer"
    }
   }
@@ -1787,7 +1787,7 @@
   "description": "Threads a text frame's story into another frame (or a new frame drawn on a spread).",
   "params": {
    "from": {
-    "description": "an object id from document.inspect or object.list",
+    "description": "an object id from file.inspect or object.list",
     "type": "integer"
    },
    "spread": {
@@ -1809,7 +1809,7 @@
     ]
    },
    "to": {
-    "description": "an object id from document.inspect or object.list",
+    "description": "an object id from file.inspect or object.list",
     "type": "integer"
    }
   }
@@ -1818,7 +1818,7 @@
   "description": "Breaks a text frame's thread after it (or before it); the following frames lose the story.",
   "params": {
    "frame": {
-    "description": "an object id from document.inspect or object.list",
+    "description": "an object id from file.inspect or object.list",
     "type": "integer"
    }
   }
@@ -1974,7 +1974,7 @@
    }
   }
  },
- "hyperlink.create": {
+ "link.add": {
   "description": "Creates a hyperlink from the selected text or objects to a URL, email or page.",
   "params": {
    "email": {
@@ -1982,10 +1982,10 @@
    }
   }
  },
- "hyperlink.delete": {
+ "link.delete": {
   "description": "Deletes a hyperlink by id."
  },
- "hyperlink.edit": {
+ "link.edit": {
   "description": "Changes a hyperlink's name or destination.",
   "params": {
    "email": {
@@ -1993,10 +1993,10 @@
    }
   }
  },
- "hyperlink.goToSource": {
+ "link.goToSource": {
   "description": "Selects a hyperlink's text or frame."
  },
- "hyperlink.list": {
+ "link.list": {
   "description": "Lists the hyperlinks with their ids, names and destinations.",
   "output": {
    "type": "array"
@@ -2128,7 +2128,7 @@
    }
   }
  },
- "layout.createAlternate": {
+ "layout.addAlternate": {
   "description": "Creates an alternate layout of the pages at a new size, with a page rule.",
   "params": {
    "rule": {
@@ -2141,7 +2141,7 @@
    }
   }
  },
- "layout.createGuides": {
+ "layout.addGuides": {
   "description": "Creates rows and columns of guides with gutters, fitted to the margins or the page.",
   "params": {
    "spread": {
@@ -2468,7 +2468,7 @@
  "library.remove": {
   "description": "Deletes a library item by index."
  },
- "line.create": {
+ "line.add": {
   "description": "Creates a straight line between two points on a spread; answers its id.",
   "params": {
    "spread": {
@@ -2491,10 +2491,10 @@
    }
   }
  },
- "links.copyTo": {
+ "linkedFile.copyTo": {
   "description": "Copies placed files to a folder and relinks the document to the copies."
  },
- "links.embed": {
+ "linkedFile.embed": {
   "description": "Embeds a linked graphic in the document.",
   "params": {
    "asset": {
@@ -2502,7 +2502,7 @@
    }
   }
  },
- "links.goTo": {
+ "linkedFile.goTo": {
   "description": "Selects the frames showing a linked graphic.",
   "params": {
    "asset": {
@@ -2510,13 +2510,13 @@
    }
   }
  },
- "links.list": {
+ "linkedFile.list": {
   "description": "Lists placed graphics' links with their status (ok, modified, missing, embedded), size and uses.",
   "output": {
    "type": "array"
   }
  },
- "links.relink": {
+ "linkedFile.relink": {
   "description": "Points every placement of a graphic at another file.",
   "params": {
    "asset": {
@@ -2524,7 +2524,7 @@
    }
   }
  },
- "links.relinkFolder": {
+ "linkedFile.relinkFolder": {
   "description": "Relinks graphics to files of the same name in a folder, optionally with another extension.",
   "params": {
    "extension": {
@@ -2533,7 +2533,7 @@
    }
   }
  },
- "links.update": {
+ "linkedFile.update": {
   "description": "Reloads modified links from their files (one or all).",
   "params": {
    "asset": {
@@ -2701,7 +2701,7 @@
   "description": "Turns a note into ordinary story text in place of its anchor.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -2710,7 +2710,7 @@
   "description": "Deletes an editorial note by its story and id.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -2722,7 +2722,7 @@
     "type": "string"
    },
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -2789,10 +2789,10 @@
    }
   }
  },
- "object.bringForward": {
+ "arrange.bringForward": {
   "description": "Brings the selection one step forward."
  },
- "object.bringToFront": {
+ "arrange.bringToFront": {
   "description": "Brings the selection to the front."
  },
  "object.caption": {
@@ -2976,7 +2976,7 @@
    }
   }
  },
- "object.group": {
+ "arrange.group": {
   "description": "Groups objects (default: the selection) into one group."
  },
  "object.hide": {
@@ -3150,10 +3150,10 @@
    }
   }
  },
- "object.sendBackward": {
+ "arrange.sendBackward": {
   "description": "Sends the selection one step backward."
  },
- "object.sendToBack": {
+ "arrange.sendToBack": {
   "description": "Sends the selection to the back."
  },
  "object.setFlags": {
@@ -3272,7 +3272,7 @@
  "object.transparencyGroup": {
   "description": "Sets isolate blending and knockout group on groups."
  },
- "object.ungroup": {
+ "arrange.ungroup": {
   "description": "Splits groups back into their objects."
  },
  "object.unlockAll": {
@@ -3333,7 +3333,7 @@
    }
   }
  },
- "path.create": {
+ "path.add": {
   "description": "Creates a path from anchor points with optional handles, open or closed; answers its id.",
   "params": {
    "spread": {
@@ -3519,10 +3519,10 @@
  "select.previousInGroup": {
   "description": "Selects the previous object in the selection's group."
  },
- "selection.set": {
+ "select.set": {
   "description": "Selects objects by id, adding to the selection or selecting their content when asked."
  },
- "selection.toggle": {
+ "select.toggle": {
   "description": "Adds an object to the selection, or removes it if it is selected."
  },
  "snippet.export": {
@@ -3575,7 +3575,7 @@
   "description": "Replaces a misspelled word at a story range.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    },
    "to": {
@@ -3591,7 +3591,7 @@
   },
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -3605,10 +3605,10 @@
    "type": "array"
   }
  },
- "states.create": {
+ "state.add": {
   "description": "Turns objects (or one group's objects) into a multi-state object."
  },
- "states.list": {
+ "state.list": {
   "description": "Lists a multi-state object's states and the active one.",
   "output": {
    "additionalProperties": true,
@@ -3626,13 +3626,13 @@
    "type": "object"
   }
  },
- "states.release": {
+ "state.release": {
   "description": "Releases a multi-state object back to a plain group."
  },
- "states.rename": {
+ "state.rename": {
   "description": "Renames a state of a multi-state object."
  },
- "states.show": {
+ "state.show": {
   "description": "Shows one state of a multi-state object by index or name."
  },
  "story.get": {
@@ -3709,7 +3709,7 @@
     ]
    },
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -3718,7 +3718,7 @@
   "description": "Replaces a byte range of a story's text, keeping the surrounding formatting.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -3727,16 +3727,16 @@
   "description": "Sets a story's column progression to left to right or right to left.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
  },
  "story.setText": {
-  "description": "Replaces a story's whole text; the story is found by its id from document.inspect.",
+  "description": "Replaces a story's whole text; the story is found by its id from file.inspect.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -3745,7 +3745,7 @@
   "description": "Unlinks a story from its parent.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -3754,7 +3754,7 @@
   "description": "Updates linked stories (default: every out-of-date one) from their parents.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -3778,7 +3778,7 @@
   "description": "Applies a cell style to the target cells, or the whole table.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    },
    "table": {
@@ -3786,7 +3786,7 @@
    }
   }
  },
- "style.cell.create": {
+ "style.cell.add": {
   "description": "Creates a table cell style with fill, tint, insets and paragraph style, or from the target cell.",
   "params": {
    "fill": {
@@ -3822,7 +3822,7 @@
  "style.character.apply": {
   "description": "Applies a character style to the selected text."
  },
- "style.character.create": {
+ "style.character.add": {
   "description": "Creates a character style based on another, setting only the given attributes.",
   "params": {
    "basedOn": {
@@ -3917,7 +3917,7 @@
  "style.object.apply": {
   "description": "Applies an object style to objects."
  },
- "style.object.create": {
+ "style.object.add": {
   "description": "Creates an object style from the selection or with a fill and paragraph style.",
   "params": {
    "fill": {
@@ -3931,7 +3931,7 @@
  "style.paragraph.apply": {
   "description": "Applies a paragraph style to the selected paragraphs, clearing local overrides when asked."
  },
- "style.paragraph.create": {
+ "style.paragraph.add": {
   "description": "Creates a paragraph style based on another, with paragraph and character attributes or from the selection.",
   "params": {
    "basedOn": {
@@ -3973,7 +3973,7 @@
   "description": "Applies a table style to a table.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    },
    "table": {
@@ -3981,7 +3981,7 @@
    }
   }
  },
- "style.table.create": {
+ "style.table.add": {
   "description": "Creates a table style with cell styles for header, body, footer and columns, and borders.",
   "params": {
    "body": {
@@ -4026,7 +4026,7 @@
  "swatch.addUnnamed": {
   "description": "Turns every unnamed colour in use into a swatch."
  },
- "swatch.create": {
+ "swatch.add": {
   "description": "Creates a colour swatch from hex, CMYK (0 to 100) or RGB, process or spot.",
   "params": {
    "color": {
@@ -4089,7 +4089,7 @@
   "description": "Gives rows equal fixed heights.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    },
    "table": {
@@ -4123,7 +4123,7 @@
   },
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    },
    "table": {
@@ -4253,7 +4253,7 @@
   "description": "Selects cells, rows, columns or a whole table by story, table and row and column ranges.",
   "params": {
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    },
    "table": {
@@ -4324,7 +4324,7 @@
   "description": "Unmerges the target merged cell."
  },
  "template.list": {
-  "description": "Lists the starter layouts document.applyTemplate accepts, with their sizes.",
+  "description": "Lists the starter layouts file.applyTemplate accepts, with their sizes.",
   "output": {
    "items": {
     "additionalProperties": true,
@@ -4398,7 +4398,7 @@
   }
  },
  "text.select": {
-  "description": "Selects text in a story between two byte offsets, as find.find reports them.",
+  "description": "Selects text in a story between two byte offsets, as edit.find reports them.",
   "params": {
    "anchor": {
     "description": "a text position",
@@ -4409,7 +4409,7 @@
     "type": "integer"
    },
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }
@@ -4631,7 +4631,7 @@
  "transform.shear": {
   "description": "Shears objects by an angle in degrees."
  },
- "type.align": {
+ "text.align": {
   "description": "Sets the alignment of the selected paragraphs by name.",
   "params": {
    "align": {
@@ -4640,43 +4640,43 @@
    }
   }
  },
- "type.alignCenter": {
+ "format.alignCenter": {
   "description": "Centres the selected paragraphs."
  },
- "type.alignLeft": {
+ "format.alignLeft": {
   "description": "Aligns the selected paragraphs to the left."
  },
- "type.alignRight": {
+ "format.alignRight": {
   "description": "Aligns the selected paragraphs to the right."
  },
- "type.allCaps": {
+ "text.allCaps": {
   "description": "Toggles all caps on the selected text."
  },
- "type.bold": {
+ "format.bold": {
   "description": "Toggles bold on the selected text."
  },
- "type.changeCase": {
+ "text.changeCase": {
   "description": "Changes the selected text (or selected frames' stories) to upper, lower, title or sentence case."
  },
- "type.char": {
+ "text.char": {
   "description": "Sets character attributes on the selected text: font family and style, size, leading, tracking, colour and more."
  },
- "type.createOutlines": {
+ "text.convertToOutlines": {
   "description": "Converts text frames into compound paths of their glyphs."
  },
- "type.fillWithPlaceholder": {
+ "text.fillWithPlaceholder": {
   "description": "Fills a text frame with placeholder text."
  },
- "type.italic": {
+ "format.italic": {
   "description": "Toggles italic on the selected text."
  },
- "type.justify": {
+ "format.justify": {
   "description": "Justifies the selected paragraphs with the last line aligned left."
  },
- "type.kenten": {
+ "text.kenten": {
   "description": "Turns emphasis dots (kenten) on the selected characters on or off."
  },
- "type.onPath": {
+ "text.onPath": {
   "description": "Puts text on a path, with a start distance, flip and alignment.",
   "params": {
    "flip": {
@@ -4688,7 +4688,7 @@
    }
   }
  },
- "type.openType": {
+ "text.openType": {
   "description": "Turns an OpenType feature (ligatures, fractions, ordinals, swashes, stylistic sets…) on or off for the selected text.",
   "params": {
    "feature": {
@@ -4696,10 +4696,10 @@
    }
   }
  },
- "type.para": {
+ "text.para": {
   "description": "Sets paragraph attributes on the selected paragraphs: alignment, indents, spacing, drop caps and more."
  },
- "type.pathOptions": {
+ "text.pathOptions": {
   "description": "Changes type on a path's start, flip and alignment, or removes it.",
   "params": {
    "flip": {
@@ -4707,10 +4707,10 @@
    }
   }
  },
- "type.ruby": {
+ "text.ruby": {
   "description": "Sets the ruby reading over the selected text; empty text removes it."
  },
- "type.selectionAttrs": {
+ "text.selectionAttrs": {
   "description": "Answers the resolved character and paragraph attributes at the text selection.",
   "output": {
    "additionalProperties": true,
@@ -5241,25 +5241,25 @@
    "type": "object"
   }
  },
- "type.sizeDown": {
+ "format.decreaseFontSize": {
   "description": "Decreases the selected text's point size by one step."
  },
- "type.sizeUp": {
+ "format.increaseFontSize": {
   "description": "Increases the selected text's point size by one step."
  },
- "type.storyDirection": {
+ "text.storyDirection": {
   "description": "Makes the stories of the text selection or selected frames vertical or horizontal."
  },
- "type.tateChuYoko": {
+ "text.tateChuYoko": {
   "description": "Sets the selected text horizontally within a vertical line (tate-chu-yoko), or not."
  },
- "type.underline": {
+ "format.underline": {
   "description": "Toggles underline on the selected text."
  },
- "type.warichu": {
+ "text.warichu": {
   "description": "Turns warichu (inline split lines) on the selected text on or off, with lines, size, spacing and alignment."
  },
- "variables.define": {
+ "variable.define": {
   "description": "Defines a text variable (custom, last page number, chapter number, file name, dates, running header…).",
   "params": {
    "after": {
@@ -5282,13 +5282,13 @@
    }
   }
  },
- "variables.delete": {
+ "variable.delete": {
   "description": "Deletes a text variable; its instances become plain text."
  },
- "variables.insert": {
+ "variable.insert": {
   "description": "Inserts a text variable at the text insertion point."
  },
- "variables.list": {
+ "variable.list": {
   "description": "Lists the text variables with their types and values.",
   "output": {
    "items": {
@@ -5462,7 +5462,7 @@
     "type": "string"
    },
    "story": {
-    "description": "a story id from document.inspect",
+    "description": "a story id from file.inspect",
     "type": "integer"
    }
   }

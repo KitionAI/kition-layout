@@ -117,7 +117,7 @@ mod tests {
         s.execute("math.insert", &json!({"id": id.0, "latex": "x"})).unwrap();
         assert!(s.doc().unwrap().doc.item(id).unwrap().bounds().height() < b.height());
         // Inline at the insertion point.
-        let f = s.execute("frame.create", &json!({"rect": [72, 300, 400, 400], "content": "text", "text": "Area: "})).unwrap();
+        let f = s.execute("frame.add", &json!({"rect": [72, 300, 400, 400], "content": "text", "text": "Area: "})).unwrap();
         s.execute("text.select", &json!({"story": f["story"], "anchor": 6, "focus": 6})).unwrap();
         assert_eq!(s.execute("math.insert", &json!({"latex": r"\pi r^2"})).unwrap()["inline"], true);
         let st = &s.doc().unwrap().doc.stories[&kition_layout_doc::StoryId(f["story"].as_u64().unwrap())];

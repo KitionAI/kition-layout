@@ -180,7 +180,7 @@ pub fn specs() -> Vec<CommandSpec> {
             })
         }),
         cmd!(
-            "layout.createAlternate",
+            "layout.addAlternate",
             "Create Alternate Layout…",
             ["Layout"],
             None,
@@ -225,7 +225,7 @@ pub fn layouts(d: &Document) -> Vec<(Option<String>, std::ops::Range<usize>)> {
     out
 }
 
-/// The layouts as `document.inspect` reports them: name (null for the original), first page
+/// The layouts as `file.inspect` reports them: name (null for the original), first page
 /// (1-based), page count, and the size of its first page.
 pub(crate) fn layouts_json(d: &Document) -> Value {
     Value::Array(
@@ -242,7 +242,7 @@ pub(crate) fn layouts_json(d: &Document) -> Value {
 /// A copy of parent `id` at `w` × `h` for an alternate layout, its objects following the liquid
 /// rules of an object-based page (a background stretches with the page).
 fn parent_at_size(d: &mut Document, id: kition_layout_doc::SpreadId, name: &str, w: f64, h: f64) -> Result<kition_layout_doc::SpreadId> {
-    const ID: &str = "layout.createAlternate";
+    const ID: &str = "layout.addAlternate";
     let src = d.clone();
     let pi = src.parent_index(id).ok_or_else(|| bad(ID, "no such parent"))?;
     let from = &src.parents[pi];
@@ -283,7 +283,7 @@ fn parent_at_size(d: &mut Document, id: kition_layout_doc::SpreadId, name: &str,
 }
 
 fn create_alternate(s: &mut crate::Session, p: &Value) -> Result<Value> {
-    const ID: &str = "layout.createAlternate";
+    const ID: &str = "layout.addAlternate";
     let name = str_param(p, "name").unwrap_or("Alternate").trim().to_string();
     if name.is_empty() {
         return Err(bad(ID, "`name` must not be empty"));
@@ -427,7 +427,7 @@ mod tests {
     fn liquid_rules_follow_a_page_resize() {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 1, "width": 600, "height": 800})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [100, 100, 200, 200]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [100, 100, 200, 200]})).unwrap()["id"].as_u64().unwrap();
         // Re-center: same size, shifted by half the growth.
         s.execute("liquid.pageRule", &json!({"rule": "reCenter"})).unwrap();
         s.execute("layout.pageSize", &json!({"pages": [1], "width": 800})).unwrap();
@@ -450,12 +450,12 @@ mod tests {
     fn guide_based_and_alternate_layout() {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 1, "width": 600, "height": 800})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [100, 100, 300, 200]})).unwrap()["id"].as_u64().unwrap();
-        let b = s.execute("frame.create", &json!({"rect": [400, 100, 500, 200]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [100, 100, 300, 200]})).unwrap()["id"].as_u64().unwrap();
+        let b = s.execute("frame.add", &json!({"rect": [400, 100, 500, 200]})).unwrap()["id"].as_u64().unwrap();
         s.execute("guide.add", &json!({"orientation": "vertical", "position": 200, "page": 0})).unwrap();
         s.execute("guide.liquid", &json!({"page": 0, "index": 0})).unwrap();
         s.execute("liquid.pageRule", &json!({"rule": "guideBased"})).unwrap();
-        let r = s.execute("layout.createAlternate", &json!({"name": "Wide", "width": 1200, "height": 800})).unwrap();
+        let r = s.execute("layout.addAlternate", &json!({"name": "Wide", "width": 1200, "height": 800})).unwrap();
         assert_eq!(r["firstPage"], 2);
         let d = s.doc().unwrap().doc.clone();
         assert_eq!(d.page_count(), 2);
@@ -474,8 +474,8 @@ mod tests {
         assert_eq!(s.doc().unwrap().doc.page_count(), 1);
         // Text in an alternate layout stays linked to the original story.
         s.execute("edit.redo", &json!({})).unwrap();
-        let t = s.execute("frame.create", &json!({"rect": [100, 300, 300, 400], "content": "text", "text": "Original", "caret": false})).unwrap();
-        s.execute("layout.createAlternate", &json!({"name": "Tall", "width": 600, "height": 1200})).unwrap();
+        let t = s.execute("frame.add", &json!({"rect": [100, 300, 300, 400], "content": "text", "text": "Original", "caret": false})).unwrap();
+        s.execute("layout.addAlternate", &json!({"name": "Tall", "width": 600, "height": 1200})).unwrap();
         let links = s.execute("story.links", &json!({})).unwrap();
         assert!(links.as_array().unwrap().iter().any(|l| l["parent"] == t["story"]), "{links}");
     }
@@ -488,14 +488,14 @@ mod tests {
         s.execute("file.new", &json!({"pages": 1, "width": 1080, "height": 1440, "facingPages": false})).unwrap();
         s.execute("page.background", &json!({"color": "#e6e0f5"})).unwrap();
         s.execute("liquid.pageRule", &json!({"rule": "scale"})).unwrap();
-        s.execute("frame.create", &json!({"rect": [80, 80, 1000, 400], "content": "text", "text": "Headline", "caret": false})).unwrap();
-        let r = s.execute("layout.createAlternate", &json!({"name": "Square", "width": 1080, "height": 1080})).unwrap();
+        s.execute("frame.add", &json!({"rect": [80, 80, 1000, 400], "content": "text", "text": "Headline", "caret": false})).unwrap();
+        let r = s.execute("layout.addAlternate", &json!({"name": "Square", "width": 1080, "height": 1080})).unwrap();
         assert_eq!(r, json!({"name": "Square", "firstPage": 2, "pages": 1}));
-        let r = s.execute("layout.createAlternate", &json!({"name": "Story", "width": 1080, "height": 1920})).unwrap();
+        let r = s.execute("layout.addAlternate", &json!({"name": "Story", "width": 1080, "height": 1920})).unwrap();
         assert_eq!(r["firstPage"], 3, "copies the original only, not the other variants");
         assert_eq!(r["pages"], 1);
-        assert!(s.execute("layout.createAlternate", &json!({"name": "Story", "width": 10, "height": 10})).is_err(), "names are unique");
-        assert!(s.execute("layout.createAlternate", &json!({"name": "X", "width": 10, "height": 10, "source": "Nope"})).is_err());
+        assert!(s.execute("layout.addAlternate", &json!({"name": "Story", "width": 10, "height": 10})).is_err(), "names are unique");
+        assert!(s.execute("layout.addAlternate", &json!({"name": "X", "width": 10, "height": 10, "source": "Nope"})).is_err());
         let list = s.execute("layout.list", &json!({})).unwrap();
         assert_eq!(
             list.as_array().unwrap().iter().map(|l| l["name"].clone()).collect::<Vec<_>>(),

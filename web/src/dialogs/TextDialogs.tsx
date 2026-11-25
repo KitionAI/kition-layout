@@ -75,7 +75,7 @@ export function FindChangeDialog({ onClose }: { onClose: () => void }) {
     }
   }
   const next = async () => {
-    const answer = await session.run('find.next', findParams(search))
+    const answer = await session.run('edit.findNext', findParams(search))
     return answer && answer !== 'null' ? t('find.found') : t('find.none')
   }
   const change = async () => {
@@ -84,7 +84,7 @@ export function FindChangeDialog({ onClose }: { onClose: () => void }) {
     return t('find.changed', { count: 1 })
   }
   const all = async () => {
-    const answer = await session.run('find.change', { ...findParams(search), change: search.change })
+    const answer = await session.run('edit.replace', { ...findParams(search), change: search.change })
     const count = answer ? Number((JSON.parse(answer) as { count?: number }).count ?? 0) : 0
     return count ? t('find.changed', { count }) : t('find.none')
   }
@@ -109,16 +109,16 @@ export function FindChangeDialog({ onClose }: { onClose: () => void }) {
             {t('find.changeFind')}
           </Button>
           <Button disabled={!ready} onClick={() => void act(change)} data-testid="layout-find-change">
-            {t('find.change')}
+            {t('find.changeOne')}
           </Button>
           <Button variant="primary" disabled={!ready} onClick={() => void act(next)} data-testid="layout-find-next">
-            {t('find.next')}
+            {t('find.findNext')}
           </Button>
         </>
       }
     >
       <div className="layout-dialog layout-dialog-fields">
-        <TextRow label={t('find.find')} value={search.find} onChange={(find) => set({ find })} testId="layout-find-text" autoFocus />
+        <TextRow label={t('find.what')} value={search.find} onChange={(find) => set({ find })} testId="layout-find-text" autoFocus />
         <TextRow label={t('find.changeTo')} value={search.change} onChange={(change) => set({ change })} testId="layout-find-change-text" />
         <ChoiceRow label={t('find.scope')} value={search.scope} choices={(['document', 'story', 'selection'] as const).map((scope) => [scope, t(`find.scope.${scope}`)] as const)} onChange={(scope) => set({ scope })} testId="layout-find-scope" />
         <CheckRow label={t('param.caseSensitive')} checked={search.caseSensitive} onChange={(caseSensitive) => set({ caseSensitive })} testId="layout-find-case" />

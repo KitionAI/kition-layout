@@ -66,7 +66,7 @@ export function useCanvasContextMenu({ info, canvas, onOpen, spread }: CanvasMen
         return
       }
       const chosen = now.selection.includes(item.id)
-      if (!chosen) void editorNow.session.run('selection.set', { ids: [item.id] }).catch(() => undefined)
+      if (!chosen) void editorNow.session.run('select.set', { ids: [item.id] }).catch(() => undefined)
       const count = chosen ? now.selection.length : 1
       open({ kind: 'object', textFrame: item.story != null, image: item.asset != null, group: item.kind === '<group>', count }, event.clientX, event.clientY)
     }

@@ -13,7 +13,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Define Lists…",
             ["Type", "Bulleted and Numbered Lists"],
             None,
-            "{name, continueAcrossStories?: true, rename?} — paragraphs join it with type.para {listType: numbers, listName}",
+            "{name, continueAcrossStories?: true, rename?} — paragraphs join it with text.para {listType: numbers, listName}",
             has_doc,
             |s, p| {
                 let name = str_param(p, "name").ok_or_else(|| bad("list.define", "missing name"))?.to_string();
@@ -73,10 +73,10 @@ mod tests {
         s.execute("list.define", &json!({"name": "Steps"})).unwrap();
         let mut stories = vec![];
         for (spread, text) in [(0, "Mix\nStir"), (1, "Bake\nServe")] {
-            let r = s.execute("frame.create", &json!({"spread": spread, "rect": [72, 72, 400, 300], "content": "text", "text": text})).unwrap();
+            let r = s.execute("frame.add", &json!({"spread": spread, "rect": [72, 72, 400, 300], "content": "text", "text": text})).unwrap();
             let sid = r["story"].as_u64().unwrap();
             s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": text.len()})).unwrap();
-            s.execute("type.para", &json!({"attrs": {"listType": "numbers", "listName": "Steps"}})).unwrap();
+            s.execute("text.para", &json!({"attrs": {"listType": "numbers", "listName": "Steps"}})).unwrap();
             stories.push(sid);
         }
         assert_eq!(first_char(&s, stories[0]), '1');
@@ -93,10 +93,10 @@ mod tests {
         assert_eq!(digit(&cs.frames[0].lines[0].glyphs[0]), '4');
         // Start At restarts.
         s.execute("text.select", &json!({"story": stories[1], "anchor": 0, "focus": 0})).unwrap();
-        s.execute("type.para", &json!({"attrs": {"startAt": 7}})).unwrap();
+        s.execute("text.para", &json!({"attrs": {"startAt": 7}})).unwrap();
         assert_eq!(first_char(&s, stories[1]), '7');
         // null removes the override again.
-        s.execute("type.para", &json!({"attrs": {"startAt": null}})).unwrap();
+        s.execute("text.para", &json!({"attrs": {"startAt": null}})).unwrap();
         assert_eq!(first_char(&s, stories[1]), '4');
     }
 }

@@ -32,26 +32,26 @@ Themes, layouts and every other parameter that takes one of a fixed list of valu
 | `align` | `left`, `center`, `right` | `anchored.insert`, `anchored.options` |
 | `align` | `left`, `center`, `right`, `` | `object.exportOptions` |
 | `align` | `center`, `inside`, `outside` | `object.stroke` |
-| `align` | `baseline`, `ascender`, `descender`, `center` | `type.onPath`, `type.pathOptions` |
-| `align` | `auto`, `left`, `center`, `right`, `justify` | `type.warichu` |
+| `align` | `baseline`, `ascender`, `descender`, `center` | `text.onPath`, `text.pathOptions` |
+| `align` | `auto`, `left`, `center`, `right`, `justify` | `text.warichu` |
 | `angle` | `90`, `-90`, `180`, `0` | `layout.rotateSpreadView` |
 | `axis` | `horizontal`, `vertical` | `transform.flip`, `object.distribute` |
 | `background` | `paper`, `transparent` | `file.exportImage` |
 | `binding` | `leftToRight`, `rightToLeft` | `layout.documentSetup` |
 | `by` | `centers`, `spacing` | `object.distribute` |
 | `cap` | `butt`, `round`, `projecting` | `object.stroke` |
-| `case` | `upper`, `lower`, `title`, `sentence` | `type.changeCase` |
+| `case` | `upper`, `lower`, `title`, `sentence` | `text.changeCase` |
 | `columnSeparator` | `tab`, `comma` | `table.convertFromText` |
-| `content` | `graphic`, `text`, `unassigned` | `frame.create` |
+| `content` | `graphic`, `text`, `unassigned` | `frame.add` |
 | `delimiter` | `comma`, `tab`, `semicolon` | `data.source.select` |
 | `dir` | `left`, `right`, `up`, `down`, `lineStart`, `lineEnd`, `storyStart`, `storyEnd` | `text.move` |
 | `direction` | `leftToRight`, `rightToLeft` | `story.setDirection`, `table.options` |
 | `edge` | `left`, `hcenter`, `right`, `top`, `vcenter`, `bottom` | `object.align` |
 | `end` | `none`, `simple`, `simpleWide`, `triangle`, `triangleWide`, `barbed`, `curved`, `circle`, `circleSolid`, `square`, `squareSolid`, `bar` | `object.stroke` |
-| `figures` | `tabularLining`, `proportionalOldstyle`, `proportionalLining`, `tabularOldstyle`, `default` | `type.openType` |
+| `figures` | `tabularLining`, `proportionalOldstyle`, `proportionalLining`, `tabularOldstyle`, `default` | `text.openType` |
 | `fit` | `proportional`, `fill` | `table.placeGraphic` |
 | `fitting` | `none`, `fillProportionally`, `fitProportionally`, `fitContentToFrame`, `centerContent` | `object.fittingOptions` |
-| `fitTo` | `margins`, `page` | `layout.createGuides` |
+| `fitTo` | `margins`, `page` | `layout.addGuides` |
 | `flatten` | `high`, `medium`, `low`, `ppi` | `file.exportPdf` |
 | `format` | `png`, `jpeg` | `file.exportImage` |
 | `format` | `txt`, `rtf`, `tagged` | `file.exportText` |
@@ -60,7 +60,7 @@ Themes, layouts and every other parameter that takes one of a fixed list of valu
 | `intent` | `perceptual`, `relative`, `saturation`, `absolute` | `color.settings` |
 | `intent` | `print`, `web`, `mobile` | `layout.documentSetup` |
 | `join` | `miter`, `round`, `bevel` | `object.stroke` |
-| `kind` | `text`, `graphic`, `shape`, `line`, `group` | `find.objects` |
+| `kind` | `text`, `graphic`, `shape`, `line`, `group` | `edit.findObjects` |
 | `kind` | `textField`, `checkBox`, `comboBox`, `listBox`, `signature` | `form.set` |
 | `kind` | `linear`, `radial` | `object.gradient` |
 | `kind` | `blinds`, `box`, `comb`, `cover`, `dissolve`, `fade`, `push`, `split`, `uncover`, `wipe`, `zoomIn`, `zoomOut`, `none` | `page.transition` |
@@ -81,8 +81,8 @@ Themes, layouts and every other parameter that takes one of a fixed list of valu
 | `role` | `text`, `image`, `qr`, `hyperlink` | `data.placeholder.add` |
 | `rule` | `off`, `scale`, `reCenter`, `guideBased`, `objectBased` | `liquid.pageRule` |
 | `scope` | `person`, `agent` | `edit.undo`, `edit.redo` |
-| `scope` | `document`, `story`, `selection` | `find.find` |
-| `shape` | `rectangle`, `ellipse`, `polygon` | `frame.create` |
+| `scope` | `document`, `story`, `selection` | `edit.find` |
+| `shape` | `rectangle`, `ellipse`, `polygon` | `frame.add` |
 | `shape` | `none`, `rounded`, `inverseRounded`, `inset`, `bevel`, `fancy` | `object.cornerOptions` |
 | `side` | `out`, `in` | `frame.thread`, `frame.unthread`, `frame.loadText` |
 | `space` | `cmyk`, `rgb` | `edit.transparencyBlendSpace` |
@@ -90,7 +90,7 @@ Themes, layouts and every other parameter that takes one of a fixed list of valu
 | `style` | `arabic`, `upperRoman`, `lowerRoman`, `upperLetters`, `lowerLetters` | `endnote.options`, `layout.section` |
 | `style` | `arabic`, `upperRoman`, `lowerRoman`, `upperLetters`, `lowerLetters`, `symbols` | `footnote.options` |
 | `target` | `fill`, `stroke` | `object.color`, `swatch.addToSwatches` |
-| `template` | `editorial`, `event`, `sale`, `quote` | `document.applyTemplate` |
+| `template` | `editorial`, `event`, `sale`, `quote` | `file.applyTemplate` |
 | `to` | `rgb`, `cmyk`, `gray`, `lab` | `color.convert` |
 | `to` | `selection`, `keyObject`, `margins`, `page`, `spread` | `object.align` |
 | `to` | `front`, `forward`, `backward`, `back` | `object.arrange` |
@@ -99,11 +99,11 @@ Themes, layouts and every other parameter that takes one of a fixed list of valu
 | `type` | `alpha`, `edges` | `object.clippingPath` |
 | `type` | `graphic`, `text`, `unassigned` | `object.content` |
 | `type` | `stripes`, `dash`, `dot` | `strokeStyle.new` |
-| `type` | `custom`, `lastPageNumber`, `chapterNumber`, `fileName`, `creationDate`, `modificationDate`, `outputDate`, `runningHeader` | `variables.define` |
-| `use` | `firstOnPage`, `lastOnPage` | `variables.define` |
+| `type` | `custom`, `lastPageNumber`, `chapterNumber`, `fileName`, `creationDate`, `modificationDate`, `outputDate`, `runningHeader` | `variable.define` |
+| `use` | `firstOnPage`, `lastOnPage` | `variable.define` |
 | `verticalJustification` | `top`, `center`, `bottom`, `justify` | `object.textFrameOptions` |
 | `view` | `fitPage`, `fitWidth`, `actual` | `file.exportPdf` |
-| `vj` | `top`, `center`, `bottom`, `justify` | `style.cell.create`, `table.setCell` |
+| `vj` | `top`, `center`, `bottom`, `justify` | `style.cell.add`, `table.setCell` |
 | `what` | `cell`, `row`, `column`, `table` | `table.select` |
 | `where` | `left`, `right` | `table.insertColumn` |
 | `where` | `above`, `below` | `table.insertRow` |
@@ -116,23 +116,23 @@ Defaults the engine states in its schemas (other defaults are named in the param
 |---|---|---|
 | `file.exportIdml` | `embedImages` | `true` |
 | `file.exportImage` | `ppi` | `72` |
-| `frame.create` | `sides` | `6` |
+| `frame.add` | `sides` | `6` |
 | `object.gradientFeather` | `on` | `true` |
 | `list.define` | `continueAcrossStories` | `true` |
-| `type.pathOptions` | `delete` | `true` |
+| `text.pathOptions` | `delete` | `true` |
 | `file.package` | `idml` | `true` |
 | `file.package` | `pdf` | `false` |
 | `file.print` | `copies` | `1` |
-| `style.object.create` | `fromSelection` | `true` |
+| `style.object.add` | `fromSelection` | `true` |
 | `layout.pages.insert` | `count` | `1` |
 | `layer.others` | `show` | `true` |
 | `layer.others` | `unlock` | `true` |
 | `toc.generate` | `pageNumbers` | `true` |
 | `index.generate` | `runIn` | `false` |
 | `index.generate` | `sectionHeadings` | `true` |
-| `layout.createGuides` | `columnGutter` | `12` |
-| `layout.createGuides` | `removeExisting` | `false` |
-| `layout.createGuides` | `rowGutter` | `12` |
+| `layout.addGuides` | `columnGutter` | `12` |
+| `layout.addGuides` | `removeExisting` | `false` |
+| `layout.addGuides` | `rowGutter` | `12` |
 | `font.replace` | `redefineStyles` | `true` |
 | `spelling.check` | `suggestions` | `true` |
 | `preflight.run` | `minPpi` | `150` |
@@ -205,27 +205,27 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `ppi` integer, default `72`, pixels per inch: 72 = one pixel per point
   - `quality` integer, 1 to 100; JPEG, default 90
   - `sizes` boolean, every size: the first page of the original and of each alternate layout, instead of `pages`
-- `selection.set` (writes): Selects objects by id, adding to the selection or selecting their content when asked.
+- `select.set` (writes): Selects objects by id, adding to the selection or selecting their content when asked.
   - `add` boolean
   - `content` boolean
   - `ids` integer[]
-- `selection.toggle` (writes): Adds an object to the selection, or removes it if it is selected.
+- `select.toggle` (writes): Adds an object to the selection, or removes it if it is selected.
   - `id` integer or string, an id
 - `endnote.edit` (writes): Replaces an endnote's text, by its story and id.
   - `id` integer or string, an id
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `text` string
 - `endnote.delete` (writes): Deletes an endnote's reference and text, by its story and id.
   - `id` integer or string, an id
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 - `endnote.list` (reads): Lists the endnotes in numbering order with their story, id, number and text. No parameters.
 - `note.edit` (writes): Changes a note's text or author.
   - `author` string
   - `id` integer or string, an id
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `text` string
 - `note.list` (reads): Lists the notes in story order with their position, author and text. No parameters.
-- `frame.create` (writes): Creates a frame on a spread from a rectangle [x0, y0, x1, y1] in spread coordinates, with a shape and content type (graphic, text, unassigned); answers its id.
+- `frame.add` (writes): Creates a frame on a spread from a rectangle [x0, y0, x1, y1] in spread coordinates, with a shape and content type (graphic, text, unassigned); answers its id.
   - `caret` boolean
   - `content` string, one of `graphic` | `text` | `unassigned`
   - `rect` number[], [x0, y0, x1, y1]; spread coords
@@ -234,7 +234,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `spread` integer or object
   - `text` string
   - `vertical` boolean, text: a new vertical story
-- `line.create` (writes): Creates a straight line between two points on a spread; answers its id.
+- `line.add` (writes): Creates a straight line between two points on a spread; answers its id.
   - `a` number[]
   - `b` number[]
   - `spread` integer or object
@@ -290,7 +290,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
 - `object.rename` (writes): Renames an object by id.
   - `id` integer or string, an id
   - `name` string
-- `path.create` (writes): Creates a path from anchor points with optional handles, open or closed; answers its id.
+- `path.add` (writes): Creates a path from anchor points with optional handles, open or closed; answers its id.
   - `anchors` object[]
   - `closed` boolean
   - `spread` integer or object
@@ -328,24 +328,24 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `layer` integer
 - `frame.thread` (writes): Threads a text frame's story into another frame (or a new frame drawn on a spread).
   - `autoflow` boolean, Shift-click: then add pages with frames on their margins, threaded, until the story fits
-  - `from` integer, an object id from document.inspect or object.list
+  - `from` integer, an object id from file.inspect or object.list
   - `keepLoaded` boolean, load the text cursor again from the frame
   - `page` integer, 1-based: a new text frame on the page's margins
   - `rect` number[], [x0, y0, x1, y1]; a new text frame there, spread coords
   - `side` string, one of `out` | `in`, default out: the frame follows `from`; in: it goes before `from`
   - `spread` integer or object
-  - `to` integer, an object id from document.inspect or object.list
+  - `to` integer, an object id from file.inspect or object.list
 - `frame.unthread` (writes): Breaks a text frame's thread after it (or before it); the following frames lose the story.
-  - `frame` integer, an object id from document.inspect or object.list
+  - `frame` integer, an object id from file.inspect or object.list
   - `side` string, one of `out` | `in`, default out: break after the frame; in: before it
 - `frame.loadText` (writes): Loads the text cursor from a text frame's out port (or in port) to continue its story elsewhere.
-  - `frame` integer, an object id from document.inspect or object.list
+  - `frame` integer, an object id from file.inspect or object.list
   - `side` string, one of `out` | `in`, default out
 - `page.background` (writes): Sets the page background colour (hex or swatch), or none for transparent.
   - `color` string or null
   - `pages` json[], [1-based] (default: every page); default: every page
-- `template.list` (reads): Lists the starter layouts document.applyTemplate accepts, with their sizes. No parameters.
-- `document.applyTemplate` (writes): Replaces the document's pages, parents and styles with a starter template (editorial, event, sale, quote).
+- `template.list` (reads): Lists the starter layouts file.applyTemplate accepts, with their sizes. No parameters.
+- `file.applyTemplate` (writes): Replaces the document's pages, parents and styles with a starter template (editorial, event, sale, quote).
   - `template` string, one of `editorial` | `event` | `sale` | `quote`
 - `path.addAnchor` (writes): Adds an anchor point on a path at the nearest point to a position.
   - `at` number[], spread coords; the nearest point on the path
@@ -415,13 +415,13 @@ Defaults the engine states in its schemas (other defaults are named in the param
 - `color.convert` (reads): Converts a colour between RGB, CMYK and gray with the working profiles; changes nothing.
   - `color` object, {model: rgb, r, g, b} or {model: cmyk, c, m, y, k}
   - `to` string, one of `rgb` | `cmyk` | `gray` | `lab`
-- `changes.list` (reads): Lists tracked changes with their story, position, kind (inserted or deleted) and text. No parameters.
-- `changes.accept` (writes): Accepts the tracked change at a story position.
+- `change.list` (reads): Lists tracked changes with their story, position, kind (inserted or deleted) and text. No parameters.
+- `change.accept` (writes): Accepts the tracked change at a story position.
   - `start` number
-  - `story` integer, a story id from document.inspect
-- `changes.reject` (writes): Rejects the tracked change at a story position.
+  - `story` integer, a story id from file.inspect
+- `change.reject` (writes): Rejects the tracked change at a story position.
   - `start` number
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 - `condition.list` (reads): Lists the conditional-text conditions with their colours and visibility. No parameters.
 - `condition.options` (writes): Renames a condition or changes its colour or visibility.
   - `color` number[], [r, g, b]
@@ -462,9 +462,9 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `name` string
 - `story.links` (reads): Lists linked stories with their parents and whether they are out of date. No parameters.
 - `story.updateLink` (writes): Updates linked stories (default: every out-of-date one) from their parents.
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 - `story.unlink` (writes): Unlinks a story from its parent.
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 - `math.svg` (reads): Typesets a LaTeX expression and answers its SVG and size without placing it.
   - `latex` string, a LaTeX expression
   - `size` number
@@ -513,15 +513,15 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `name` string
 - `script.run` (writes): Runs a command script (lines of command ids with JSON parameters, or a JSON array) as one undo step.
   - `text` string
-- `states.list` (reads): Lists a multi-state object's states and the active one.
+- `state.list` (reads): Lists a multi-state object's states and the active one.
   - `id` integer or string, an id
-- `states.show` (writes): Shows one state of a multi-state object by index or name.
+- `state.show` (writes): Shows one state of a multi-state object by index or name.
   - `id` integer or string, an id
-- `states.rename` (writes): Renames a state of a multi-state object.
+- `state.rename` (writes): Renames a state of a multi-state object.
   - `id` integer or string, an id
   - `index` integer, a position counted from 0 (the first is 0)
   - `name` string
-- `states.release` (writes): Releases a multi-state object back to a plain group.
+- `state.release` (writes): Releases a multi-state object back to a plain group.
   - `id` integer or string, an id
 - `page.transition` (writes): Sets a page transition (blinds, box, dissolve…) for pages, a spread, or all.
   - `duration` number, seconds; 1
@@ -529,13 +529,13 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `kind` string, one of `blinds` | `box` | `comb` | `cover` | `dissolve` | `fade` | `push` | `split` | `uncover` | `wipe` | `zoomIn` | `zoomOut` | `none`
   - `pages` integer[], pages counted from 1
 - `page.transitions` (reads): Lists the page transitions by spread. No parameters.
-- `type.onPath` (writes): Puts text on a path, with a start distance, flip and alignment.
+- `text.onPath` (writes): Puts text on a path, with a start distance, flip and alignment.
   - `align` string, one of `baseline` | `ascender` | `descender` | `center`
   - `flip` boolean
   - `id` string
   - `start` number, distance along the path in points
   - `text` string
-- `links.copyTo` (writes): Copies placed files to a folder and relinks the document to the copies.
+- `linkedFile.copyTo` (writes): Copies placed files to a folder and relinks the document to the copies.
   - `assets` json[], [asset ids] (default: all); default: all
   - `dir` file
 - `file.printers` (reads): Lists the printers and the default one. No parameters.
@@ -553,10 +553,10 @@ Defaults the engine states in its schemas (other defaults are named in the param
 - `text.selectWord` (writes): Selects the word at a point in a frame.
   - `frame` integer
   - `point` number[], [x, y] in points
-- `text.select` (writes): Selects text in a story between two byte offsets, as find.find reports them.
+- `text.select` (writes): Selects text in a story between two byte offsets, as edit.find reports them.
   - `anchor` integer, a text position
   - `focus` integer, a text position
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 - `text.insert` (writes): Types text at the caret, replacing the selected text, with typographer's quotes unless raw.
   - `raw` boolean, no typographer's quotes
   - `text` string
@@ -568,36 +568,36 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `extend` boolean
   - `word` boolean
 - `text.exitToFrame` (writes): Leaves text editing and selects the frame instead. No parameters.
-- `story.setText` (writes): Replaces a story's whole text; the story is found by its id from document.inspect.
-  - `story` integer, a story id from document.inspect
+- `story.setText` (writes): Replaces a story's whole text; the story is found by its id from file.inspect.
+  - `story` integer, a story id from file.inspect
   - `text` string
 - `story.replaceRange` (writes): Replaces a byte range of a story's text, keeping the surrounding formatting.
   - `end` number
   - `start` number
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `text` string
 - `story.get` (reads): Answers a story's text, frames, paragraphs, direction and whether it is overset; the way to read text. No parameters.
-- `type.char` (writes): Sets character attributes on the selected text: font family and style, size, leading, tracking, colour and more.
+- `text.char` (writes): Sets character attributes on the selected text: font family and style, size, leading, tracking, colour and more.
   - `attrs` object, {fontFamily?, fontStyle?, size?, leading?: {kind:auto}|{kind:points,value}, tracking?, kerning?, hScale?, vScale?, baselineShift?, fill?, capitalization?, underline?, …}
-- `type.para` (writes): Sets paragraph attributes on the selected paragraphs: alignment, indents, spacing, drop caps and more.
+- `text.para` (writes): Sets paragraph attributes on the selected paragraphs: alignment, indents, spacing, drop caps and more.
   - `attrs` object, {align?, leftIndent?, firstLineIndent?, spaceBefore?, spaceAfter?, dropCapLines?, hyphenate?, composer?, tabs?, ruleAbove?/ruleBelow?: {on?, weight?, color?, tint?, columnWidth?, offset?, leftIndent?, rightIndent?} (only the named rule fields change), …}; only the named rule fields change
-- `type.align` (writes): Sets the alignment of the selected paragraphs by name.
+- `text.align` (writes): Sets the alignment of the selected paragraphs by name.
   - `align` string, left|center|right|leftJustified|…
-- `type.alignLeft` (writes): Aligns the selected paragraphs to the left. No parameters.
-- `type.alignCenter` (writes): Centres the selected paragraphs. No parameters.
-- `type.alignRight` (writes): Aligns the selected paragraphs to the right. No parameters.
-- `type.justify` (writes): Justifies the selected paragraphs with the last line aligned left. No parameters.
-- `type.bold` (writes): Toggles bold on the selected text. No parameters.
-- `type.italic` (writes): Toggles italic on the selected text. No parameters.
-- `type.underline` (writes): Toggles underline on the selected text. No parameters.
-- `type.allCaps` (writes): Toggles all caps on the selected text. No parameters.
-- `type.tateChuYoko` (writes): Sets the selected text horizontally within a vertical line (tate-chu-yoko), or not.
+- `format.alignLeft` (writes): Aligns the selected paragraphs to the left. No parameters.
+- `format.alignCenter` (writes): Centres the selected paragraphs. No parameters.
+- `format.alignRight` (writes): Aligns the selected paragraphs to the right. No parameters.
+- `format.justify` (writes): Justifies the selected paragraphs with the last line aligned left. No parameters.
+- `format.bold` (writes): Toggles bold on the selected text. No parameters.
+- `format.italic` (writes): Toggles italic on the selected text. No parameters.
+- `format.underline` (writes): Toggles underline on the selected text. No parameters.
+- `text.allCaps` (writes): Toggles all caps on the selected text. No parameters.
+- `text.tateChuYoko` (writes): Sets the selected text horizontally within a vertical line (tate-chu-yoko), or not.
   - `on` boolean
-- `type.ruby` (writes): Sets the ruby reading over the selected text; empty text removes it.
+- `text.ruby` (writes): Sets the ruby reading over the selected text; empty text removes it.
   - `text` string
-- `type.kenten` (writes): Turns emphasis dots (kenten) on the selected characters on or off.
+- `text.kenten` (writes): Turns emphasis dots (kenten) on the selected characters on or off.
   - `on` boolean
-- `type.warichu` (writes): Turns warichu (inline split lines) on the selected text on or off, with lines, size, spacing and alignment.
+- `text.warichu` (writes): Turns warichu (inline split lines) on the selected text on or off, with lines, size, spacing and alignment.
   - `align` string, one of `auto` | `left` | `center` | `right` | `justify`
   - `charsAfterBreak` integer
   - `charsBeforeBreak` integer
@@ -605,18 +605,18 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `lines` integer
   - `on` boolean
   - `size` number
-- `type.storyDirection` (writes): Makes the stories of the text selection or selected frames vertical or horizontal.
+- `text.storyDirection` (writes): Makes the stories of the text selection or selected frames vertical or horizontal.
   - `vertical` boolean
-- `type.sizeUp` (writes): Increases the selected text's point size by one step. No parameters.
-- `type.sizeDown` (writes): Decreases the selected text's point size by one step. No parameters.
-- `type.openType` (writes): Turns an OpenType feature (ligatures, fractions, ordinals, swashes, stylistic sets…) on or off for the selected text.
+- `format.increaseFontSize` (writes): Increases the selected text's point size by one step. No parameters.
+- `format.decreaseFontSize` (writes): Decreases the selected text's point size by one step. No parameters.
+- `text.openType` (writes): Turns an OpenType feature (ligatures, fractions, ordinals, swashes, stylistic sets…) on or off for the selected text.
   - `feature` string
   - `figures` string, one of `tabularLining` | `proportionalOldstyle` | `proportionalLining` | `tabularOldstyle` | `default`
   - `on` boolean, default: toggle
   - `stylisticSets` json[], [1–20]
 - `style.breakLink` (writes): Keeps the selected text's look as local formatting and detaches it from its paragraph or character style.
   - `kind` string, one of `paragraph` | `character`
-- `type.selectionAttrs` (reads): Answers the resolved character and paragraph attributes at the text selection. No parameters.
+- `text.selectionAttrs` (reads): Answers the resolved character and paragraph attributes at the text selection. No parameters.
 - `style.compositeFont.list` (reads): Lists the composite font definitions. No parameters.
 - `style.compositeFont.set` (writes): Creates or replaces a composite font: per character set, a family, style, relative size and scale.
   - `entries` object[], [{name?, characters?, family, style?, relativeSize?, horizontalScale?, verticalScale?, baselineShift?, scaleOption?}]
@@ -631,7 +631,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `name` string
 - `style.character.apply` (writes): Applies a character style to the selected text.
   - `name` string
-- `style.paragraph.create` (writes): Creates a paragraph style based on another, with paragraph and character attributes or from the selection.
+- `style.paragraph.add` (writes): Creates a paragraph style based on another, with paragraph and character attributes or from the selection.
   - `basedOn` string, a style name
   - `chars` object
   - `fromSelection` boolean
@@ -651,7 +651,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
 - `style.character.delete` (writes): Deletes a character style, replacing it in text with another (default [None]).
   - `name` string
   - `replaceWith` string, a style name
-- `style.character.create` (writes): Creates a character style based on another, setting only the given attributes.
+- `style.character.add` (writes): Creates a character style based on another, setting only the given attributes.
   - `basedOn` string, a style name
   - `chars` object
   - `name` string
@@ -664,12 +664,12 @@ Defaults the engine states in its schemas (other defaults are named in the param
 - `style.object.apply` (writes): Applies an object style to objects.
   - `ids` array
   - `name` string
-- `style.object.create` (writes): Creates an object style from the selection or with a fill and paragraph style.
+- `style.object.add` (writes): Creates an object style from the selection or with a fill and paragraph style.
   - `fill` string
   - `fromSelection` boolean, default `true`
   - `name` string
   - `paragraphStyle` string
-- `swatch.create` (writes): Creates a colour swatch from hex, CMYK (0 to 100) or RGB, process or spot.
+- `swatch.add` (writes): Creates a colour swatch from hex, CMYK (0 to 100) or RGB, process or spot.
   - `color` string, #rrggbb or a swatch name
   - `name` string
   - `spot` boolean
@@ -718,7 +718,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
 - `swatch.renameColorGroup` (writes): Renames a colour group.
   - `name` string
   - `to` string, a new name
-- `style.cell.create` (writes): Creates a table cell style with fill, tint, insets and paragraph style, or from the target cell.
+- `style.cell.add` (writes): Creates a table cell style with fill, tint, insets and paragraph style, or from the target cell.
   - `fill` string
   - `fromSelection` boolean, the target cell's look
   - `insets` number or array
@@ -729,11 +729,11 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `vj` string, one of `top` | `center` | `bottom` | `justify`
 - `style.cell.apply` (writes): Applies a cell style to the target cells, or the whole table.
   - `name` string
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `table` integer
 - `style.cell.edit` (writes): Changes a cell style; cells using it follow.
   - `name` string
-- `style.table.create` (writes): Creates a table style with cell styles for header, body, footer and columns, and borders.
+- `style.table.add` (writes): Creates a table style with cell styles for header, body, footer and columns, and borders.
   - `altRows` object, {first, firstColor, next, nextColor}
   - `body` string
   - `border` object
@@ -746,7 +746,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `spaceBefore` number
 - `style.table.apply` (writes): Applies a table style to a table.
   - `name` string
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `table` integer
 - `style.table.edit` (writes): Changes a table style; tables using it follow.
   - `name` string
@@ -799,13 +799,13 @@ Defaults the engine states in its schemas (other defaults are named in the param
 - `table.select` (writes): Selects cells, rows, columns or a whole table by story, table and row and column ranges.
   - `cols` number[], [a, b]
   - `rows` number[], [a, b]
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `table` integer
   - `what` string, one of `cell` | `row` | `column` | `table`
 - `table.nextCell` (writes): Moves to the next table cell. No parameters.
 - `table.prevCell` (writes): Moves to the previous table cell. No parameters.
 - `table.get` (reads): Answers a table's rows, columns and cells (text, spans, fill) and options.
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `table` integer
 - `layout.rotateSpreadView` (writes): Rotates the view of one spread by 90, -90 or 180 degrees, or clears it; output is unchanged.
   - `angle` integer, one of `90` | `-90` | `180` | `0`, clockwise; clear
@@ -861,7 +861,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `starInset` number
   - `transformationsAreTotals` boolean
   - `typographersQuotes` boolean
-- `document.preferences` (writes): Sets document preferences: units, keyboard increments, guide colours, glyph fallback and black overprint.
+- `file.preferences` (writes): Sets document preferences: units, keyboard increments, guide colours, glyph fallback and black overprint.
   - `advancedType` object, {superscriptSize, superscriptPosition, subscriptSize, subscriptPosition} (%); %
   - `baselineGrid` object, {start, increment, relativeTo, color, viewThreshold}
   - `bleedColor` string, a colour
@@ -875,13 +875,13 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `pasteboard` array, [h, v]
   - `slugColor` number[], [r, g, b]
   - `verticalUnits` string, points|picas|inches|millimeters|…
-- `document.inspect` (reads): Answers the document's structure: pages, spreads, items with ids, stories with overset, styles, swatches and the selection. Use story.get for text. No parameters.
-- `document.list` (reads): Lists the open documents with their indexes. No parameters.
+- `file.inspect` (reads): Answers the document's structure: pages, spreads, items with ids, stories with overset, styles, swatches and the selection. Use story.get for text. No parameters.
+- `file.list` (reads): Lists the open documents with their indexes. No parameters.
 - `tool.select` (writes): Selects an editor tool (selection, direct selection, type, frame…).
   - `tool` string, selection|directSelection|type|rectangleFrame|…
 - `tool.list` (reads): Lists the editor tools. No parameters.
-- `document.history` (reads): Answers the undo and redo history. No parameters.
-- `find.objects` (writes): Finds and selects objects by fill, stroke, weight, opacity and kind; answers their ids.
+- `file.history` (reads): Answers the undo and redo history. No parameters.
+- `edit.findObjects` (writes): Finds and selects objects by fill, stroke, weight, opacity and kind; answers their ids.
   - `fill` string
   - `kind` string, one of `text` | `graphic` | `shape` | `line` | `group`
   - `label` string
@@ -890,31 +890,31 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `select` boolean, default true
   - `stroke` string
   - `strokeWeight` number
-- `find.changeObjects` (writes): Finds objects by criteria and changes their fill, stroke, weight or opacity; answers how many changed.
+- `edit.replaceObjects` (writes): Finds objects by criteria and changes their fill, stroke, weight or opacity; answers how many changed.
   - `change` object, {fill?, stroke?, strokeWeight?, opacity?}
-- `variables.list` (reads): Lists the text variables with their types and values. No parameters.
-- `variables.delete` (writes): Deletes a text variable; its instances become plain text.
+- `variable.list` (reads): Lists the text variables with their types and values. No parameters.
+- `variable.delete` (writes): Deletes a text variable; its instances become plain text.
   - `name` string
 - `toc.entries` (reads): Answers the table-of-contents entries for styles (level, text, page) without changing the document. No parameters.
 - `footnote.list` (reads): Lists footnotes in story order with their story, id, anchor and text.
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 - `footnote.setText` (writes): Replaces a footnote's text, by its story and id.
   - `id` integer or string, an id
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `text` string
 - `footnote.delete` (writes): Deletes a footnote's reference and text.
   - `id` integer or string, an id
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 - `xref.list` (reads): Lists the cross-references with their position, target, format and text. No parameters.
 - `anchor.list` (reads): Lists the text anchors with their ids, names, stories, positions and pages. No parameters.
 - `xref.formats` (reads): Lists the cross-reference formats with their definitions. No parameters.
 - `xref.setFormat` (writes): Changes a cross-reference's format.
   - `format` string
   - `index` integer, a position counted from 0 (the first is 0)
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 - `index.list` (reads): Lists the index page references with their topics and pages. No parameters.
 - `anchored.list` (reads): Lists anchored objects with their story, position and size.
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 - `guide.add` (writes): Adds a horizontal or vertical guide at a position on a spread or page.
   - `at` number, the other coordinate in points
   - `orientation` string, one of `horizontal` | `vertical`
@@ -933,7 +933,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `spread` integer or object
 - `guide.list` (reads): Lists the guides on a spread with their orientation and position.
   - `spread` integer or object
-- `links.list` (reads): Lists placed graphics' links with their status (ok, modified, missing, embedded), size and uses. No parameters.
+- `linkedFile.list` (reads): Lists placed graphics' links with their status (ok, modified, missing, embedded), size and uses. No parameters.
 - `font.families` (reads): Lists the font families text can be set in, or one family's styles.
   - `family` string
 - `font.list` (reads): Lists the fonts used in the document with the characters set in them and whether any are missing. No parameters.
@@ -946,7 +946,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
 - `spelling.change` (writes): Replaces a misspelled word at a story range.
   - `end` number
   - `start` number
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `to` string, the replacement word
 - `data.source.select` (writes): Selects a data merge source (CSV or spreadsheet by path or bytes) and answers its fields and records.
   - `delimiter` string, one of `comma` | `tab` | `semicolon`
@@ -962,7 +962,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `field` string
   - `item` integer
   - `role` string, one of `text` | `image` | `qr` | `hyperlink`
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 - `data.placeholder.remove` (writes): Removes a data field placeholder.
   - `id` integer or string, an id
 - `data.options` (writes): Sets data merge options: records, layout per page, spacing, insets and image fitting.
@@ -995,16 +995,16 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `range` string
   - `records` string
   - `rowSpacing` number, points
-- `hyperlink.delete` (writes): Deletes a hyperlink by id.
+- `link.delete` (writes): Deletes a hyperlink by id.
   - `id` integer or string, an id
-- `hyperlink.list` (reads): Lists the hyperlinks with their ids, names and destinations. No parameters.
-- `hyperlink.edit` (writes): Changes a hyperlink's name or destination.
+- `link.list` (reads): Lists the hyperlinks with their ids, names and destinations. No parameters.
+- `link.edit` (writes): Changes a hyperlink's name or destination.
   - `email` string
   - `id` integer or string, an id
   - `name` string
   - `page` integer, 1-based; one of several alternative parameters
   - `url` string, 1-based; one of several alternative parameters
-- `hyperlink.goToSource` (writes): Selects a hyperlink's text or frame.
+- `link.goToSource` (writes): Selects a hyperlink's text or frame.
   - `id` integer or string, an id
 - `bookmark.rename` (writes): Renames a PDF bookmark by index.
   - `index` integer, a position counted from 0 (the first is 0)
@@ -1081,7 +1081,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `format` string, one of `txt` | `rtf` | `tagged`, Tagged Text; default from the path, else txt
   - `frame` integer
   - `path` file
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 - `file.exportXml` (writes): Exports the tagged content as XML, to a path or as text.
   - `path` file
 - `file.importXml` (writes): Imports XML, putting each element's content into the next frame with that tag. No parameters.
@@ -1123,7 +1123,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `scope` string, one of `person` | `agent`
 - `edit.selectAll` (writes): Selects all items on the active spreads, or all text when editing a story. No parameters.
 - `edit.deselectAll` (writes): Clears the selection; no object stays selected. No parameters.
-- `edit.clear` (writes): Deletes the selected items (or the given ids), or the selected text.
+- `edit.delete` (writes): Deletes the selected items (or the given ids), or the selected text.
   - `ids` array
 - `edit.copy` (writes): Copies the selection; for selected text it answers the text with its formatting. No parameters.
 - `edit.cut` (writes): Cuts the selection to the clipboard. No parameters.
@@ -1146,8 +1146,8 @@ Defaults the engine states in its schemas (other defaults are named in the param
 - `story.placeAndLink` (writes): Places a linked copy of a story in a new frame; the copy follows the parent when updated.
   - `rect` number[], [x0, y0, x1, y1] in points
   - `spread` integer or object
-  - `story` integer, a story id from document.inspect
-- `find.next` (writes): Selects the next match of a text after the caret.
+  - `story` integer, a story id from file.inspect
+- `edit.findNext` (writes): Selects the next match of a text after the caret.
   - `find` string
   - `grep` boolean
 
@@ -1164,7 +1164,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `startAt` integer
   - `style` string, one of `arabic` | `upperRoman` | `lowerRoman` | `upperLetters` | `lowerLetters`
   - `suffix` string
-- `type.createOutlines` (writes): Converts text frames into compound paths of their glyphs.
+- `text.convertToOutlines` (writes): Converts text frames into compound paths of their glyphs.
   - `ids` array
 - `math.insert` (writes): Inserts a math expression typeset from LaTeX at the text insertion point or at a position.
   - `latex` string, a LaTeX expression
@@ -1172,9 +1172,9 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `spread` integer or object
   - `x` number
   - `y` number
-- `type.fillWithPlaceholder` (writes): Fills a text frame with placeholder text.
+- `text.fillWithPlaceholder` (writes): Fills a text frame with placeholder text.
   - `frame` integer
-- `type.changeCase` (writes): Changes the selected text (or selected frames' stories) to upper, lower, title or sentence case.
+- `text.changeCase` (writes): Changes the selected text (or selected frames' stories) to upper, lower, title or sentence case.
   - `case` string, one of `upper` | `lower` | `title` | `sentence`
 - `footnote.insert` (writes): Inserts a footnote reference at the insertion point with its text; the caret moves into the footnote.
   - `text` string
@@ -1210,10 +1210,10 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `text` string
 - `note.delete` (writes): Deletes an editorial note by its story and id.
   - `id` integer or string, an id
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 - `note.convertToText` (writes): Turns a note into ordinary story text in place of its anchor.
   - `id` integer or string, an id
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 
 ### Object > Transform
 
@@ -1251,16 +1251,16 @@ Defaults the engine states in its schemas (other defaults are named in the param
 - `object.arrange` (writes): Moves objects to the front, forward, backward or to the back of the stacking order.
   - `ids` array
   - `to` string, one of `front` | `forward` | `backward` | `back`
-- `object.bringToFront` (writes): Brings the selection to the front. No parameters.
-- `object.bringForward` (writes): Brings the selection one step forward. No parameters.
-- `object.sendBackward` (writes): Sends the selection one step backward. No parameters.
-- `object.sendToBack` (writes): Sends the selection to the back. No parameters.
+- `arrange.bringToFront` (writes): Brings the selection to the front. No parameters.
+- `arrange.bringForward` (writes): Brings the selection one step forward. No parameters.
+- `arrange.sendBackward` (writes): Sends the selection one step backward. No parameters.
+- `arrange.sendToBack` (writes): Sends the selection to the back. No parameters.
 
 ### Object
 
-- `object.group` (writes): Groups objects (default: the selection) into one group.
+- `arrange.group` (writes): Groups objects (default: the selection) into one group.
   - `ids` array
-- `object.ungroup` (writes): Splits groups back into their objects.
+- `arrange.ungroup` (writes): Splits groups back into their objects.
   - `ids` array
 - `object.lock` (writes): Locks objects so they cannot be selected or changed on the canvas.
   - `ids` array
@@ -1522,12 +1522,12 @@ Defaults the engine states in its schemas (other defaults are named in the param
 
 ### Type > Track Changes
 
-- `changes.track` (writes): Turns Track Changes in stories on or off; without on it toggles.
+- `change.track` (writes): Turns Track Changes in stories on or off; without on it toggles.
   - `on` boolean, default: toggle
-- `changes.acceptAll` (writes): Accepts every tracked change (in one story or all).
-  - `story` integer, a story id from document.inspect
-- `changes.rejectAll` (writes): Rejects every tracked change (in one story or all).
-  - `story` integer, a story id from document.inspect
+- `change.acceptAll` (writes): Accepts every tracked change (in one story or all).
+  - `story` integer, a story id from file.inspect
+- `change.rejectAll` (writes): Rejects every tracked change (in one story or all).
+  - `story` integer, a story id from file.inspect
 
 ### Window > Type & Tables > Conditional Text
 
@@ -1551,7 +1551,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
 
 ### Layout
 
-- `layout.createAlternate` (writes): Creates an alternate layout of the pages at a new size, with a page rule.
+- `layout.addAlternate` (writes): Creates an alternate layout of the pages at a new size, with a page rule.
   - `height` number
   - `name` string
   - `rule` string, a page rule such as scale or reCenter
@@ -1578,7 +1578,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `rect` number[], [x0, y0, x1, y1]; spread coords
   - `title` string, like Contents
 - `toc.update` (writes): Regenerates the existing table of contents. No parameters.
-- `layout.createGuides` (writes): Creates rows and columns of guides with gutters, fitted to the margins or the page.
+- `layout.addGuides` (writes): Creates rows and columns of guides with gutters, fitted to the margins or the page.
   - `columnGutter` integer, default `12`
   - `columns` integer, 0 to 1000
   - `fitTo` string, one of `margins` | `page`
@@ -1605,12 +1605,12 @@ Defaults the engine states in its schemas (other defaults are named in the param
 
 ### Window > Interactive > Object States
 
-- `states.create` (writes): Turns objects (or one group's objects) into a multi-state object.
+- `state.add` (writes): Turns objects (or one group's objects) into a multi-state object.
   - `ids` array, default: the selection; one group's objects or several objects become states
 
 ### Type > Type on a Path
 
-- `type.pathOptions` (writes): Changes type on a path's start, flip and alignment, or removes it.
+- `text.pathOptions` (writes): Changes type on a path's start, flip and alignment, or removes it.
   - `align` string, one of `baseline` | `ascender` | `descender` | `center`
   - `delete` boolean, default `true`, Delete Type from Path
   - `flip` boolean
@@ -1638,7 +1638,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
 
 - `story.setDirection` (writes): Sets a story's column progression to left to right or right to left.
   - `direction` string, one of `leftToRight` | `rightToLeft`
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 
 ### Table
 
@@ -1655,7 +1655,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
 - `table.distributeColumns` (writes): Gives the selected columns equal widths. No parameters.
 - `table.distributeRows` (writes): Gives rows equal fixed heights.
   - `rows` number[], [a, b]
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `table` integer
 
 ### Table > Insert
@@ -1727,14 +1727,14 @@ Defaults the engine states in its schemas (other defaults are named in the param
 
 ### Edit > Find/Change
 
-- `find.find` (reads): Finds text (or a GREP pattern) in the document, a story or the selection and answers every match with its story and byte offsets; changes nothing.
+- `edit.find` (reads): Finds text (or a GREP pattern) in the document, a story or the selection and answers every match with its story and byte offsets; changes nothing.
   - `caseSensitive` boolean
   - `find` string
   - `grep` boolean
   - `scope` string, one of `document` | `story` | `selection`
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `wholeWord` boolean
-- `find.change` (writes): Replaces every match of text (or a GREP pattern) with new text, in a scope; answers how many changed.
+- `edit.replace` (writes): Replaces every match of text (or a GREP pattern) with new text, in a scope; answers how many changed.
   - `attrs` object
   - `caseSensitive` boolean
   - `change` string
@@ -1742,12 +1742,12 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `first` boolean, change only the first match
   - `grep` boolean
   - `scope` string
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `wholeWord` boolean
 
 ### Type > Text Variables
 
-- `variables.define` (writes): Defines a text variable (custom, last page number, chapter number, file name, dates, running header…).
+- `variable.define` (writes): Defines a text variable (custom, last page number, chapter number, file name, dates, running header…).
   - `after` string
   - `before` string
   - `character` boolean
@@ -1759,19 +1759,19 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `text` string
   - `type` string, one of `custom` | `lastPageNumber` | `chapterNumber` | `fileName` | `creationDate` | `modificationDate` | `outputDate` | `runningHeader`
   - `use` string, one of `firstOnPage` | `lastOnPage`
-- `variables.insert` (writes): Inserts a text variable at the text insertion point.
+- `variable.insert` (writes): Inserts a text variable at the text insertion point.
   - `name` string
 
 ### Type > Hyperlinks & Cross-References
 
 - `xref.insert` (writes): Inserts a cross-reference to a text anchor or paragraph in a format at the insertion point.
   - `format` string, default Full Paragraph & Page Number
-- `anchor.create` (writes): Creates a named text anchor (hyperlink destination) at the insertion point.
+- `anchor.add` (writes): Creates a named text anchor (hyperlink destination) at the insertion point.
   - `name` string
 - `xref.defineFormat` (writes): Defines a cross-reference format from building blocks such as <paraText /> and <pageNum />.
   - `definition` string
   - `name` string
-- `hyperlink.create` (writes): Creates a hyperlink from the selected text or objects to a URL, email or page.
+- `link.add` (writes): Creates a hyperlink from the selected text or objects to a URL, email or page.
   - `email` string
   - `ids` array
   - `name` string
@@ -1804,7 +1804,7 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `position` string, one of `inline` | `aboveLine` | `custom`
   - `spaceAfter` number
   - `spaceBefore` number
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `xOffset` number, points
   - `yOffset` number, points
 - `anchored.options` (writes): Changes an anchored object's position and offsets.
@@ -1814,12 +1814,12 @@ Defaults the engine states in its schemas (other defaults are named in the param
   - `position` string, one of `inline` | `aboveLine` | `custom`
   - `spaceAfter` number
   - `spaceBefore` number
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `xOffset` number, points
   - `yOffset` number, points
 - `anchored.release` (writes): Releases an anchored object back onto the page.
   - `index` integer, a position counted from 0 (the first is 0); default: the object at the insertion point
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
 
 ### View > Grids & Guides
 
@@ -1828,25 +1828,25 @@ Defaults the engine states in its schemas (other defaults are named in the param
 
 ### Window > Links
 
-- `links.relink` (writes): Points every placement of a graphic at another file.
+- `linkedFile.relink` (writes): Points every placement of a graphic at another file.
   - `asset` integer
   - `path` file
-- `links.relinkFolder` (writes): Relinks graphics to files of the same name in a folder, optionally with another extension.
+- `linkedFile.relinkFolder` (writes): Relinks graphics to files of the same name in a folder, optionally with another extension.
   - `assets` json[], [ids]
   - `dir` file, folder to look in (default: each link's own folder); default: each link's own folder
   - `extension` string, a file extension such as tif
   - `missingOnly` boolean, default true with `dir`
-- `links.update` (writes): Reloads modified links from their files (one or all).
+- `linkedFile.update` (writes): Reloads modified links from their files (one or all).
   - `asset` integer
-- `links.embed` (writes): Embeds a linked graphic in the document.
+- `linkedFile.embed` (writes): Embeds a linked graphic in the document.
   - `asset` integer
-- `links.goTo` (writes): Selects the frames showing a linked graphic.
+- `linkedFile.goTo` (writes): Selects the frames showing a linked graphic.
   - `asset` integer
 
 ### Edit > Spelling
 
 - `spelling.check` (reads): Checks spelling in a story or the document and answers misspelled words with positions and suggestions.
-  - `story` integer, a story id from document.inspect
+  - `story` integer, a story id from file.inspect
   - `suggestions` boolean, default `true`
 - `spelling.addWord` (writes): Adds a word to the document's user dictionary.
   - `word` boolean
@@ -1869,9 +1869,9 @@ From [`agent/guide.md`](../agent/guide.md).
 
 ```json
 layout_run {"path": "Flyer.klayout", "steps": [
-  {"command": "swatch.create", "params": {"name": "Brand", "color": {"c": 70, "m": 75, "y": 0, "k": 0}}},
-  {"command": "frame.create", "params": {"rect": [72, 300, 540, 420], "content": "unassigned"}},
-  {"command": "frame.create", "params": {"rect": [72, 450, 540, 520], "content": "text", "text": "Saturday 8 pm, Town Hall"}}
+  {"command": "swatch.add", "params": {"name": "Brand", "color": {"c": 70, "m": 75, "y": 0, "k": 0}}},
+  {"command": "frame.add", "params": {"rect": [72, 300, 540, 420], "content": "unassigned"}},
+  {"command": "frame.add", "params": {"rect": [72, 450, 540, 520], "content": "text", "text": "Saturday 8 pm, Town Hall"}}
 ]}
 ```
 
@@ -1882,7 +1882,7 @@ Use those ids:
 layout_run {"path": "Flyer.klayout", "steps": [
   {"command": "object.fill", "params": {"swatch": "Brand", "ids": [9]}},
   {"command": "text.select", "params": {"story": 11, "anchor": 0, "focus": 24}},
-  {"command": "type.char", "params": {"attrs": {"size": 28, "fill": "Brand"}}},
+  {"command": "text.char", "params": {"attrs": {"size": 28, "fill": "Brand"}}},
   {"command": "object.align", "params": {"edge": "hcenter", "to": "page", "ids": [10]}}
 ]}
 layout_check {"path": "Flyer.klayout"}

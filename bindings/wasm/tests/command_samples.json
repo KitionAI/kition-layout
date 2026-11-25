@@ -7,7 +7,7 @@
  "snippet.export": {
   "setup": [
    [
-    "selection.set",
+    "select.set",
     {
      "ids": [
       9
@@ -89,10 +89,10 @@
   ],
   "params": {}
  },
- "states.list": {
+ "state.list": {
   "setup": [
    [
-    "states.create",
+    "state.add",
     {
      "ids": [
       7,
@@ -111,7 +111,7 @@
  "table.get": {
   "skip": "needs a text insertion point in a table"
  },
- "find.find": {
+ "edit.find": {
   "params": {
    "find": "a"
   }
@@ -126,7 +126,7 @@
  "data.preview": {
   "skip": "needs a data merge source file"
  },
- "type.selectionAttrs": {
+ "text.selectionAttrs": {
   "setup": [
    [
     "text.placeCaret",

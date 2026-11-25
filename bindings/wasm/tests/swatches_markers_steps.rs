@@ -20,24 +20,21 @@ fn swatch_hex(doc: &LayoutDocument, name: &str) -> String {
 #[test]
 fn cmyk_components_are_percentages() {
     let mut doc = LayoutDocument::create("swatches.klayout", 600, 800).unwrap();
-    run(&mut doc, "swatch.create", json!({ "name": "Faint", "color": { "c": 1, "m": 0, "y": 0, "k": 0 } }));
-    run(&mut doc, "swatch.create", json!({ "name": "Cyan", "color": { "c": 100, "m": 0, "y": 0, "k": 0 } }));
-    run(&mut doc, "swatch.create", json!({ "name": "Half", "color": { "c": 0, "m": 0, "y": 0, "k": 50 } }));
+    run(&mut doc, "swatch.add", json!({ "name": "Faint", "color": { "c": 1, "m": 0, "y": 0, "k": 0 } }));
+    run(&mut doc, "swatch.add", json!({ "name": "Cyan", "color": { "c": 100, "m": 0, "y": 0, "k": 0 } }));
+    run(&mut doc, "swatch.add", json!({ "name": "Half", "color": { "c": 0, "m": 0, "y": 0, "k": 50 } }));
     let red = |hex: &str| u8::from_str_radix(&hex[1..3], 16).unwrap();
     assert!(red(&swatch_hex(&doc, "Faint")) > 240, "1 % cyan is almost white: {}", swatch_hex(&doc, "Faint"));
     assert!(red(&swatch_hex(&doc, "Cyan")) < 60, "100 % cyan: {}", swatch_hex(&doc, "Cyan"));
     let half = red(&swatch_hex(&doc, "Half"));
     assert!((100..200).contains(&half), "50 % black: {half}");
-    assert!(
-        doc.execute("swatch.create", json!({ "name": "Over", "color": { "c": 120, "m": 0, "y": 0, "k": 0 } })).is_err(),
-        "components are 0 to 100"
-    );
+    assert!(doc.execute("swatch.add", json!({ "name": "Over", "color": { "c": 120, "m": 0, "y": 0, "k": 0 } })).is_err(), "components are 0 to 100");
 }
 
 #[test]
 fn special_characters_have_a_command() {
     let mut doc = LayoutDocument::create("folio.klayout", 600, 800).unwrap();
-    let frame = run(&mut doc, "frame.create", json!({ "spread": 0, "rect": [40, 740, 300, 760], "text": "Page " }));
+    let frame = run(&mut doc, "frame.add", json!({ "spread": 0, "rect": [40, 740, 300, 760], "text": "Page " }));
     run(&mut doc, "text.select", json!({ "story": frame["story"], "anchor": 5, "focus": 5 }));
     run(&mut doc, "text.insertSpecial", json!({ "character": "currentPageNumber" }));
     let story = run(&mut doc, "story.get", json!({ "story": frame["story"] }));
@@ -48,7 +45,7 @@ fn special_characters_have_a_command() {
 #[test]
 fn step_and_repeat_offsets_only_the_axes_given() {
     let mut doc = LayoutDocument::create("buoys.klayout", 600, 800).unwrap();
-    let buoy = run(&mut doc, "frame.create", json!({ "spread": 0, "rect": [40, 100, 60, 120], "content": "graphic" }));
+    let buoy = run(&mut doc, "frame.add", json!({ "spread": 0, "rect": [40, 100, 60, 120], "content": "graphic" }));
     let copies = run(&mut doc, "edit.stepAndRepeat", json!({ "ids": [buoy["id"]], "count": 3, "dx": 50 }));
     assert_eq!(copies["created"], json!(3), "{copies}");
     let inspected = doc.inspect().unwrap();

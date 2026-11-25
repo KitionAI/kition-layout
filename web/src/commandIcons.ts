@@ -32,7 +32,7 @@ registerCommandIcons({
   "select.content": ImageIcon,
   "select.firstAbove": BringToFrontIcon,
   "select.lastBelow": SendToBackIcon,
-  "states.release": UnlinkIcon,
+  "state.release": UnlinkIcon,
   "transform.shear": ParallelogramIcon,
   "xml.loadDtd": FileCodeIcon,
   "xml.structure": CodeXmlIcon,

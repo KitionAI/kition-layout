@@ -51,7 +51,7 @@ impl PenTool {
         match self.path {
             None if self.anchors.len() >= 2 => {
                 let anchors: Vec<Value> = self.anchors.iter().map(anchor_json).collect();
-                vec![Action::Exec("path.create".into(), json!({"spread": spread_json(sr), "anchors": anchors, "closed": false, "notifyPen": true}))]
+                vec![Action::Exec("path.add".into(), json!({"spread": spread_json(sr), "anchors": anchors, "closed": false, "notifyPen": true}))]
             }
             Some(id) => vec![Action::Exec("path.appendAnchor".into(), json!({"id": id, "anchor": anchor_json(last)}))],
             None => vec![],
@@ -76,7 +76,7 @@ impl Tool for PenTool {
             _ => sp,
         };
         let snap_spread = self.spread.unwrap_or(sr);
-        // Pick up the item id created by path.create (the newest selected path).
+        // Pick up the item id created by path.add (the newest selected path).
         if self.path.is_none() && self.anchors.len() >= 2 {
             self.path = cx.selection.items.last().map(|i| i.0);
         }
@@ -131,7 +131,7 @@ impl Tool for PenTool {
             ToolKey::Enter | ToolKey::Escape => {
                 let had = !self.anchors.is_empty();
                 self.finish();
-                if had { vec![Action::Exec("selection.set".into(), json!({"ids": []}))] } else { vec![] }
+                if had { vec![Action::Exec("select.set".into(), json!({"ids": []}))] } else { vec![] }
             }
             _ => vec![],
         }

@@ -21,9 +21,9 @@ fn params(value: Value) -> Map<String, Value> {
     value.as_object().cloned().unwrap_or_default()
 }
 
-/// The layout as an agent reads it (`document.inspect`), without what belongs to the session.
+/// The layout as an agent reads it (`file.inspect`), without what belongs to the session.
 fn layout(kit: &mut Headless<LayoutDocument>, id: &str) -> Value {
-    let mut inspected = kit.execute(id, "document.inspect", Map::new(), Origin::Agent).unwrap().result.unwrap_or_default();
+    let mut inspected = kit.execute(id, "file.inspect", Map::new(), Origin::Agent).unwrap().result.unwrap_or_default();
     for key in ["path", "dirty", "selection", "tool", "title"] {
         inspected.as_object_mut().map(|object| object.remove(key));
     }
@@ -56,7 +56,7 @@ fn a_layout_opens_from_its_exported_replica_with_its_images() {
     let folder = HostFolder::new(&root).unwrap();
     kit.set_host(folder.host());
     let file = kit.open(OpenRequest { file: &folder.file("Poster.klayout").unwrap(), read_only: false, create: None }).unwrap().id;
-    kit.execute(&file, "frame.create", params(json!({ "rect": [72, 300, 300, 400], "content": "text", "text": "Spring" })), Origin::Agent).unwrap();
+    kit.execute(&file, "frame.add", params(json!({ "rect": [72, 300, 300, 400], "content": "text", "text": "Spring" })), Origin::Agent).unwrap();
     let before = layout(&mut kit, &file);
     assert_eq!(graphics(&before).len(), 1, "{before}");
 
@@ -72,7 +72,7 @@ fn a_layout_opens_from_its_exported_replica_with_its_images() {
     assert_eq!(again["blobs"], exported["blobs"], "the replica holds the image");
 
     // The replica takes edits of its own and leaves the file's document alone.
-    kit.execute(&replica, "frame.create", params(json!({ "rect": [300, 500, 400, 600], "content": "unassigned" })), Origin::Agent).unwrap();
+    kit.execute(&replica, "frame.add", params(json!({ "rect": [300, 500, 400, 600], "content": "unassigned" })), Origin::Agent).unwrap();
     assert_eq!(layout(&mut kit, &file), before);
     assert_ne!(layout(&mut kit, &replica), before);
     // What the replica made goes back to the file's document with its media.

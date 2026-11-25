@@ -3,7 +3,7 @@ use kition_kit::kdm::{ObjectId, tool_ids::ToolIds};
 
 impl LayoutDocument {
     pub(super) fn table_premises(&self, command: &str, params: &Value, under: &mut Under) -> Result<bool, String> {
-        let style_source = command == "style.cell.create" && params.get("fromSelection").and_then(Value::as_bool) == Some(true);
+        let style_source = command == "style.cell.add" && params.get("fromSelection").and_then(Value::as_bool) == Some(true);
         if !style_source && !command.starts_with("table.") && !matches!(command, "style.cell.apply" | "style.table.apply") {
             return Ok(false);
         }
@@ -146,7 +146,7 @@ impl LayoutDocument {
     }
 
     /// The `~styleSource` of every cell (`wanted`: only of those cells), by the cell's tool id: a
-    /// digest of exactly the values `style.cell.create` copies from it.
+    /// digest of exactly the values `style.cell.add` copies from it.
     pub(super) fn cell_style_sources(&self, wanted: Option<&[Value]>) -> Result<Vec<DerivedValues>, String> {
         let doc = &self.active()?.doc;
         let Some(kdm) = self.session.kdm() else { return Ok(Vec::new()) };

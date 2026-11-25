@@ -21,7 +21,7 @@ export function SwatchesSection({ info }: { info: DocumentInfo }) {
   const apply = (swatch: SwatchInfo) => {
     setChosen(swatch.name)
     if (readOnly || (!info.selection.length && !info.editingText)) return
-    if (info.editingText) void run('type.char', { attrs: target === 'fill' ? { fill: swatch.name } : { stroke: swatch.name } })
+    if (info.editingText) void run('text.char', { attrs: target === 'fill' ? { fill: swatch.name } : { stroke: swatch.name } })
     else if (target === 'fill') void run('object.fill', { swatch: swatch.name, tint: tint / 100, ids: info.selection })
     else void run('object.stroke', { swatch: swatch.name, tint: tint / 100, ids: info.selection })
   }
@@ -67,7 +67,7 @@ function NewSwatchDialog({ onClose }: { onClose: () => void }) {
   const valid = /^#[0-9a-f]{6}$/i.test(color)
   const create = async () => {
     if (!valid) return
-    await run('swatch.create', name.trim() ? { name: name.trim(), color } : { color })
+    await run('swatch.add', name.trim() ? { name: name.trim(), color } : { color })
     onClose()
   }
   return (

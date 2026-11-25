@@ -204,7 +204,7 @@ pub fn specs() -> Vec<CommandSpec> {
             package
         ),
         cmd!(
-            "links.copyTo",
+            "linkedFile.copyTo",
             "Copy Link(s) To…",
             [],
             None,
@@ -363,7 +363,7 @@ fn package(s: &mut Session, p: &Value) -> Result<Value> {
     let display_title = st.doc.title.clone();
     let title = safe_component(&display_title, "Untitled");
     let fonts = s.execute("font.list", &json!({}))?;
-    let links = s.execute("links.list", &json!({}))?;
+    let links = s.execute("linkedFile.list", &json!({}))?;
     let pre = s.execute("preflight.run", &json!({})).unwrap_or(Value::Null);
     let d = s.doc()?.doc.clone();
     let links_dir = root.child("Links")?;
@@ -445,8 +445,8 @@ fn package(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn copy_links(s: &mut Session, p: &Value) -> Result<Value> {
-    crate::disk::need("links.copyTo")?;
-    let dir = PathBuf::from(str_param(p, "dir").ok_or_else(|| bad("links.copyTo", "missing `dir`"))?);
+    crate::disk::need("linkedFile.copyTo")?;
+    let dir = PathBuf::from(str_param(p, "dir").ok_or_else(|| bad("linkedFile.copyTo", "missing `dir`"))?);
     let only: Option<Vec<AssetId>> = p.get("assets").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_u64).map(AssetId).collect());
     let d = s.doc()?.doc.clone();
     let root = OutputRoot::new(dir.clone())?;
@@ -481,7 +481,7 @@ mod tests {
             let asset = opened.doc().unwrap().doc.assets.values().next().unwrap();
             assert_eq!(*asset.data, png, "{extension}: preserve embedded pixels");
             assert_eq!(asset.link.as_deref(), expected.to_str(), "{extension}: use the relocated Links file");
-            let links = opened.execute("links.list", &json!({})).unwrap();
+            let links = opened.execute("linkedFile.list", &json!({})).unwrap();
             assert_eq!(links[0]["status"], "ok", "{extension}");
         }
         std::fs::remove_dir_all(dir).unwrap();
@@ -497,7 +497,7 @@ mod tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         s.execute("file.place", &json!({"path": svg.to_string_lossy(), "x": 100, "y": 100})).unwrap();
-        s.execute("frame.create", &json!({"rect": [72, 300, 400, 400], "content": "text", "text": "Hello"})).unwrap();
+        s.execute("frame.add", &json!({"rect": [72, 300, 400, 400], "content": "text", "text": "Hello"})).unwrap();
         let out = dir.join("Pkg");
         let r = s.execute("file.package", &json!({"dir": out.to_string_lossy(), "pdf": true, "instructions": "Print on matte."})).unwrap();
         let files: Vec<String> = r["files"].as_array().unwrap().iter().map(|f| f.as_str().unwrap().to_string()).collect();
@@ -514,7 +514,7 @@ mod tests {
         let link = packed.assets.values().next().unwrap().link.clone().unwrap();
         assert!(link.contains("Links"), "{link}");
         // Copy Links To relinks the open document.
-        let r = s.execute("links.copyTo", &json!({"dir": dir.join("Copies").to_string_lossy()})).unwrap();
+        let r = s.execute("linkedFile.copyTo", &json!({"dir": dir.join("Copies").to_string_lossy()})).unwrap();
         assert_eq!(r["copied"], 1);
         assert!(s.doc().unwrap().doc.assets.values().next().unwrap().link.as_deref().unwrap().contains("Copies"));
         let _ = std::fs::remove_dir_all(&dir);
@@ -541,10 +541,10 @@ mod tests {
         // Text in both fonts, and in the bundled default font.
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Free Restricted Default"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Free Restricted Default"})).unwrap();
         for (a, b, family) in [(0, 4, FREE), (5, 15, RESTRICTED)] {
             s.execute("text.select", &json!({"story": r["story"], "anchor": a, "focus": b})).unwrap();
-            s.execute("type.char", &json!({"fontFamily": family, "fontStyle": "Regular"})).unwrap();
+            s.execute("text.char", &json!({"fontFamily": family, "fontStyle": "Regular"})).unwrap();
         }
         let src = dir.join("src").join("Fonts.klayout");
         s.execute("file.save", &json!({"path": src.to_string_lossy()})).unwrap();
@@ -599,11 +599,11 @@ mod tests {
         std::fs::write(fonts.join("restricted.otf"), with_fs_type(font_with(RESTRICTED, &[restricted]).unwrap(), 0x0002).unwrap()).unwrap();
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("document.preferences", &json!({"glyphFallback": true})).unwrap();
+        s.execute("file.preferences", &json!({"glyphFallback": true})).unwrap();
         let text = format!("N{helped}{restricted}");
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": text})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": text})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": text.len()})).unwrap();
-        s.execute("type.char", &json!({"fontFamily": NAMED, "fontStyle": "Regular"})).unwrap();
+        s.execute("text.char", &json!({"fontFamily": NAMED, "fontStyle": "Regular"})).unwrap();
         let src = dir.join("src").join("Fallback.klayout");
         s.execute("file.save", &json!({"path": src.to_string_lossy()})).unwrap();
         let mut s = Session::new();

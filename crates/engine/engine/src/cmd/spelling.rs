@@ -257,7 +257,7 @@ mod tests {
     fn check_finds_misspellings() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("frame.create", &json!({"rect": [36, 36, 300, 200], "content": "text", "text": "Thw quick brown fox jumpd over the NASA dog."}))
+        s.execute("frame.add", &json!({"rect": [36, 36, 300, 200], "content": "text", "text": "Thw quick brown fox jumpd over the NASA dog."}))
             .unwrap();
         let r = s.execute("spelling.check", &json!({})).unwrap();
         let words: Vec<&str> = r.as_array().unwrap().iter().map(|m| m["word"].as_str().unwrap()).collect();
@@ -289,10 +289,10 @@ mod hyphenation_exception_tests {
     fn user_exceptions_decide_where_words_break() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 172, 400], "content": "text", "text": "a internationalization"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 172, 400], "content": "text", "text": "a internationalization"})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 0})).unwrap();
-        s.execute("type.para", &json!({"hyphenate": true, "hyphLastWord": true})).unwrap();
+        s.execute("text.para", &json!({"hyphenate": true, "hyphLastWord": true})).unwrap();
         s.execute("hyphenation.addException", &json!({"word": "in~ternationalization"})).unwrap();
         assert_eq!(first_line(&s, sid), "a in-", "the only break allowed");
         s.execute("hyphenation.addException", &json!({"word": "internationalization"})).unwrap();

@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 /// The edit Kition One's cases make in a layout: writer `writer`'s text frame.
 fn ones_edit(doc: &mut LayoutDocument, text: &str, writer: u32) {
     let x = 20 + 120 * writer;
-    exec(doc, "frame.create", json!({ "rect": [x, 20, x + 100, 80], "text": text })).unwrap();
+    exec(doc, "frame.add", json!({ "rect": [x, 20, x + 100, 80], "text": text })).unwrap();
 }
 
 /// What the editor's page pushed since `sent`, with its blobs, taken by `to`.
@@ -82,7 +82,7 @@ fn a_viewer_runs_only_what_leaves_the_replica_alone() {
     std::fs::create_dir_all(&tmp).unwrap();
     let fill = |value: &Value| -> Value { serde_json::from_str(&value.to_string().replace("$tmp", &tmp.to_string_lossy())).unwrap() };
     let commands = LayoutDocument::open("basic.klayout", &bytes).unwrap().commands();
-    let frame = commands.iter().find(|command| command.id == "frame.create").unwrap();
+    let frame = commands.iter().find(|command| command.id == "frame.add").unwrap();
     assert!(viewer_refuses(&frame.id, frame.mutates), "One's edit is refused to a viewer");
     let mut ran = 0;
     let mut wrote = Vec::new();

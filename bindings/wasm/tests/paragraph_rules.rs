@@ -45,10 +45,10 @@ fn rules_move_with_vertically_centred_text() {
     let mut doc = LayoutDocument::create("invite.klayout", 400, 600).unwrap();
     run(
         &mut doc,
-        "style.paragraph.create",
+        "style.paragraph.add",
         json!({ "name": "Heading", "para": { "ruleBelow": { "on": true, "weight": 3, "offset": 6, "columnWidth": true } }, "chars": { "size": 28 } }),
     );
-    let frame = run(&mut doc, "frame.create", json!({ "spread": 0, "rect": [50, 100, 350, 500], "text": "Garden party" }));
+    let frame = run(&mut doc, "frame.add", json!({ "spread": 0, "rect": [50, 100, 350, 500], "text": "Garden party" }));
     run(&mut doc, "text.select", json!({ "story": frame["story"], "anchor": 0, "focus": 12 }));
     run(&mut doc, "style.paragraph.apply", json!({ "name": "Heading" }));
     run(&mut doc, "text.exitToFrame", json!({}));

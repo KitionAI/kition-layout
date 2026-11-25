@@ -98,7 +98,7 @@ mod tests {
     fn linked_story_goes_out_of_date_and_updates() {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 2})).unwrap();
-        let p = s.execute("frame.create", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "Original"})).unwrap();
+        let p = s.execute("frame.add", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "Original"})).unwrap();
         let c = s.execute("story.placeAndLink", &json!({"story": p["story"], "rect": [72, 72, 300, 200], "spread": 1})).unwrap();
         let child = kition_layout_doc::StoryId(c["story"].as_u64().unwrap());
         assert_eq!(s.doc().unwrap().doc.stories[&child].text, "Original");

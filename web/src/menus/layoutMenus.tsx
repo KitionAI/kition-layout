@@ -11,10 +11,10 @@ const VIEW_MENUS = ['View', 'Help']
 
 /** The rows each menu tab shows in Single line's row (InDesign's most-used), by menu. */
 export const LAYOUT_PRIMARY: Record<string, readonly string[]> = {
-  Edit: ['edit.undo', 'edit.redo', 'edit.cut', 'edit.copy', 'edit.paste', 'edit.duplicate', 'edit.stepAndRepeat', 'find.find'],
-  Layout: ['layout.pages.insert', 'layout.parents.new', 'layout.marginsAndColumns', 'layout.createGuides', 'toc.generate', 'layout.section'],
-  Type: ['footnote.insert', 'type.createOutlines', 'type.changeCase|upper', 'list.define', 'type.fillWithPlaceholder'],
-  Object: ['object.group', 'object.ungroup', 'object.bringForward', 'object.sendBackward', 'object.fit|fitProportionally', 'object.textFrameOptions', 'object.dropShadow', 'object.lock'],
+  Edit: ['edit.undo', 'edit.redo', 'edit.cut', 'edit.copy', 'edit.paste', 'edit.duplicate', 'edit.stepAndRepeat', 'edit.find'],
+  Layout: ['layout.pages.insert', 'layout.parents.new', 'layout.marginsAndColumns', 'layout.addGuides', 'toc.generate', 'layout.section'],
+  Type: ['footnote.insert', 'text.convertToOutlines', 'text.changeCase|upper', 'list.define', 'text.fillWithPlaceholder'],
+  Object: ['arrange.group', 'arrange.ungroup', 'arrange.bringForward', 'arrange.sendBackward', 'object.fit|fitProportionally', 'object.textFrameOptions', 'object.dropShadow', 'object.lock'],
   Table: ['table.insert', 'table.insertRowBelow', 'table.insertColumnRight', 'table.deleteRow', 'table.deleteColumn', 'table.merge', 'table.unmerge', 'table.convertFromText'],
   View: ['kit:view.fitPage', 'kit:view.fitSpread', 'kit:view.actualSize', 'kit:view.rulers', 'view.showTextThreads', 'guide.deleteAll'],
 }
@@ -103,7 +103,7 @@ export function menuKey(event: KeyboardEvent<HTMLDivElement>, { commands, enable
 }
 
 /** Commands whose key runs as their menu row does (Find Next runs the last search, or opens Find/Change). */
-const INVOKED = ['find.next']
+const INVOKED = ['edit.findNext']
 
 /** The `kit:` rows' keys. */
 const KIT_KEYS: ReadonlyArray<readonly [string, string]> = [

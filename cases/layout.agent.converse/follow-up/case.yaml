@@ -39,7 +39,7 @@ expected:
       details.spreads.0.items: { any: { kind: "<rectangle>", bounds: [72, 200, 540, 260] } }
 solution:
   - tool: layout_run
-    args: { path: poster.klayout, steps: [{ command: frame.create, params: { content: text, rect: [72, 300, 540, 360], text: Saturday 8 pm } }] }
+    args: { path: poster.klayout, steps: [{ command: frame.add, params: { content: text, rect: [72, 300, 540, 360], text: Saturday 8 pm } }] }
   - tool: layout_run
     args: { path: poster.klayout, steps: [{ command: story.setText, params: { story: 11, text: Saturday 7 pm } }] }
 since: "2026-11-17"

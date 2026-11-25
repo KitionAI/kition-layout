@@ -9,7 +9,7 @@ use serde_json::json;
 fn inconsistent_content_conversion_refuses_and_rolls_back() {
     for content in ["group", "graphic", "unassigned"] {
         let mut doc = LayoutDocument::create("Review.klayout", 612, 792).unwrap();
-        let frame = doc.execute("frame.create", json!({"rect":[20,20,200,200],"content":"text","text":"Keep this story"})).unwrap();
+        let frame = doc.execute("frame.add", json!({"rect":[20,20,200,200],"content":"text","text":"Keep this story"})).unwrap();
         let before = doc.inspect().unwrap();
         let mut exchange = Exchange::new();
         let result = exchange.batch(

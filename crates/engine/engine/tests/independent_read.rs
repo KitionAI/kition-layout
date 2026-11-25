@@ -30,7 +30,7 @@ fn locked_items_do_not_relocate_between_spreads() {
     use kition_layout_engine::doc::{ItemId, SpreadRef};
     let mut session = Session::new();
     session.execute("file.new", &json!({"pages":3})).unwrap();
-    let id = session.execute("frame.create", &json!({"rect":[10,10,50,50],"content":"unassigned"})).unwrap()["id"].as_u64().unwrap();
+    let id = session.execute("frame.add", &json!({"rect":[10,10,50,50],"content":"unassigned"})).unwrap()["id"].as_u64().unwrap();
     session.execute("object.lock", &json!({"ids":[id]})).unwrap();
     let before = serde_json::to_value(&session.doc().unwrap().doc).unwrap();
     session.execute("transform.move", &json!({"ids":[id],"dx":15,"toSpread":{"kind":"doc","index":1}})).unwrap();

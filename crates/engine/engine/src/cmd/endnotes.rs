@@ -141,7 +141,7 @@ mod tests {
     fn endnotes_number_through_the_document_and_fill_the_endnote_frame() {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 2})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Alpha beta."})).unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Alpha beta."})).unwrap();
         s.execute("text.select", &json!({"story": a["story"], "anchor": 5, "focus": 5})).unwrap();
         let r1 = s.execute("endnote.insert", &json!({"text": "First source."})).unwrap();
         let pages = s.doc().unwrap().doc.page_count();

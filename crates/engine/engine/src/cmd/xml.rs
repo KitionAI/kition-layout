@@ -230,7 +230,7 @@ pub fn specs() -> Vec<CommandSpec> {
                     ok()
                 })?;
             }
-            s.execute("type.char", &json!({"xmlTag": tag.unwrap_or_default()}))
+            s.execute("text.char", &json!({"xmlTag": tag.unwrap_or_default()}))
         }),
         cmd!("xml.tag", "Tag Frame", [], None, "{tag (made if new), ids? (default: the selection)} — `tag: null` untags", has_doc, |s, p| {
             let tag = str_param(p, "tag").map(str::to_string);
@@ -462,12 +462,12 @@ mod tests {
         let tags = s.execute("xml.tags", &json!({})).unwrap();
         assert_eq!(tags["root"], "article");
         assert_eq!(tags["tags"].as_array().unwrap().len(), 4);
-        let a = s.execute("frame.create", &json!({"rect": [72, 72, 400, 150], "content": "text", "text": "Body", "caret": false})).unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [72, 72, 400, 150], "content": "text", "text": "Body", "caret": false})).unwrap();
         s.execute("xml.tag", &json!({"tag": "story", "ids": [a["id"]]})).unwrap();
         let v = s.execute("xml.validate", &json!({})).unwrap();
         assert_eq!(v["valid"], false);
         assert!(v["problems"][0]["message"].as_str().unwrap().contains("the DTD asks for (headline, story+)"), "{v}");
-        let h = s.execute("frame.create", &json!({"rect": [72, 20, 400, 60], "content": "text", "text": "Head", "caret": false})).unwrap();
+        let h = s.execute("frame.add", &json!({"rect": [72, 20, 400, 60], "content": "text", "text": "Head", "caret": false})).unwrap();
         s.execute("xml.tag", &json!({"tag": "headline", "ids": [h["id"]]})).unwrap();
         assert_eq!(s.execute("xml.validate", &json!({})).unwrap()["valid"], true);
         assert!(s.execute("xml.loadDtd", &json!({"text": "<!ELEMENT a (b,|c)>"})).is_err());
@@ -479,13 +479,12 @@ mod tests {
     fn tag_export_and_import_xml() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("style.paragraph.create", &json!({"name": "Head"})).unwrap();
-        let a = s
-            .execute("frame.create", &json!({"rect": [72, 72, 400, 150], "content": "text", "text": "Title A\nBody & more", "caret": false}))
-            .unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Head"})).unwrap();
+        let a =
+            s.execute("frame.add", &json!({"rect": [72, 72, 400, 150], "content": "text", "text": "Title A\nBody & more", "caret": false})).unwrap();
         s.execute("text.select", &json!({"story": a["story"], "anchor": 0, "focus": 0})).unwrap();
         s.execute("style.paragraph.apply", &json!({"name": "Head"})).unwrap();
-        let b = s.execute("frame.create", &json!({"rect": [72, 300, 400, 350], "content": "text", "text": "Caption", "caret": false})).unwrap();
+        let b = s.execute("frame.add", &json!({"rect": [72, 300, 400, 350], "content": "text", "text": "Caption", "caret": false})).unwrap();
         s.execute("xml.tag", &json!({"tag": "story", "ids": [a["id"]]})).unwrap();
         s.execute("xml.tag", &json!({"tag": "caption", "ids": [b["id"]]})).unwrap();
         s.execute("xml.mapStyle", &json!({"style": "Head", "tag": "title"})).unwrap();
@@ -516,7 +515,7 @@ mod tests {
         assert!(s.execute("xml.tag", &json!({"tag": "1bad", "ids": [b["id"]]})).is_err());
         // Inline tagging: part of a paragraph becomes an element.
         let f = s
-            .execute("frame.create", &json!({"rect": [72, 500, 400, 560], "content": "text", "text": "See the glossary entry", "caret": false}))
+            .execute("frame.add", &json!({"rect": [72, 500, 400, 560], "content": "text", "text": "See the glossary entry", "caret": false}))
             .unwrap();
         s.execute("xml.tag", &json!({"tag": "note", "ids": [f["id"]]})).unwrap();
         s.execute("text.select", &json!({"story": f["story"], "anchor": 8, "focus": 16})).unwrap();

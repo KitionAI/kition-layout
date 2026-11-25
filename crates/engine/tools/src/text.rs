@@ -87,7 +87,7 @@ impl Tool for TypeTool {
                     out.push(Action::Begin("Create Text Frame".into()));
                 }
                 out.push(Action::Preview(
-                    "frame.create".into(),
+                    "frame.add".into(),
                     json!({"spread": spread_json(sr), "shape": "rectangle", "content": "text", "rect": rect_json(r), "caret": true, "vertical": self.vertical}),
                 ));
                 out

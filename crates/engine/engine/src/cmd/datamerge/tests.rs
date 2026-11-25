@@ -70,7 +70,7 @@ fn text_frame(s: &mut Session, rect: [f64; 4], text: &str, spread: Option<u32>) 
     if let Some(spread) = spread {
         p["spread"] = json!(spread);
     }
-    exec(s, "frame.create", p)
+    exec(s, "frame.add", p)
 }
 
 fn select_csv(s: &mut Session, body: &str) -> Value {
@@ -234,7 +234,7 @@ fn typed_fields_keep_style_and_unknown_markers() {
     let story = s.documents()[0].doc.stories.values().next().unwrap();
     let marker = story.text.find("<<Name>>").unwrap();
     exec(&mut s, "text.select", json!({"story": made["story"], "anchor": marker, "focus": marker + "<<Name>>".len()}));
-    exec(&mut s, "type.char", json!({"size": 21}));
+    exec(&mut s, "text.char", json!({"size": 21}));
     exec(&mut s, "data.merge", json!({}));
     let doc = &s.documents()[s.active_index().unwrap()].doc;
     let story = doc.stories.values().next().unwrap();
@@ -264,9 +264,9 @@ fn images_resolve_in_order_and_roles_win() {
     let mut s = Session::new();
     new_doc(&mut s, 1);
     exec(&mut s, "data.source.select", json!({"path": data.join("people.csv")}));
-    let photo = exec(&mut s, "frame.create", json!({"rect": [36.0, 36.0, 80.0, 80.0], "content": "graphic"}));
+    let photo = exec(&mut s, "frame.add", json!({"rect": [36.0, 36.0, 80.0, 80.0], "content": "graphic"}));
     exec(&mut s, "data.placeholder.add", json!({"field": "Photo", "item": photo["id"]}));
-    let web = exec(&mut s, "frame.create", json!({"rect": [100.0, 36.0, 140.0, 80.0], "content": "graphic"}));
+    let web = exec(&mut s, "frame.add", json!({"rect": [100.0, 36.0, 140.0, 80.0], "content": "graphic"}));
     exec(&mut s, "data.placeholder.add", json!({"field": "Web", "role": "image", "item": web["id"]}));
     let r = exec(&mut s, "data.merge", json!({}));
     assert_eq!(r["records"], 2);
@@ -296,7 +296,7 @@ fn images_resolve_in_order_and_roles_win() {
     new_doc(&mut s, 1);
     write(&data.join("side.csv"), "Photo\nbeside.png\n");
     exec(&mut s, "data.source.select", json!({"path": data.join("side.csv")}));
-    let frame = exec(&mut s, "frame.create", json!({"rect": [0.0, 0.0, 200.0, 100.0], "content": "graphic"}));
+    let frame = exec(&mut s, "frame.add", json!({"rect": [0.0, 0.0, 200.0, 100.0], "content": "graphic"}));
     exec(&mut s, "data.placeholder.add", json!({"field": "Photo", "role": "image", "item": frame["id"]}));
     exec(&mut s, "data.merge", json!({}));
     assert!(graphic_link(&s).is_some_and(|p| p.contains("beside.png")));
@@ -306,7 +306,7 @@ fn images_resolve_in_order_and_roles_win() {
     write(&data.join("doc.csv"), "Photo\ndocpic.png\n");
     exec(&mut s, "data.source.select", json!({"path": data.join("doc.csv")}));
     exec(&mut s, "file.save", json!({"path": docs.join("layout.klayout")}));
-    let frame = exec(&mut s, "frame.create", json!({"rect": [0.0, 0.0, 200.0, 100.0], "content": "graphic"}));
+    let frame = exec(&mut s, "frame.add", json!({"rect": [0.0, 0.0, 200.0, 100.0], "content": "graphic"}));
     exec(&mut s, "data.placeholder.add", json!({"field": "Photo", "role": "image", "item": frame["id"]}));
     exec(&mut s, "data.options", json!({"center": false, "linkImages": true, "fitting": "fitProportionally"}));
     exec(&mut s, "data.merge", json!({}));
@@ -358,7 +358,7 @@ fn role_overrides_column_kind_qr_and_hyperlink() {
     let mut s = Session::new();
     new_doc(&mut s, 1);
     select_csv(&mut s, &format!("Name,@Photo\n{},pic.png\n", pic.display()));
-    let frame = exec(&mut s, "frame.create", json!({"rect": [10.0, 10.0, 80.0, 80.0], "content": "graphic"}));
+    let frame = exec(&mut s, "frame.add", json!({"rect": [10.0, 10.0, 80.0, 80.0], "content": "graphic"}));
     exec(&mut s, "data.placeholder.add", json!({"field": "Name", "role": "image", "item": frame["id"]}));
     exec(&mut s, "data.merge", json!({}));
     assert!(graphic_link(&s).is_some_and(|p| p.contains("pic.png")));
@@ -374,7 +374,7 @@ fn role_overrides_column_kind_qr_and_hyperlink() {
     let mut s = Session::new();
     new_doc(&mut s, 1);
     select_csv(&mut s, "Name,#Code\nAda,hello\nGrace,\n");
-    let frame = exec(&mut s, "frame.create", json!({"rect": [10.0, 10.0, 80.0, 80.0], "content": "graphic"}));
+    let frame = exec(&mut s, "frame.add", json!({"rect": [10.0, 10.0, 80.0, 80.0], "content": "graphic"}));
     exec(&mut s, "data.placeholder.add", json!({"field": "Code", "item": frame["id"]}));
     let r = exec(&mut s, "data.merge", json!({}));
     assert!(r["warnings"].as_array().unwrap().iter().any(|w| w.as_str().unwrap_or("").contains("QR cell is empty")));
@@ -665,7 +665,7 @@ fn parent_placeholder_is_copied_unfilled() {
     exec(&mut s, "data.placeholder.add", json!({"field": "Name"}));
     exec(
         &mut s,
-        "frame.create",
+        "frame.add",
         json!({"rect": [36.0, 120.0, 200.0, 180.0], "content": "text", "text": "<<Name>>", "spread": {"kind": "parent", "index": 0}}),
     );
     let r = exec(&mut s, "data.merge", json!({}));
@@ -681,7 +681,7 @@ fn parent_page_placeholder_warns_once_and_stays() {
     exec(&mut s, "layout.parents.new", json!({}));
     let parent = exec(
         &mut s,
-        "frame.create",
+        "frame.add",
         json!({"rect": [36.0, 36.0, 200.0, 80.0], "content": "text", "text": "", "spread": {"kind": "parent", "index": 0}}),
     );
     exec(&mut s, "data.placeholder.add", json!({"field": "Name", "story": parent["story"], "at": 0}));
@@ -752,11 +752,7 @@ fn relative_path_and_reopen() {
 fn merge_replaces_typed_fields_on_a_new_document() {
     let mut s = Session::new();
     exec(&mut s, "file.new", json!({"facingPages": false}));
-    exec(
-        &mut s,
-        "frame.create",
-        json!({"rect": [36.0, 36.0, 400.0, 100.0], "content": "text", "text": "Dear <<Name>>, welcome aboard as <<Title>>."}),
-    );
+    exec(&mut s, "frame.add", json!({"rect": [36.0, 36.0, 400.0, 100.0], "content": "text", "text": "Dear <<Name>>, welcome aboard as <<Title>>."}));
     let undo = s.documents()[0].undo_steps();
     let r = exec(&mut s, "data.merge", json!({"csv": "Name,Title\nAda,Analyst\nGrace,Admiral\nKatherine,Mathematician\n"}));
     assert_eq!(r["records"], 3);

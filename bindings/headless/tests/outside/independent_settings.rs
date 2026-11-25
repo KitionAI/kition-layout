@@ -112,7 +112,7 @@ async fn xref_format_reference(command: &str, default: bool) {
                 ("xref.defineFormat", json!({"name":"Read","definition":"Original"})),
                 ("xref.defineFormat", json!({"name":"Other","definition":"Other"})),
                 ("text.select", json!({"story":f.story,"anchor":0})),
-                ("anchor.create", json!({"name":"Destination"})),
+                ("anchor.add", json!({"name":"Destination"})),
             ],
         );
         let anchor = made[3]["id"].clone();
@@ -190,7 +190,7 @@ async fn independent_settings_ungroup_holds_only_the_named_group_and_its_members
         prepare(
             &f,
             &[
-                ("swatch.create", json!({"name":"Red","color":[255,0,0]})),
+                ("swatch.add", json!({"name":"Red","color":[255,0,0]})),
                 ("swatch.newColorGroup", json!({"name":"Read"})),
                 ("swatch.newColorGroup", json!({"name":"Other"})),
             ],
@@ -211,7 +211,7 @@ async fn independent_settings_group_rename_holds_names_but_preserves_new_members
         prepare(
             &f,
             &[
-                ("swatch.create", json!({"name":"Red","color":[255,0,0]})),
+                ("swatch.add", json!({"name":"Red","color":[255,0,0]})),
                 ("swatch.newColorGroup", json!({"name":"Read"})),
                 ("swatch.newColorGroup", json!({"name":"Other"})),
             ],

@@ -306,7 +306,7 @@ impl KitDocument for LayoutDocument {
         if !self.session.context_available() {
             return Err("the editor is in a live gesture or data preview; finish it before an agent call".to_owned());
         }
-        let params = addresses::resolve("selection.set", &json!({"ids":context.on}), self.session.kdm().map(|kdm| kdm.replica()))?;
+        let params = addresses::resolve("select.set", &json!({"ids":context.on}), self.session.kdm().map(|kdm| kdm.replica()))?;
         let ids: Vec<_> = params["ids"]
             .as_array()
             .into_iter()
@@ -435,7 +435,7 @@ impl KitDocument for LayoutDocument {
         let mut copy = DocState::new((*state.doc).clone(), None);
         copy.selection = state.selection.clone();
         scratch.add_document(copy);
-        let mut inspected = scratch.execute("document.inspect", &json!({})).map_err(engine_error)?;
+        let mut inspected = scratch.execute("file.inspect", &json!({})).map_err(engine_error)?;
         let origin = self.origin();
         let layout = self.session.layout();
         let spreads: Vec<Value> = layout
@@ -833,8 +833,8 @@ mod tests {
     /// A Letter page with a red rectangle near its top-left.
     fn fixture() -> Vec<u8> {
         let mut doc = LayoutDocument::create("Flyer.klayout", 612, 792).unwrap();
-        doc.execute("swatch.create", json!({ "name": "Red", "color": "#ff0000" })).unwrap();
-        let frame = doc.execute("frame.create", json!({ "rect": [72, 72, 216, 144], "content": "unassigned" })).unwrap();
+        doc.execute("swatch.add", json!({ "name": "Red", "color": "#ff0000" })).unwrap();
+        let frame = doc.execute("frame.add", json!({ "rect": [72, 72, 216, 144], "content": "unassigned" })).unwrap();
         doc.execute("object.fill", json!({ "swatch": "Red", "ids": [frame["id"]] })).unwrap();
         doc.save(None).unwrap()
     }
@@ -842,7 +842,7 @@ mod tests {
     #[test]
     fn keeps_the_kit_contract() {
         check_contract::<LayoutDocument>(&fixture(), "Flyer.klayout", |doc| {
-            let frame = doc.execute("frame.create", json!({ "rect": [300, 300, 400, 400], "content": "unassigned" }))?;
+            let frame = doc.execute("frame.add", json!({ "rect": [300, 300, 400, 400], "content": "unassigned" }))?;
             doc.execute("object.fill", json!({ "swatch": "Black", "ids": [frame["id"]] }))?;
             Ok(())
         })
@@ -900,11 +900,11 @@ mod tests {
     fn the_out_port_click_threads_through_the_tools() {
         let mut doc = LayoutDocument::create("Story.klayout", 612, 792).unwrap();
         let text = "Words keep coming and the frame fills up quickly with them. ".repeat(12);
-        let a = doc.execute("frame.create", json!({ "rect": [100, 100, 300, 200], "content": "text", "text": text, "caret": false })).unwrap()["id"]
+        let a = doc.execute("frame.add", json!({ "rect": [100, 100, 300, 200], "content": "text", "text": text, "caret": false })).unwrap()["id"]
             .as_u64()
             .unwrap();
-        let b = doc.execute("frame.create", json!({ "rect": [100, 300, 300, 500], "content": "unassigned" })).unwrap()["id"].as_u64().unwrap();
-        doc.execute("selection.set", json!({ "ids": [a] })).unwrap();
+        let b = doc.execute("frame.add", json!({ "rect": [100, 300, 300, 500], "content": "unassigned" })).unwrap()["id"].as_u64().unwrap();
+        doc.execute("select.set", json!({ "ids": [a] })).unwrap();
         doc.select_tool("selection", 1.0).unwrap();
         let event = |action, x: f64, y: f64| ToolPointer { action, x: 72.0 + x, y: 72.0 + y, mods: ToolMods::default(), pressure: 1.0, zoom: 1.0 };
         let shown = doc.state(72.0 + 300.0, 72.0 + 188.0, ToolMods::default(), 1.0);

@@ -3,7 +3,7 @@
 //!
 //! **References.** A string parameter that is exactly `"$N.path"` (or `"$last.path"`, `"$N"`)
 //! becomes the JSON value at `path` in the result of step `N` (0-based): after
-//! `frame.create → {"id": 8, "story": 9}`, `{"story": "$0.story"}` passes `9`. Paths are dotted
+//! `frame.add → {"id": 8, "story": 9}`, `{"story": "$0.story"}` passes `9`. Paths are dotted
 //! keys and array indices (`$2.ids.0`). Inside longer strings `${N.path}` is replaced by the
 //! value's text (`"Frame ${0.id}"`).
 //!
@@ -166,12 +166,12 @@ mod tests {
 
     #[test]
     fn parses_all_forms() {
-        let a = parse(r#"[{"command": "file.new"}, {"command": "frame.create", "params": {"rect": [0, 0, 10, 10]}}]"#).unwrap();
+        let a = parse(r#"[{"command": "file.new"}, {"command": "frame.add", "params": {"rect": [0, 0, 10, 10]}}]"#).unwrap();
         let b = parse("# comment\nfile.new\n\nframe.create {\"rect\": [0, 0, 10, 10]}\n").unwrap();
         let c = parse("{\"command\": \"file.new\"}\nframe.create={\"rect\": [0, 0, 10, 10]}").unwrap();
         assert_eq!(a, b);
         assert_eq!(a, c);
-        assert!(parse("frame.create {bad").unwrap_err().contains("line 1"));
+        assert!(parse("frame.add {bad").unwrap_err().contains("line 1"));
     }
 
     #[test]
@@ -189,7 +189,7 @@ mod tests {
         let mut s = crate::Session::new();
         let steps = parse(
             "file.new {\"pages\": 2}\n\
-             frame.create {\"rect\": [72, 72, 300, 200], \"content\": \"text\", \"text\": \"Hello\"}\n\
+             frame.add {\"rect\": [72, 72, 300, 200], \"content\": \"text\", \"text\": \"Hello\"}\n\
              text.select {\"story\": \"$1.story\", \"anchor\": 5, \"focus\": 5}\n\
              text.insert {\"text\": \" world\"}\n\
              story.get {\"story\": \"$1.story\"}",
@@ -199,7 +199,7 @@ mod tests {
         assert!(r.failed.is_none(), "{r:?}");
         assert_eq!(r.results[4]["text"], "Hello world");
         // Failure reports the step and keeps earlier results.
-        let r = s.run_script(&parse("document.inspect\nno.such.command\ndocument.inspect").unwrap());
+        let r = s.run_script(&parse("file.inspect\nno.such.command\ndocument.inspect").unwrap());
         assert_eq!(r.results.len(), 1);
         assert_eq!(r.failed.as_ref().map(|f| (f.0, f.1.as_str())), Some((1, "no.such.command")));
         assert_eq!(r.to_json()["failedIndex"], 1);

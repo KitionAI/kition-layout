@@ -30,7 +30,7 @@ const inspect = () => page.evaluate(async () => window.devHost.connection().ai.i
 const details = async () => (await inspect()).details
 const kit = page.frameLocator('#kit')
 // The person selects an object from its row in Layers (scrolled into the list's drawn rows), and
-// clears the selection with Escape: an agent's selection.set acts in the agent's own editor state
+// clears the selection with Escape: an agent's select.set acts in the agent's own editor state
 // and never moves the person's selection or tool (Kit UI protocol, "The agent's own editor
 // state"), so what the person does next would not act on it.
 const select = async (id) => {
@@ -107,8 +107,8 @@ try {
   const pageBox = before.spreads[0].pages[0].bounds
   const long = 'Words keep coming and the frame fills up quickly with them. '.repeat(14)
   const made = await agent([
-    { command: 'frame.create', params: { rect: [pageBox[0] + 60, 60, pageBox[0] + 260, 160], content: 'text', text: long, caret: false } },
-    { command: 'frame.create', params: { rect: [pageBox[0] + 60, 200, pageBox[0] + 260, 420], content: 'unassigned' } },
+    { command: 'frame.add', params: { rect: [pageBox[0] + 60, 60, pageBox[0] + 260, 160], content: 'text', text: long, caret: false } },
+    { command: 'frame.add', params: { rect: [pageBox[0] + 60, 200, pageBox[0] + 260, 420], content: 'unassigned' } },
   ])
   const [source, target] = made.completed.map((item) => item.result.id)
   await select(source)
@@ -147,10 +147,10 @@ try {
 
   // The package's fonts (W3-22 DE15): the four OFL families Kition's designs use draw from the package.
   const families = ['Inter', 'Lora', 'JetBrains Mono', 'Bricolage Grotesque']
-  const fontFrames = await agent(families.map((family, index) => ({ command: 'frame.create', params: { rect: [pageBox[0] + 300, 60 + index * 40, pageBox[0] + 520, 90 + index * 40], content: 'text', text: `${family} Bold 123`, caret: false } })))
+  const fontFrames = await agent(families.map((family, index) => ({ command: 'frame.add', params: { rect: [pageBox[0] + 300, 60 + index * 40, pageBox[0] + 520, 90 + index * 40], content: 'text', text: `${family} Bold 123`, caret: false } })))
   await agent(fontFrames.completed.flatMap((item, index) => [
-    { command: 'selection.set', params: { ids: [item.result.id] } },
-    { command: 'type.char', params: { attrs: { fontFamily: families[index], fontStyle: 'Bold' } } },
+    { command: 'select.set', params: { ids: [item.result.id] } },
+    { command: 'text.char', params: { attrs: { fontFamily: families[index], fontStyle: 'Bold' } } },
   ]))
   const used = (await agent([{ command: 'font.list', params: {} }])).completed[0].result
   const served = families.filter((family) => used.some((font) => font.family === family && !font.missing && !font.styleMissing))
@@ -166,7 +166,7 @@ try {
     await input.fill(String(value))
     await input.press('Enter')
   }
-  const box = (await agent([{ command: 'frame.create', params: { rect: [pageBox[0] + 60, 460, pageBox[0] + 160, 560], content: 'graphic' } }])).completed[0].result.id
+  const box = (await agent([{ command: 'frame.add', params: { rect: [pageBox[0] + 60, 460, pageBox[0] + 160, 560], content: 'graphic' } }])).completed[0].result.id
   await select(box)
   await until(async () => (await kit.getByTestId('layout-geometry').getAttribute('data-item').catch(() => null)) === String(box))
   await setField('layout-w', 150)
@@ -190,12 +190,12 @@ try {
   await select(fontFrames.completed[0].result.id)
   await until(async () => (await kit.getByTestId('layout-font').count()) > 0)
   await kit.getByTestId('layout-font').selectOption('Lora')
-  const fontAt = async () => (await agent([{ command: 'type.selectionAttrs', params: {} }])).completed[0].result?.chars?.fontFamily
+  const fontAt = async () => (await agent([{ command: 'text.selectionAttrs', params: {} }])).completed[0].result?.chars?.fontFamily
   await until(async () => (await fontAt()) === 'Lora')
   step('Properties sets the font of a text frame', (await fontAt()) === 'Lora')
   await until(async () => (await kit.getByTestId('layout-font-style').locator('option').allTextContents()).includes('SemiBold'))
   await kit.getByTestId('layout-font-style').selectOption('SemiBold')
-  const styleAt = async () => (await agent([{ command: 'type.selectionAttrs', params: {} }])).completed[0].result?.chars?.fontStyle
+  const styleAt = async () => (await agent([{ command: 'text.selectionAttrs', params: {} }])).completed[0].result?.chars?.fontStyle
   await until(async () => (await styleAt()) === 'SemiBold')
   step('Properties sets the weight from the family\'s styles', (await styleAt()) === 'SemiBold')
 
@@ -246,7 +246,7 @@ try {
   await kit.getByTestId('layout-paragraph-style-edit').click()
   await kit.getByTestId('layout-style-size').fill('30')
   await kit.getByTestId('layout-style-ok').click()
-  const sizeAt = async () => (await agent([{ command: 'type.selectionAttrs', params: {} }])).completed[0].result?.chars?.size
+  const sizeAt = async () => (await agent([{ command: 'text.selectionAttrs', params: {} }])).completed[0].result?.chars?.size
   await until(async () => (await sizeAt()) === 30)
   step('Styles edits the style, and its text follows', (await sizeAt()) === 30)
 
@@ -259,7 +259,7 @@ try {
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
     window.devHost.files.set('photo.png', { bytes: await blob.arrayBuffer(), version: 1 })
   })
-  const empty = (await agent([{ command: 'frame.create', params: { rect: [pageBox[0] + 300, 460, pageBox[0] + 400, 560], content: 'graphic' } }])).completed[0].result.id
+  const empty = (await agent([{ command: 'frame.add', params: { rect: [pageBox[0] + 300, 460, pageBox[0] + 400, 560], content: 'graphic' } }])).completed[0].result.id
   await select(empty)
   await kit.getByText('链接', { exact: true }).click()
   await kit.getByTestId('layout-place-image').click()
@@ -317,7 +317,7 @@ try {
   // Coverage of Design Studio's remaining rows (W3-22): autoflow, text threads, fit text,
   // character style delete, templates, page background, sizes and "export all sizes".
   const pagesBefore = (await details()).pageCount
-  const flowFrom = (await agent([{ command: 'frame.create', params: { rect: [pageBox[0] + 60, 60, pageBox[0] + 200, 120], content: 'text', text: long.repeat(6), caret: false } }])).completed[0].result.id
+  const flowFrom = (await agent([{ command: 'frame.add', params: { rect: [pageBox[0] + 60, 60, pageBox[0] + 200, 120], content: 'text', text: long.repeat(6), caret: false } }])).completed[0].result.id
   // The person loads the text cursor from the frame's out port, as above.
   await select(flowFrom)
   await kit.getByTestId('layout-spread-0').click()
@@ -335,7 +335,7 @@ try {
   step('View › Show Text Threads turns on', threadsOn?.on === true)
   await agent([{ command: 'view.showTextThreads', params: { on: false } }])
 
-  await agent([{ command: 'style.character.create', params: { name: 'Doomed', chars: { fontStyle: 'Italic' } } }])
+  await agent([{ command: 'style.character.add', params: { name: 'Doomed', chars: { fontStyle: 'Italic' } } }])
   await until(async () => (await details()).characterStyles.includes('Doomed'))
   await deselect()
   await kit.getByTestId('layout-character-styles').getByText('字符样式', { exact: true }).first().click()
@@ -368,7 +368,7 @@ try {
   // Fit text to frame.
   const headline = templated.spreads[0].items.find((entry) => entry.name === 'Headline')
   await select(headline.id)
-  const sizeOf = async () => (await agent([{ command: 'type.selectionAttrs', params: {} }])).completed[0].result?.chars?.size
+  const sizeOf = async () => (await agent([{ command: 'text.selectionAttrs', params: {} }])).completed[0].result?.chars?.size
   const sizeBefore = await sizeOf()
   await until(async () => (await kit.getByTestId('layout-fit-text').count()) > 0)
   await kit.getByTestId('layout-fit-text').click()

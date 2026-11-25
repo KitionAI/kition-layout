@@ -247,7 +247,7 @@ mod placed_vector_tests {
         s.execute("file.new", &json!({})).unwrap();
         s.execute("file.place", &json!({"base64": pdf["base64"], "name": "logo.pdf", "x": 72, "y": 72, "width": 300})).unwrap();
         // Deselect the logo, or the photo would replace it in its frame.
-        s.execute("selection.set", &json!({"ids": []})).unwrap();
+        s.execute("select.set", &json!({"ids": []})).unwrap();
         let png = kition_layout_render::Rendered { width: 40, height: 20, pixels: vec![200; 40 * 20 * 4] }.to_png();
         s.execute("file.place", &json!({"base64": base64_encode(&png), "name": "photo.png", "x": 72, "y": 300, "width": 300})).unwrap();
         let r = s.execute("preflight.run", &json!({})).unwrap();
@@ -266,12 +266,12 @@ mod arabic_tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         let text = "بُسْمِ";
-        let r = s.execute("frame.create", &json!({"rect": [0, 0, 300, 200], "content": "text", "text": text})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [0, 0, 300, 200], "content": "text", "text": text})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": text.len()})).unwrap();
-        s.execute("type.char", &json!({"attrs": {"diacriticPosition": "openType", "diacriticXOffset": 150}})).unwrap();
+        s.execute("text.char", &json!({"attrs": {"diacriticPosition": "openType", "diacriticXOffset": 150}})).unwrap();
         assert!(!check(&s, 150.0).iter().any(|i| i.kind == "unsupportedTypography"));
-        s.execute("type.para", &json!({"attrs": {"arabicJustification": "NaskhJustification", "paragraphKashidaWidth": 2}})).unwrap();
-        s.execute("type.char", &json!({"attrs": {"diacriticPosition": "tight"}})).unwrap();
+        s.execute("text.para", &json!({"attrs": {"arabicJustification": "NaskhJustification", "paragraphKashidaWidth": 2}})).unwrap();
+        s.execute("text.char", &json!({"attrs": {"diacriticPosition": "tight"}})).unwrap();
         let issues = check(&s, 150.0);
         let typography: Vec<_> = issues.iter().filter(|i| i.kind == "unsupportedTypography").collect();
         assert_eq!(typography.len(), 3, "{typography:?}");
@@ -303,11 +303,11 @@ mod missing_glyph_tests {
             .add_font(kition_layout_fonts::testing::font_with("DC Test Preflight Helper", &['日', '本', '語']).unwrap());
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Hello 日本語 日本 and 語."})).unwrap();
+        s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Hello 日本語 日本 and 語."})).unwrap();
         let family = kition_layout_fonts::DEFAULT_FAMILY;
         assert_eq!(missing_glyphs(&mut s), [("error".to_string(), format!("Missing glyphs in {family} Regular: 日 本 語"))]);
         // Drawn from fallback fonts: nothing missing.
-        s.execute("document.preferences", &json!({"glyphFallback": true})).unwrap();
+        s.execute("file.preferences", &json!({"glyphFallback": true})).unwrap();
         assert!(missing_glyphs(&mut s).is_empty());
     }
 
@@ -317,7 +317,7 @@ mod missing_glyph_tests {
         s.execute("file.new", &json!({})).unwrap();
         // 30 private-use characters no font has.
         let text: String = (0..30).filter_map(|i| char::from_u32(0xF0B00 + i)).collect();
-        s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": text})).unwrap();
+        s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": text})).unwrap();
         let found = missing_glyphs(&mut s);
         assert_eq!(found.len(), 1);
         assert!(found[0].1.ends_with(" and 10 more"), "{}", found[0].1);

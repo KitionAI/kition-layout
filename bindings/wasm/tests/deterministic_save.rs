@@ -18,9 +18,9 @@ const OUT: &str = "KITION_LAYOUT_DETERMINISM_OUT";
 
 fn build() -> Vec<u8> {
     let mut doc = LayoutDocument::create("folio.klayout", 400, 600).unwrap();
-    doc.execute("swatch.create", json!({ "name": "Coral", "color": { "c": 0, "m": 66, "y": 62, "k": 0 } })).unwrap();
-    doc.execute("frame.create", json!({ "spread": 0, "rect": [40, 40, 360, 200], "text": "Spring issue" })).unwrap();
-    doc.execute("frame.create", json!({ "spread": 0, "rect": [40, 240, 360, 400], "content": "graphic" })).unwrap();
+    doc.execute("swatch.add", json!({ "name": "Coral", "color": { "c": 0, "m": 66, "y": 62, "k": 0 } })).unwrap();
+    doc.execute("frame.add", json!({ "spread": 0, "rect": [40, 40, 360, 200], "text": "Spring issue" })).unwrap();
+    doc.execute("frame.add", json!({ "spread": 0, "rect": [40, 240, 360, 400], "content": "graphic" })).unwrap();
     doc.save(Some("folio.klayout")).unwrap()
 }
 

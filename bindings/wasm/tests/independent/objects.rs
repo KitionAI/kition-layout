@@ -11,19 +11,13 @@ fn r(id: &'static str, resolves: &'static str, reads: &'static str, writes: &'st
 pub fn rows() -> Vec<Row> {
     vec![
         r(
-            "frame.create",
+            "frame.add",
             "spread index/object/prefix/label, absent doc spread 0; active layer; omitted polygon settings from prefs",
             "spread identity; text: default paragraph and text-frame style, its fill/stroke, right-to-left binding; graphic: default graphic-frame style name",
             "new item and optional story; selection/caret",
             &["active", "preferences"],
         ),
-        r(
-            "line.create",
-            "spread index/object/prefix/label, absent doc spread 0; active layer",
-            "spread identity",
-            "new line; selection",
-            &["active"],
-        ),
+        r("line.add", "spread index/object/prefix/label, absent doc spread 0; active layer", "spread identity", "new line; selection", &["active"]),
         r(
             "transform.move",
             "ids then id then selected items; optional toSpread deserializes SpreadRef",
@@ -109,42 +103,42 @@ pub fn rows() -> Vec<Row> {
             &["selection"],
         ),
         r(
-            "object.bringToFront",
+            "arrange.bringToFront",
             "selected items via object.arrange to=front",
             "target ownership/index; containing spread item order/length",
             "top-level item order",
             &["selection"],
         ),
         r(
-            "object.bringForward",
+            "arrange.bringForward",
             "selected items via object.arrange to=forward",
             "target ownership/index; containing spread item order/length",
             "top-level item order",
             &["selection"],
         ),
         r(
-            "object.sendBackward",
+            "arrange.sendBackward",
             "selected items via object.arrange to=backward",
             "target ownership/index; containing spread item order/length",
             "top-level item order",
             &["selection"],
         ),
         r(
-            "object.sendToBack",
+            "arrange.sendToBack",
             "selected items via object.arrange to=back",
             "target ownership/index; containing spread item order/length",
             "top-level item order",
             &["selection"],
         ),
         r(
-            "object.group",
+            "arrange.group",
             "ids then id then selected items; at least two top-level same-spread objects",
             "member ownership and stacking order; backmost member layer; each member preserved whole",
             "new group owns members in original stacking order; selection",
             &["selection"],
         ),
         r(
-            "object.ungroup",
+            "arrange.ungroup",
             "ids then id then selected items; only top-level groups",
             "group content/children, transform and ownership/index; each child transform",
             "group removed; children promoted with group transform; selection",
@@ -296,7 +290,7 @@ pub fn rows() -> Vec<Row> {
             &["selection"],
         ),
         r(
-            "path.create",
+            "path.add",
             "spread index/object/prefix/label, absent doc spread 0; active layer; anchor numeric arrays are coordinates",
             "spread identity",
             "new path; selection",
@@ -347,8 +341,8 @@ pub fn rows() -> Vec<Row> {
         ),
         r(
             "frame.grid",
-            "spread index/object/prefix/label default doc spread 0; active layer; cols/rows are counts; delegates frame.create per cell",
-            "frame.create defaults and spread facts for every created cell",
+            "spread index/object/prefix/label default doc spread 0; active layer; cols/rows are counts; delegates frame.add per cell",
+            "frame.add defaults and spread facts for every created cell",
             "new frames/stories; selection",
             &["active", "preferences"],
         ),
@@ -412,7 +406,7 @@ pub fn rows() -> Vec<Row> {
             &["selection"],
         ),
         r(
-            "type.createOutlines",
+            "text.convertToOutlines",
             "ids then id then selected items; each text frame resolves its story and composed frame",
             "story composition; fonts/outlines; target layer/transform/content; source ownership/index and story frames; text_xf reads vertical story/frame options",
             "text frame removed; generated paths or group inserted; story thread updated/deleted; selection",
@@ -454,14 +448,14 @@ pub fn rows() -> Vec<Row> {
             &["history"],
         ),
         r(
-            "selection.set",
+            "select.set",
             "ids item ids filtered to existing; add appends to prior selection",
             "session: item identity; previous selection only when add",
             "session: item selection/content; text/cells cleared",
             &["selection"],
         ),
         r(
-            "selection.toggle",
+            "select.toggle",
             "id numeric toggled without existence check",
             "session: previous selection item membership",
             "session: item selection; text/cells cleared",
@@ -476,7 +470,7 @@ pub fn rows() -> Vec<Row> {
         ),
         r("edit.deselectAll", "none", "session: no document facts", "session: selection cleared", &[]),
         r(
-            "edit.clear",
+            "edit.delete",
             "if selection.text and ids absent, selected text despite id; else ids then id then selected items",
             "text path: story/cell text+owned content and track_changes setting; item path: whole descendants and associated story frame lists/content when last removed",
             "text deletion/track markers or item+descendant deletion and story membership; selection",
@@ -630,14 +624,14 @@ pub fn rows() -> Vec<Row> {
             &["selection"],
         ),
         r(
-            "type.onPath",
+            "text.onPath",
             "id empty item",
             "target content must unassigned; right-to-left binding",
             "new story, target text content/path options; selection/caret",
             &[],
         ),
         r(
-            "type.pathOptions",
+            "text.pathOptions",
             "id else first selected item else first frame of selected text story",
             "target text-frame path options and story ref; fallback selected story frame list; delete=true reads/removes whole story",
             "path options or target content unassigned plus entire story deletion; selection text cleared on delete",
@@ -755,7 +749,7 @@ fn h(
 pub fn checks() -> Vec<Check> {
     vec![
         h(
-            "frame.create",
+            "frame.add",
             r#"{"rect":[30,30,80,80],"content":"text","text":"New"}"#,
             &[],
             &[
@@ -765,7 +759,7 @@ pub fn checks() -> Vec<Check> {
             &[("$A", &["opacity"])],
             &["active", "mode"],
         ),
-        h("line.create", r#"{"a":[30,30],"b":[80,80]}"#, &[], &[("$SPREAD", &[])], &[("$A", &["opacity"])], &["active", "mode"]),
+        h("line.add", r#"{"a":[30,30],"b":[80,80]}"#, &[], &[("$SPREAD", &[])], &[("$A", &["opacity"])], &["active", "mode"]),
         h(
             "transform.move",
             r#"{"ids":["$A"],"dx":5}"#,
@@ -858,7 +852,7 @@ pub fn checks() -> Vec<Check> {
             &["selection", "mode"],
         ),
         h(
-            "object.bringToFront",
+            "arrange.bringToFront",
             "{}",
             &[],
             &[("$A", &["@position"]), ("$ROOT", &["items"])],
@@ -866,7 +860,7 @@ pub fn checks() -> Vec<Check> {
             &["selection", "mode"],
         ),
         h(
-            "object.bringForward",
+            "arrange.bringForward",
             "{}",
             &[],
             &[("$A", &["@position"]), ("$ROOT", &["items"])],
@@ -874,16 +868,16 @@ pub fn checks() -> Vec<Check> {
             &["selection", "mode"],
         ),
         h(
-            "object.sendBackward",
+            "arrange.sendBackward",
             "{}",
             &[],
             &[("$A", &["@position"]), ("$ROOT", &["items"])],
             &[("$A", &["opacity", "name"])],
             &["selection", "mode"],
         ),
-        h("object.sendToBack", "{}", &[], &[("$A", &["@position"]), ("$ROOT", &["items"])], &[("$A", &["opacity", "name"])], &["selection", "mode"]),
+        h("arrange.sendToBack", "{}", &[], &[("$A", &["@position"]), ("$ROOT", &["items"])], &[("$A", &["opacity", "name"])], &["selection", "mode"]),
         h(
-            "object.group",
+            "arrange.group",
             r#"{"ids":["$A","$B"]}"#,
             &[],
             &[("$A", &["layer", "@position"]), ("$B", &["@position"])],
@@ -891,9 +885,9 @@ pub fn checks() -> Vec<Check> {
             &["selection", "mode"],
         ),
         h(
-            "object.ungroup",
+            "arrange.ungroup",
             "{}",
-            &[("object.group", r#"{"ids":["$A","$B"]}"#)],
+            &[("arrange.group", r#"{"ids":["$A","$B"]}"#)],
             &[("$A", &["xf", "@position"]), ("$B", &["xf", "@position"])],
             &[("$A", &["opacity", "name"])],
             &["selection", "mode"],
@@ -1077,7 +1071,7 @@ pub fn checks() -> Vec<Check> {
             &[("$B", &["opacity"])],
             &["selection", "mode"],
         ),
-        h("path.create", r#"{"anchors":[{"p":[10,10]},{"p":[80,80]}]}"#, &[], &[("$SPREAD", &[])], &[("$A", &["opacity"])], &["active", "mode"]),
+        h("path.add", r#"{"anchors":[{"p":[10,10]},{"p":[80,80]}]}"#, &[], &[("$SPREAD", &[])], &[("$A", &["opacity"])], &["active", "mode"]),
         h(
             "path.appendAnchor",
             r#"{"id":"$A","anchor":{"p":[80,80]}}"#,
@@ -1177,7 +1171,7 @@ pub fn checks() -> Vec<Check> {
         ),
         h("object.releaseCompoundPath", r#"{"ids":["$A"]}"#, &[], &[("$A", &["*"])], &[("$B", &["opacity"])], &["selection", "mode"]),
         h(
-            "type.createOutlines",
+            "text.convertToOutlines",
             r#"{"ids":["$FRAME"]}"#,
             &[],
             &[("$FRAME", &["content", "path", "xf", "layer", "textOptions", "@position"]), ("$STORY", &["*"])],
@@ -1203,15 +1197,15 @@ pub fn checks() -> Vec<Check> {
         h("path.split", r#"{"id":"$A","at":[50,10]}"#, &[], &[("$A", &["*"])], &[("$B", &["opacity"])], &["mode"]),
         h("edit.undo", "{}", &[("object.rename", r#"{"id":"$A","name":"Edited"}"#)], &[], &[], &["mode"]),
         h("edit.redo", "{}", &[("object.rename", r#"{"id":"$A","name":"Edited"}"#), ("edit.undo", "{}")], &[], &[], &["mode"]),
-        h("selection.set", r#"{"ids":["$B"],"add":true}"#, &[], &[], &[("$A", &["opacity"])], &["selection"]),
-        h("selection.toggle", r#"{"id":"$B"}"#, &[], &[], &[("$A", &["opacity"])], &["selection"]),
+        h("select.set", r#"{"ids":["$B"],"add":true}"#, &[], &[], &[("$A", &["opacity"])], &["selection"]),
+        h("select.toggle", r#"{"id":"$B"}"#, &[], &[], &[("$A", &["opacity"])], &["selection"]),
         h("edit.selectAll", "{}", &[], &[], &[("$A", &["opacity"])], &["selection", "mode"]),
         h("edit.deselectAll", "{}", &[], &[], &[("$A", &["*"])], &[]),
-        h("edit.clear", r#"{"ids":["$FRAME"]}"#, &[], &[("$FRAME", &["*"]), ("$STORY", &["*"])], &[("$B", &["opacity"])], &["selection", "mode"]),
+        h("edit.delete", r#"{"ids":["$FRAME"]}"#, &[], &[("$FRAME", &["*"]), ("$STORY", &["*"])], &[("$B", &["opacity"])], &["selection", "mode"]),
         h(
             "edit.copy",
             "{}",
-            &[("selection.set", r#"{"ids":["$FRAME"]}"#)],
+            &[("select.set", r#"{"ids":["$FRAME"]}"#)],
             &[("$FRAME", &["*"]), ("$STORY", &["*"])],
             &[("$B", &["opacity"])],
             &["selection", "mode"],
@@ -1219,7 +1213,7 @@ pub fn checks() -> Vec<Check> {
         h(
             "edit.cut",
             "{}",
-            &[("selection.set", r#"{"ids":["$FRAME"]}"#)],
+            &[("select.set", r#"{"ids":["$FRAME"]}"#)],
             &[("$FRAME", &["*"]), ("$STORY", &["*"])],
             &[("$B", &["opacity"])],
             &["selection", "mode"],
@@ -1290,7 +1284,7 @@ pub fn checks() -> Vec<Check> {
             &["selection", "mode"],
         ),
         h(
-            "type.onPath",
+            "text.onPath",
             r#"{"id":"$A","text":"Along"}"#,
             &[],
             &[("$A", &["content"]), ("$ROOT", &["setup.rightToLeftBinding"])],
@@ -1298,9 +1292,9 @@ pub fn checks() -> Vec<Check> {
             &["mode"],
         ),
         h(
-            "type.pathOptions",
+            "text.pathOptions",
             r#"{"id":"$A","start":10}"#,
-            &[("type.onPath", r#"{"id":"$A","text":"Along"}"#)],
+            &[("text.onPath", r#"{"id":"$A","text":"Along"}"#)],
             &[("$A", &["content", "textOptions.path.start"])],
             &[("$A", &["opacity", "name", "xf"])],
             &["selection", "mode"],

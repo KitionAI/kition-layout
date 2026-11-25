@@ -10,7 +10,7 @@ use crate::{Result, Session};
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!(
-            "type.onPath",
+            "text.onPath",
             "Type on a Path",
             [],
             None,
@@ -19,7 +19,7 @@ pub fn specs() -> Vec<CommandSpec> {
             on_path
         ),
         cmd!(
-            "type.pathOptions",
+            "text.pathOptions",
             "Type on a Path Options…",
             ["Type", "Type on a Path"],
             None,
@@ -31,11 +31,11 @@ pub fn specs() -> Vec<CommandSpec> {
 }
 
 fn align_param(p: &Value) -> Result<Option<PathAlign>> {
-    p.get("align").map(|v| serde_json::from_value(v.clone()).map_err(|e| bad("type.onPath", format!("align: {e}")))).transpose()
+    p.get("align").map(|v| serde_json::from_value(v.clone()).map_err(|e| bad("text.onPath", format!("align: {e}")))).transpose()
 }
 
 fn on_path(s: &mut Session, p: &Value) -> Result<Value> {
-    let id = super::id_param(p, "id").ok_or_else(|| bad("type.onPath", "missing id"))?;
+    let id = super::id_param(p, "id").ok_or_else(|| bad("text.onPath", "missing id"))?;
     let text = super::str_param(p, "text").unwrap_or("").to_string();
     let mut pt = PathType {
         start: p.get("start").and_then(Value::as_f64).unwrap_or(0.0).max(0.0),
@@ -49,8 +49,8 @@ fn on_path(s: &mut Session, p: &Value) -> Result<Value> {
         let it = d.item(id).ok_or(kition_layout_doc::DocError::NoItem(id))?;
         match &it.content {
             Content::Unassigned => {}
-            Content::Text(_) => return Err(bad("type.onPath", "the object already holds text")),
-            _ => return Err(bad("type.onPath", "type goes on empty paths, lines and shapes")),
+            Content::Text(_) => return Err(bad("text.onPath", "the object already holds text")),
+            _ => return Err(bad("text.onPath", "type goes on empty paths, lines and shapes")),
         }
         let sid = StoryId(d.alloc());
         let mut st = Story::with_text(sid, &text, Default::default());
@@ -78,7 +78,7 @@ fn path_options(s: &mut Session, p: &Value) -> Result<Value> {
                 .first()
                 .copied()
                 .or_else(|| st.selection.text.and_then(|t| st.doc.story(t.story)?.frames.first().copied()))
-                .ok_or_else(|| bad("type.pathOptions", "select type on a path"))?
+                .ok_or_else(|| bad("text.pathOptions", "select type on a path"))?
         }
     };
     let align = align_param(p)?;
@@ -86,8 +86,8 @@ fn path_options(s: &mut Session, p: &Value) -> Result<Value> {
     let p = p.clone();
     s.edit(|d, sel| {
         let it = d.item_mut(id).ok_or(kition_layout_doc::DocError::NoItem(id))?;
-        let Content::Text(tf) = &mut it.content else { return Err(bad("type.pathOptions", "not type on a path")) };
-        let Some(pt) = tf.options.path.as_mut() else { return Err(bad("type.pathOptions", "not type on a path")) };
+        let Content::Text(tf) = &mut it.content else { return Err(bad("text.pathOptions", "not type on a path")) };
+        let Some(pt) = tf.options.path.as_mut() else { return Err(bad("text.pathOptions", "not type on a path")) };
         if delete {
             let sid = tf.story;
             it.content = Content::Unassigned;
@@ -126,8 +126,8 @@ mod tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         // A vertical line: the text must run down it, not across.
-        let id = s.execute("line.create", &json!({"a": [300, 100], "b": [300, 600]})).unwrap()["id"].as_u64().unwrap();
-        let r = s.execute("type.onPath", &json!({"id": id, "text": "Along the line we go"})).unwrap();
+        let id = s.execute("line.add", &json!({"a": [300, 100], "b": [300, 600]})).unwrap()["id"].as_u64().unwrap();
+        let r = s.execute("text.onPath", &json!({"id": id, "text": "Along the line we go"})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let d = s.doc().unwrap().doc.clone();
         let cs = kition_layout_compose::compose_story(&d, sid, &Default::default());
@@ -141,22 +141,22 @@ mod tests {
         // Typing at the cursor adds to it; options; delete.
         s.execute("text.insert", &json!({"text": "!"})).unwrap();
         assert!(s.doc().unwrap().doc.story(sid).unwrap().text.ends_with('!'));
-        let r = s.execute("type.pathOptions", &json!({"id": id, "start": 20, "flip": true, "align": "center"})).unwrap();
+        let r = s.execute("text.pathOptions", &json!({"id": id, "start": 20, "flip": true, "align": "center"})).unwrap();
         assert_eq!(r["align"], "center");
         // Too much text oversets (one line only).
         s.execute("text.insert", &json!({"text": " more words".repeat(60)})).unwrap();
         let d = s.doc().unwrap().doc.clone();
         assert!(kition_layout_compose::compose_story(&d, sid, &Default::default()).overset_at.is_some());
-        s.execute("type.pathOptions", &json!({"id": id, "delete": true})).unwrap();
+        s.execute("text.pathOptions", &json!({"id": id, "delete": true})).unwrap();
         let d = s.doc().unwrap().doc.clone();
         assert!(d.story(sid).is_none());
         assert!(matches!(d.item(kition_layout_doc::ItemId(id)).unwrap().content, kition_layout_doc::Content::Unassigned));
         // Rendered output has ink along the line.
         let mut s2 = Session::new();
         s2.execute("file.new", &json!({})).unwrap();
-        let id = s2.execute("line.create", &json!({"a": [100, 300], "b": [500, 300]})).unwrap()["id"].as_u64().unwrap();
+        let id = s2.execute("line.add", &json!({"a": [100, 300], "b": [500, 300]})).unwrap()["id"].as_u64().unwrap();
         s2.execute("object.stroke", &json!({"ids": [id], "swatch": "[None]"})).unwrap();
-        s2.execute("type.onPath", &json!({"id": id, "text": "MMMMMMMM"})).unwrap();
+        s2.execute("text.onPath", &json!({"id": id, "text": "MMMMMMMM"})).unwrap();
         let d = s2.doc().unwrap().doc.clone();
         let mut rr = kition_layout_render::Renderer::new();
         rr.threads = 0;

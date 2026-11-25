@@ -133,7 +133,7 @@ function Appearance({ info, item }: { info: DocumentInfo; item: InspectedItem })
 
 function Typography({ info }: { info: DocumentInfo }) {
   const { run, t, phrase: p, session } = useKitEditor()
-  const attrs = useEngineQuery<TextAttrs>('type.selectionAttrs', {}, `${info.selection.join(',')}:${info.editingText}`)
+  const attrs = useEngineQuery<TextAttrs>('text.selectionAttrs', {}, `${info.selection.join(',')}:${info.editingText}`)
   const families = useEngineQuery<string[]>('font.families', {}, session.doc ? 'families' : null)
   const family = attrs?.chars?.fontFamily ?? ''
   const styles = useEngineQuery<{ styles: string[] }>('font.families', { family }, family)
@@ -141,7 +141,7 @@ function Typography({ info }: { info: DocumentInfo }) {
   const chars = attrs.chars ?? {}
   const familyChoices = (families ?? []).map((name) => [name, name] as const)
   if (family && !familyChoices.some(([name]) => name === family)) familyChoices.unshift([family, family])
-  const char = (next: Record<string, unknown>) => void run('type.char', { attrs: next })
+  const char = (next: Record<string, unknown>) => void run('text.char', { attrs: next })
   const leading = chars.leading?.kind === 'points' ? (chars.leading.value ?? 0) : 0
   return (
     <div className="layout-stack" data-testid="layout-typography">
@@ -165,7 +165,7 @@ function Typography({ info }: { info: DocumentInfo }) {
         label={t('alignment')}
         value={attrs.para?.align ?? 'left'}
         segments={ALIGNS.map(([value, icon]) => ({ value, icon, label: t(`align.${value}`) }))}
-        onChange={(align) => void run('type.para', { attrs: { align } })}
+        onChange={(align) => void run('text.para', { attrs: { align } })}
         testId="layout-align"
       />
       <Button onClick={() => void run('frame.fitText', info.editingText ? {} : { ids: info.selection })} data-testid="layout-fit-text">

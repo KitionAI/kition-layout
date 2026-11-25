@@ -202,7 +202,7 @@ mod tests {
     fn select_by_stacking_order_and_groups() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let mk = |s: &mut Session, x: f64| s.execute("frame.create", &json!({"rect": [x, 100.0, x + 50.0, 150.0]})).unwrap()["id"].as_u64().unwrap();
+        let mk = |s: &mut Session, x: f64| s.execute("frame.add", &json!({"rect": [x, 100.0, x + 50.0, 150.0]})).unwrap()["id"].as_u64().unwrap();
         let (a, b, c) = (mk(&mut s, 0.0), mk(&mut s, 60.0), mk(&mut s, 120.0));
         s.execute("select.lastBelow", &json!({})).unwrap();
         assert_eq!(ids(&s), [a]);
@@ -214,7 +214,7 @@ mod tests {
         assert_eq!(ids(&s), [c], "already on top");
         s.execute("select.nextBelow", &json!({})).unwrap();
         assert_eq!(ids(&s), [b]);
-        let g = s.execute("object.group", &json!({"ids": [a, b]})).unwrap()["id"].as_u64().unwrap();
+        let g = s.execute("arrange.group", &json!({"ids": [a, b]})).unwrap()["id"].as_u64().unwrap();
         s.execute("edit.deselectAll", &json!({})).unwrap();
         s.doc_mut().unwrap().selection = kition_layout_doc::Selection::items(vec![kition_layout_doc::ItemId(g)]);
         s.execute("select.content", &json!({})).unwrap();
@@ -232,7 +232,7 @@ mod tests {
     fn convert_shape_keeps_bounds() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [100, 100, 200, 160]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [100, 100, 200, 160]})).unwrap()["id"].as_u64().unwrap();
         let item = |s: &Session| s.doc().unwrap().doc.item(kition_layout_doc::ItemId(a)).unwrap().clone();
         for to in ["ellipse", "triangle", "polygon", "roundedRectangle", "rectangle"] {
             s.execute("object.convertShape", &json!({"to": to})).unwrap();
@@ -245,7 +245,7 @@ mod tests {
         assert_eq!(it.bounds().height(), 0.0);
         s.execute("object.convertShape", &json!({"to": "closedPath"})).unwrap();
         assert!(item(&s).path.subpaths[0].closed);
-        let t = s.execute("frame.create", &json!({"rect": [0, 0, 50, 50], "content": "text"})).unwrap()["id"].as_u64().unwrap();
+        let t = s.execute("frame.add", &json!({"rect": [0, 0, 50, 50], "content": "text"})).unwrap()["id"].as_u64().unwrap();
         assert!(s.execute("object.convertShape", &json!({"to": "line", "ids": [t]})).is_err());
         assert!(s.execute("object.convertShape", &json!({"to": "blob", "ids": [a]})).is_err());
     }

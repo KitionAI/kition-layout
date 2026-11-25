@@ -19,7 +19,7 @@ export function LinksSection({ info }: { info: DocumentInfo }) {
   const { can: canPick, pick } = useHostPick()
   // Placing and relinking edit the layout: a viewer only goes to links.
   const can = canPick && !readOnly
-  const links = useEngineQuery<Link[]>('links.list', {}) ?? []
+  const links = useEngineQuery<Link[]>('linkedFile.list', {}) ?? []
   const place = async (frame?: number) => {
     const file = await pick(t('placePurpose'), PLACE_TYPES)
     if (!file) return
@@ -45,7 +45,7 @@ export function LinksSection({ info }: { info: DocumentInfo }) {
               {t(`link.${link.status}`)}
             </span>
             {ppi.length ? <span className="kui-muted layout-count">{t('ppi', { ppi: Math.round(Math.min(...ppi)) })}</span> : null}
-            <IconButton icon={Link2} label={t('goToLink')} onClick={() => void run('links.goTo', { asset: link.asset })} data-testid={`layout-link-go-${link.asset}`} />
+            <IconButton icon={Link2} label={t('goToLink')} onClick={() => void run('linkedFile.goTo', { asset: link.asset })} data-testid={`layout-link-go-${link.asset}`} />
             {can ? <IconButton icon={RefreshCw} label={t('relink')} onClick={() => void relink(link)} data-testid={`layout-link-relink-${link.asset}`} /> : null}
           </div>
         )

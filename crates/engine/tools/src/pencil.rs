@@ -45,7 +45,7 @@ impl Tool for PencilTool {
                 }
                 let a: Vec<_> =
                     anchors.iter().map(|a| json!({"p": [a.p.x, a.p.y], "in": [a.h_in.x, a.h_in.y], "out": [a.h_out.x, a.h_out.y]})).collect();
-                vec![Action::Exec("path.create".into(), json!({"spread": sr, "anchors": a, "closed": ev.mods.alt}))]
+                vec![Action::Exec("path.add".into(), json!({"spread": sr, "anchors": a, "closed": ev.mods.alt}))]
             }
             _ => vec![],
         }

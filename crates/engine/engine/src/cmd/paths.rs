@@ -31,7 +31,7 @@ pub fn specs() -> Vec<CommandSpec> {
             release_compound
         ),
         cmd!(
-            "type.createOutlines",
+            "text.convertToOutlines",
             "Create Outlines",
             ["Type"],
             Some("Cmd+Shift+O"),
@@ -383,8 +383,8 @@ mod tests {
     fn compound_paths_make_holes_and_release() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].as_u64().unwrap();
-        let b = s.execute("frame.create", &json!({"rect": [150, 150, 250, 250]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].as_u64().unwrap();
+        let b = s.execute("frame.add", &json!({"rect": [150, 150, 250, 250]})).unwrap()["id"].as_u64().unwrap();
         s.execute("object.fill", &json!({"ids": [a], "swatch": "[Black]"})).unwrap();
         let r = s.execute("object.makeCompoundPath", &json!({"ids": [a, b]})).unwrap();
         assert_eq!(r["id"], a);
@@ -407,9 +407,9 @@ mod tests {
     fn pathfinder_subtracts_front_from_back() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].as_u64().unwrap();
-        let b = s.execute("frame.create", &json!({"rect": [200, 100, 400, 300], "shape": "ellipse"})).unwrap()["id"].as_u64().unwrap();
-        s.execute("selection.set", &json!({"ids": [a, b]})).unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].as_u64().unwrap();
+        let b = s.execute("frame.add", &json!({"rect": [200, 100, 400, 300], "shape": "ellipse"})).unwrap()["id"].as_u64().unwrap();
+        s.execute("select.set", &json!({"ids": [a, b]})).unwrap();
         let r = s.execute("object.pathfinder", &json!({"op": "subtract"})).unwrap();
         assert_eq!(r["id"], a);
         let d = s.doc().unwrap().doc.clone();
@@ -423,7 +423,7 @@ mod tests {
     fn gradient_feather_fades_on_screen_and_in_pdf() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let id = s.execute("frame.create", &json!({"rect": [100, 100, 300, 200]})).unwrap()["id"].as_u64().unwrap();
+        let id = s.execute("frame.add", &json!({"rect": [100, 100, 300, 200]})).unwrap()["id"].as_u64().unwrap();
         s.execute("object.fill", &json!({"ids": [id], "swatch": "[Black]"})).unwrap();
         s.execute("object.gradientFeather", &json!({"ids": [id], "from": [100, 150], "to": [300, 150]})).unwrap();
         let d = s.doc().unwrap().doc.clone();
@@ -441,10 +441,10 @@ mod tests {
     fn create_outlines_turns_text_into_paths() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "Outline"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "Outline"})).unwrap();
         let id = r["id"].as_u64().unwrap();
-        s.execute("selection.set", &json!({"ids": [id]})).unwrap();
-        let r = s.execute("type.createOutlines", &json!({})).unwrap();
+        s.execute("select.set", &json!({"ids": [id]})).unwrap();
+        let r = s.execute("text.convertToOutlines", &json!({})).unwrap();
         let new = ItemId(r["ids"][0].as_u64().unwrap());
         let d = s.doc().unwrap().doc.clone();
         assert!(d.item(ItemId(id)).is_none());
@@ -460,14 +460,14 @@ mod tests {
     fn scissors_split_open_and_closed_paths() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let line = s.execute("line.create", &json!({"a": [100, 100], "b": [300, 100]})).unwrap()["id"].as_u64().unwrap();
+        let line = s.execute("line.add", &json!({"a": [100, 100], "b": [300, 100]})).unwrap()["id"].as_u64().unwrap();
         let r = s.execute("path.split", &json!({"id": line, "at": [200, 101]})).unwrap();
         assert_eq!(r["ids"].as_array().unwrap().len(), 2);
         let d = s.doc().unwrap().doc.clone();
         let w: Vec<f64> =
             r["ids"].as_array().unwrap().iter().map(|i| d.item(ItemId(i.as_u64().unwrap())).unwrap().bounds().width().round()).collect();
         assert_eq!(w, [100.0, 100.0]);
-        let rect = s.execute("frame.create", &json!({"rect": [100, 200, 200, 300]})).unwrap()["id"].as_u64().unwrap();
+        let rect = s.execute("frame.add", &json!({"rect": [100, 200, 200, 300]})).unwrap()["id"].as_u64().unwrap();
         let r = s.execute("path.split", &json!({"id": rect, "at": [150, 200]})).unwrap();
         assert_eq!(r["ids"].as_array().unwrap().len(), 1);
         let d = s.doc().unwrap().doc.clone();

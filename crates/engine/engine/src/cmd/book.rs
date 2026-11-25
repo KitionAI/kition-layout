@@ -235,7 +235,7 @@ mod tests {
         let mut s = Session::new();
         for (name, pages, style) in [("a.klayout", 3, "Chapter Head"), ("b.klayout", 2, "Other")] {
             s.execute("file.new", &json!({"pages": pages})).unwrap();
-            s.execute("style.paragraph.create", &json!({"name": style, "chars": {"size": 20}})).unwrap();
+            s.execute("style.paragraph.add", &json!({"name": style, "chars": {"size": 20}})).unwrap();
             s.execute("file.saveAs", &json!({"path": p(name)})).unwrap();
         }
         s.execute("book.new", &json!({"path": p("book.dcbook")})).unwrap();

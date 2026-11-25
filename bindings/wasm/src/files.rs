@@ -32,7 +32,7 @@ pub const FILES: &[FileParam] = &[
     FileParam::read("data.merge", "path", &[]),
     FileParam::folder("file.exportIdml", "dir"),
     FileParam::folder("file.openIdml", "dir"),
-    FileParam::folder("links.copyTo", "path"),
+    FileParam::folder("linkedFile.copyTo", "path"),
     FileParam::write("file.save", "path", &[]),
     FileParam::create("file.saveAs", "path", &[]),
     FileParam::create("file.saveACopy", "path", &[]),
@@ -55,10 +55,10 @@ pub const FILES: &[FileParam] = &[
     FileParam::create("library.new", "path", &[]),
     FileParam::create("file.exportXml", "path", &[]),
     FileParam::folder("file.package", "dir"),
-    FileParam::folder("links.copyTo", "dir"),
+    FileParam::folder("linkedFile.copyTo", "dir"),
     FileParam::create("swatch.save", "path", &[]),
-    FileParam::read("links.relink", "path", &[]),
-    FileParam::folder("links.relinkFolder", "dir"),
+    FileParam::read("linkedFile.relink", "path", &[]),
+    FileParam::folder("linkedFile.relinkFolder", "dir"),
 ];
 
 /// The commands with file parameters an agent may run: they read only what the host lends from
@@ -131,10 +131,10 @@ mod tests {
         let manifest: serde_json::Value = serde_json::from_str(include_str!("../../../kit.json")).unwrap_or_default();
         let excluded: Vec<&str> = manifest["agent"]["exclude"].as_array().into_iter().flatten().filter_map(serde_json::Value::as_str).collect();
         assert_eq!(excluded, AGENT_EXCLUDED);
-        for command in AGENT_EXCLUDED.iter().chain(&["file.saveACopy", "file.recovery.save", "book.open", "links.relink"]) {
+        for command in AGENT_EXCLUDED.iter().chain(&["file.saveACopy", "file.recovery.save", "book.open", "linkedFile.relink"]) {
             assert!(refuse_for_agent(command).is_err(), "{command}");
         }
-        for command in ["file.place", "frame.create", "script.run", "file.exportBytes"] {
+        for command in ["file.place", "frame.add", "script.run", "file.exportBytes"] {
             assert!(refuse_for_agent(command).is_ok(), "{command}");
         }
         let refused = refuse_for_agent("file.saveACopy").unwrap_err();

@@ -94,10 +94,9 @@ async fn independent_layers_delete_unused_holds_usage_and_layer_membership() {
         let basis = f.basis().await;
         match change {
             "unused-becomes-used" => f.colleague(&[("object.setLayer", json!({"ids":[f.c],"layer":f.layers[1]}))]),
-            "new-used-item" => f.colleague(&[
-                ("layer.activate", json!({"id":f.layers[1]})),
-                ("frame.create", json!({"rect":[400,400,440,440],"content":"unassigned"})),
-            ]),
+            "new-used-item" => {
+                f.colleague(&[("layer.activate", json!({"id":f.layers[1]})), ("frame.add", json!({"rect":[400,400,440,440],"content":"unassigned"}))])
+            }
             "new-layer" => f.colleague(&[("layer.new", json!({"name":"Colleague"}))]),
             "layer-name" => f.colleague(&[("layer.set", json!({"id":f.layers[1],"name":"Colleague"}))]),
             "layer-order" => f.colleague(&[("layer.move", json!({"id":f.layers[1],"to":3}))]),
@@ -125,7 +124,7 @@ async fn independent_layers_delete_unused_keeps_the_observed_first_layer_when_em
             .iter()
             .flat_map(|spread| spread["items"].as_array().unwrap().iter().map(|item| item["id"].clone()))
             .collect();
-        prepare(&f, &[("edit.clear", json!({"ids":ids}))]);
+        prepare(&f, &[("edit.delete", json!({"ids":ids}))]);
         let basis = f.basis().await;
         f.colleague(&[if needed {
             ("layer.move", json!({"id":f.layers[1],"to":0}))

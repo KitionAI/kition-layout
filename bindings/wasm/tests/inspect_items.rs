@@ -22,12 +22,11 @@ fn item(inspected: &Value, id: &Value) -> Value {
 #[test]
 fn inspect_names_paths_type_on_a_path_and_wrap() {
     let mut doc = LayoutDocument::create("poster.klayout", 600, 800).unwrap();
-    let straight = run(&mut doc, "path.create", json!({ "anchors": [{ "p": [70, 100] }, { "p": [530, 100] }] }))["id"].clone();
+    let straight = run(&mut doc, "path.add", json!({ "anchors": [{ "p": [70, 100] }, { "p": [530, 100] }] }))["id"].clone();
     let curved =
-        run(&mut doc, "path.create", json!({ "anchors": [{ "p": [70, 330], "out": [200, 262] }, { "p": [530, 330], "in": [400, 262] }] }))["id"]
-            .clone();
-    let on_path = run(&mut doc, "type.onPath", json!({ "id": curved, "text": "EVERY FRIDAY" }))["id"].clone();
-    let photo = run(&mut doc, "frame.create", json!({ "rect": [100, 400, 300, 600], "content": "graphic" }))["id"].clone();
+        run(&mut doc, "path.add", json!({ "anchors": [{ "p": [70, 330], "out": [200, 262] }, { "p": [530, 330], "in": [400, 262] }] }))["id"].clone();
+    let on_path = run(&mut doc, "text.onPath", json!({ "id": curved, "text": "EVERY FRIDAY" }))["id"].clone();
+    let photo = run(&mut doc, "frame.add", json!({ "rect": [100, 400, 300, 600], "content": "graphic" }))["id"].clone();
     run(&mut doc, "object.textWrap", json!({ "ids": [photo], "mode": "contour", "offset": 10 }));
     let inspected = doc.inspect().unwrap();
     assert_eq!(item(&inspected, &straight)["kind"], json!("<line>"));
@@ -39,7 +38,6 @@ fn inspect_names_paths_type_on_a_path_and_wrap() {
     assert!(item(&inspected, &straight).get("wrap").is_none(), "no wrap, nothing reported");
     // A curved two-anchor path that holds no text is a path.
     let bare =
-        run(&mut doc, "path.create", json!({ "anchors": [{ "p": [70, 700], "out": [200, 650] }, { "p": [530, 700], "in": [400, 650] }] }))["id"]
-            .clone();
+        run(&mut doc, "path.add", json!({ "anchors": [{ "p": [70, 700], "out": [200, 650] }, { "p": [530, 700], "in": [400, 650] }] }))["id"].clone();
     assert_eq!(item(&doc.inspect().unwrap(), &bare)["kind"], json!("<path>"));
 }

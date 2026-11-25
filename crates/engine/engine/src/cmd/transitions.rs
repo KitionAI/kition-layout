@@ -100,7 +100,7 @@ mod tests {
         let bytes = super::super::file::base64_decode(r["base64"].as_str().unwrap());
         assert_eq!(String::from_utf8_lossy(&bytes).matches("/Trans<<").count(), 1);
         // With transparency too, the page keeps both its group and its transition.
-        let id = s.execute("frame.create", &json!({"rect": [100, 100, 200, 200]})).unwrap()["id"].clone();
+        let id = s.execute("frame.add", &json!({"rect": [100, 100, 200, 200]})).unwrap()["id"].clone();
         s.execute("object.opacity", &json!({"ids": [id], "opacity": 0.5})).unwrap();
         let r = s.execute("file.exportPdf", &json!({"pages": [1]})).unwrap();
         let bytes = super::super::file::base64_decode(r["base64"].as_str().unwrap());

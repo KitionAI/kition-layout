@@ -1,7 +1,7 @@
 {
   "steps": [
     {
-      "command": "frame.create",
+      "command": "frame.add",
       "params": {
         "content": "text",
         "rect": [

@@ -150,11 +150,11 @@ Opened `brochure.klayout`: 936 × 1440
   "preview":"Visit\nOpen hours\nSaturday\t9:00 – 13:00\nSunday\t10:00 – 16:00\nWednesday evening\t17"},…],…},"revision":"hhv0",…}
 
 > layout_run {"path":"brochure.klayout","basis":"hhv0","steps":[
-    {"command":"find.change","params":{"find":"10:00 – 16:00","change":"10:00 – 17:00","story":35,"scope":"story"}}]}
+    {"command":"edit.replace","params":{"find":"10:00 – 16:00","change":"10:00 – 17:00","story":35,"scope":"story"}}]}
 Ran 1 commands on `brochure.klayout` (saved): 936 × 1440 Changes: objects 1 changed.
 {"changes":{"changed":[{"edits":[{"after":{"excerpt":"…:00\nSunday\t10:00 – 17:00\nWednesday evening\t17:00 – 20:00\nFind us\nAlder Street,…",…},
   "before":{"excerpt":"…:00\nSunday\t10:00 – 16:00\nWednesday evening\t17:00 – 20:00\nFind us\nAlder Street,…",…},…}],"id":35,"type":"Story"}],…},
-  "completed":[{"command":"find.change","result":{"count":1}}],"diagnostics":{"new":[],"resolved":[]},"revision":"hhv1","saved":true}
+  "completed":[{"command":"edit.replace","result":{"count":1}}],"diagnostics":{"new":[],"resolved":[]},"revision":"hhv1","saved":true}
 
 > layout_check {"path":"brochure.klayout"}
 Checked `brochure.klayout`: 1 error, no warnings, no notes.

@@ -2,7 +2,7 @@ format: 1
 id: regressions/issue-frame-create-text
 feature: layout.collab.coedit
 intent: >-
-  frame.create given text and no content type made an empty graphic frame and dropped the text;
+  frame.add given text and no content type made an empty graphic frame and dropped the text;
   it now makes a text frame holding it (Kition One's co-editing cases make exactly this edit).
 layer: gate
 source:

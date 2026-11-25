@@ -133,7 +133,7 @@ pub fn specs() -> Vec<CommandSpec> {
             let label = s.undo_redo(false, scope)?.ok_or_else(|| super::bad("edit.redo", "nothing to redo"))?;
             Ok(json!({"redone": label}))
         }),
-        cmd!(noundo "selection.set", "Select", [], None, "{ids: [id], add?: bool, content?: bool}", has_doc, |s, p| {
+        cmd!(noundo "select.set", "Select", [], None, "{ids: [id], add?: bool, content?: bool}", has_doc, |s, p| {
             let ids = ids_param(p, "ids").unwrap_or_default();
             let add = bool_or(p, "add", false);
             let content = bool_or(p, "content", false);
@@ -153,8 +153,8 @@ pub fn specs() -> Vec<CommandSpec> {
             st.revision += 1;
             ok()
         }),
-        cmd!(noundo "selection.toggle", "Toggle Selection", [], None, "{id}", has_doc, |s, p| {
-            let id = super::id_param(p, "id").ok_or_else(|| super::bad("selection.toggle", "missing id"))?;
+        cmd!(noundo "select.toggle", "Toggle Selection", [], None, "{id}", has_doc, |s, p| {
+            let id = super::id_param(p, "id").ok_or_else(|| super::bad("select.toggle", "missing id"))?;
             let st = s.doc_mut()?;
             st.selection.text = None;
             st.selection.cells = None;
@@ -196,7 +196,7 @@ pub fn specs() -> Vec<CommandSpec> {
             st.revision += 1;
             ok()
         }),
-        cmd!("edit.clear", "Clear", ["Edit"], Some("Delete"), "{ids?} — delete selected items (or the selected text)", has_doc, |s, p| {
+        cmd!("edit.delete", "Clear", ["Edit"], Some("Delete"), "{ids?} — delete selected items (or the selected text)", has_doc, |s, p| {
             if s.doc()?.selection.text.is_some() && p.get("ids").is_none() {
                 return super::text::delete_selection(s);
             }
@@ -223,7 +223,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 return Ok(json!({"text": text}));
             }
             s.clipboard = Some(Arc::new(clip_doc(s)?));
-            s.execute("edit.clear", p)
+            s.execute("edit.delete", p)
         }),
         cmd!(
             "edit.pasteWithoutFormatting",
@@ -324,7 +324,7 @@ mod text_clipboard_tests {
     use super::*;
 
     fn frame(s: &mut Session, text: &str) -> kition_layout_doc::StoryId {
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": text})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": text})).unwrap();
         s.doc().unwrap().doc.item(ItemId(r["id"].as_u64().unwrap())).unwrap().text_frame().unwrap().story
     }
 
@@ -335,7 +335,7 @@ mod text_clipboard_tests {
         let a = frame(&mut s, "Bold words here.");
         let b = frame(&mut s, "Target: .");
         s.execute("text.select", &json!({"story": a.0, "anchor": 0, "focus": 4})).unwrap();
-        s.execute("type.bold", &json!({})).unwrap();
+        s.execute("format.bold", &json!({})).unwrap();
         // A footnote inside the copied range travels with it.
         s.execute("text.select", &json!({"story": a.0, "anchor": 4, "focus": 4})).unwrap();
         s.execute("footnote.insert", &json!({"text": "n"})).unwrap();
@@ -373,14 +373,14 @@ mod text_clipboard_tests {
         s.execute("file.new", &json!({})).unwrap();
         let a = frame(&mut s, "the quick brown fox. jumps over straße");
         s.execute("text.select", &json!({"story": a.0, "anchor": 4, "focus": 9})).unwrap();
-        s.execute("type.italic", &json!({})).unwrap();
+        s.execute("format.italic", &json!({})).unwrap();
         let len = s.doc().unwrap().doc.story(a).unwrap().len();
         s.execute("text.select", &json!({"story": a.0, "anchor": 0, "focus": len})).unwrap();
-        s.execute("type.changeCase", &json!({"case": "title"})).unwrap();
+        s.execute("text.changeCase", &json!({"case": "title"})).unwrap();
         assert_eq!(s.doc().unwrap().doc.story(a).unwrap().text, "The Quick Brown Fox. Jumps Over Straße");
-        s.execute("type.changeCase", &json!({"case": "sentence"})).unwrap();
+        s.execute("text.changeCase", &json!({"case": "sentence"})).unwrap();
         assert_eq!(s.doc().unwrap().doc.story(a).unwrap().text, "The quick brown fox. Jumps over straße");
-        s.execute("type.changeCase", &json!({"case": "upper"})).unwrap();
+        s.execute("text.changeCase", &json!({"case": "upper"})).unwrap();
         let st = s.doc().unwrap().doc.story(a).unwrap().clone();
         assert_eq!(st.text, "THE QUICK BROWN FOX. JUMPS OVER STRASSE");
         assert_eq!(st.char_format_at(5).over.font_style.as_deref(), Some("Italic"));
@@ -446,12 +446,12 @@ mod paste_into_tests {
     fn paste_into_nests_and_clips() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].as_u64().unwrap();
         s.execute("object.fill", &json!({"ids": [a], "swatch": "[Black]"})).unwrap();
-        let frame = s.execute("frame.create", &json!({"rect": [150, 150, 250, 250]})).unwrap()["id"].as_u64().unwrap();
-        s.execute("selection.set", &json!({"ids": [a]})).unwrap();
+        let frame = s.execute("frame.add", &json!({"rect": [150, 150, 250, 250]})).unwrap()["id"].as_u64().unwrap();
+        s.execute("select.set", &json!({"ids": [a]})).unwrap();
         s.execute("edit.cut", &json!({})).unwrap();
-        s.execute("selection.set", &json!({"ids": [frame]})).unwrap();
+        s.execute("select.set", &json!({"ids": [frame]})).unwrap();
         s.execute("edit.pasteInto", &json!({})).unwrap();
         let d = s.doc().unwrap().doc.clone();
         assert_eq!(d.spreads[0].items.len(), 1, "the black square is inside the frame now");

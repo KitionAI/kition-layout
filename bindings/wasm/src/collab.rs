@@ -335,12 +335,12 @@ mod tests {
 
     fn fixture() -> Vec<u8> {
         let mut doc = LayoutDocument::create("Flyer.klayout", 612, 792).unwrap();
-        doc.execute("frame.create", json!({ "rect": [72, 72, 216, 144], "content": "unassigned" })).unwrap();
+        doc.execute("frame.add", json!({ "rect": [72, 72, 216, 144], "content": "unassigned" })).unwrap();
         doc.save(None).unwrap()
     }
 
     fn frame(doc: &mut LayoutDocument, x: u32) {
-        doc.execute("frame.create", json!({ "rect": [x, 300, x + 40, 340], "content": "unassigned" })).unwrap();
+        doc.execute("frame.add", json!({ "rect": [x, 300, x + 40, 340], "content": "unassigned" })).unwrap();
     }
 
     fn items(doc: &LayoutDocument) -> usize {
@@ -511,9 +511,8 @@ mod tests {
         let mut exchange = Exchange::new();
         let described = exchange.describe(&mut doc).unwrap();
         assert_eq!(described["capability"], "KitObjectModel 1.0");
-        assert!(described["commands"].as_array().unwrap().iter().any(|command| command["id"] == "frame.create"));
-        let command =
-            json!({ "ops": [{ "op": "command", "id": "frame.create", "params": { "rect": [300, 300, 340, 340], "content": "unassigned" } }] });
+        assert!(described["commands"].as_array().unwrap().iter().any(|command| command["id"] == "frame.add"));
+        let command = json!({ "ops": [{ "op": "command", "id": "frame.add", "params": { "rect": [300, 300, 340, 340], "content": "unassigned" } }] });
         assert_eq!(exchange.batch(&mut doc, &command, true).unwrap_err().code, ModelErrorCode::ReadOnly);
         exchange.batch(&mut doc, &command, false).unwrap();
         assert_eq!(items(&doc), 2, "the command ran in the engine");

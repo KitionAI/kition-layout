@@ -38,7 +38,7 @@ const kit = page.frameLocator('#kit')
 const details = async () => (await page.evaluate(async () => window.devHost.connection().ai.inspect())).details
 const agent = (steps) => page.evaluate(async (list) => window.devHost.connection().ai.run(list, false), steps)
 const one = async (command, params = {}) => (await agent([{ command, params }])).completed[0]?.result
-const history = async () => one('document.history')
+const history = async () => one('file.history')
 const itemOf = async (id) => {
   const search = (items) => items.flatMap((item) => [item, ...search(item.children ?? [])])
   return search((await details()).spreads.flatMap((spread) => spread.items)).find((item) => item.id === id)
@@ -83,7 +83,7 @@ try {
   await until(async () => (await details()).tool === 'selection')
 
   const box = (await details()).spreads[0].pages[0].bounds
-  const shape = await one('frame.create', { rect: [box[0] + 60, 400, box[0] + 160, 450], content: 'graphic' })
+  const shape = await one('frame.add', { rect: [box[0] + 60, 400, box[0] + 160, 450], content: 'graphic' })
   await select(shape.id)
   const at = async () => (await itemOf(shape.id)).bounds
   const start = await at()
@@ -113,7 +113,7 @@ try {
   step('Delete deletes the selection', await until(async () => (await itemCount()) === count), `${await itemCount()} objects`)
 
   // Typing: Cmd+Left goes to the line's start; one Undo takes back a word.
-  const frame = await one('frame.create', { rect: [box[0] + 60, 480, box[0] + 400, 560], content: 'text', text: '', caret: false })
+  const frame = await one('frame.add', { rect: [box[0] + 60, 480, box[0] + 400, 560], content: 'text', text: '', caret: false })
   const story = (await details()).stories.find((item) => item.frames.includes(frame.id)).id
   const placed = (await details()).canvas?.spreads?.[0]
   const surface = await kit.getByTestId('kit-canvas-surface').boundingBox()

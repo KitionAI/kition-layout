@@ -94,7 +94,7 @@ mod tests {
     fn exports_pages_as_png_and_jpeg() {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 2, "facingPages": false, "width": 200, "height": 100})).unwrap();
-        let id = s.execute("frame.create", &json!({"rect": [0, 0, 100, 100], "content": "graphic"})).unwrap()["id"].as_u64().unwrap();
+        let id = s.execute("frame.add", &json!({"rect": [0, 0, 100, 100], "content": "graphic"})).unwrap()["id"].as_u64().unwrap();
         s.execute("object.fill", &json!({"ids": [id], "swatch": "[Black]"})).unwrap();
         let r = s.execute("file.exportImage", &json!({"pages": [1], "ppi": 144})).unwrap();
         let files = r["files"].as_array().unwrap();

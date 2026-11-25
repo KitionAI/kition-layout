@@ -204,7 +204,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
           // Escape a busy tool did not take clears the selection; taken (default prevented) only
           // then, so in Focus an Escape with nothing to cancel still leaves Focus (KitPointer 4.4).
           if (event.key !== 'Escape' || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || !state?.selected) return false
-          void editor.run('selection.set', { ids: [] })
+          void editor.run('select.set', { ids: [] })
           return true
         }}
         status={

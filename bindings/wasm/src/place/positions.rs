@@ -37,7 +37,7 @@ impl LayoutDocument {
                 }
             }
             // A page counted within that spread.
-            if matches!(command, "guide.add" | "layout.createGuides")
+            if matches!(command, "guide.add" | "layout.addGuides")
                 && let Some(pi) = params.get("page").and_then(Value::as_u64).and_then(|n| usize::try_from(n).ok())
                 && let Some(spread) = doc.spread(spread)
             {
@@ -53,7 +53,7 @@ impl LayoutDocument {
         self.world_premises(command, params, under)?;
         // A position inside one object: that object, held whole.
         let holder = match command {
-            "states.show" | "states.rename" | "path.deleteAnchor" | "path.convertAnchor" | "path.moveAnchors" => {
+            "state.show" | "state.rename" | "path.deleteAnchor" | "path.convertAnchor" | "path.moveAnchors" => {
                 params.get("id").and_then(Value::as_u64).or_else(|| state.selection.items.first().map(|id| id.0))
             }
             "anchored.options" | "anchored.release" | "xref.setFormat" | "text.select" => {

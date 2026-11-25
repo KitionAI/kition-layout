@@ -1,5 +1,5 @@
 //! The package's starter layouts (`web/public/templates/`): each `.klayout` is the document
-//! `document.applyTemplate` builds, with a preview PNG beside it for the New from Template dialog.
+//! `file.applyTemplate` builds, with a preview PNG beside it for the New from Template dialog.
 //! `KITION_LAYOUT_WRITE_TEMPLATES=1 cargo test -p kition-layout-engine --test templates` writes
 //! them again (after a template or the file format changes); otherwise the test checks them.
 

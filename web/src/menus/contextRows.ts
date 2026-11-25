@@ -28,11 +28,11 @@ export function contextRows(spot: Spot): ContextRow[] {
         return [
           ...rows('edit.cut', 'edit.copy', 'edit.paste', 'edit.pasteInto', 'edit.pasteInPlace', '-'),
           ...rows('transform.move', 'transform.scale', 'transform.rotate', 'transform.rotate|cw90', 'transform.rotate|ccw90', 'transform.flip|horizontal', 'transform.flip|vertical', '-'),
-          ...rows('object.bringToFront', 'object.bringForward', 'object.sendBackward', 'object.sendToBack', '-'),
+          ...rows('arrange.bringToFront', 'arrange.bringForward', 'arrange.sendBackward', 'arrange.sendToBack', '-'),
           ...(spot.image ? rows('object.fit|fillProportionally', 'object.fit|fitProportionally', 'object.fit|fitFrameToContent', 'object.fit|centerContent', '-') : []),
           ...(spot.textFrame ? rows('object.textFrameOptions') : []),
           ...rows('object.dropShadow', 'object.cornerOptions', '-'),
-          ...rows('object.lock', spot.group ? 'object.ungroup' : spot.count > 1 ? 'object.group' : '-', 'edit.clear'),
+          ...rows('object.lock', spot.group ? 'arrange.ungroup' : spot.count > 1 ? 'arrange.group' : '-', 'edit.delete'),
         ]
       case 'text':
         return rows(

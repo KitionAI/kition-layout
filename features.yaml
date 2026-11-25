@@ -174,7 +174,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [file.new, file.newSample, file.presets, file.open, file.openBytes, file.save, file.saveAs, file.saveACopy, file.revert, file.serialize, file.close, file.activate, template.list, document.applyTemplate, document.preferences, document.inspect, document.list, document.history]
+    commands: [file.new, file.newSample, file.presets, file.open, file.openBytes, file.save, file.saveAs, file.saveACopy, file.revert, file.serialize, file.close, file.activate, template.list, file.applyTemplate, file.preferences, file.inspect, file.list, file.history]
     paths: [crates/engine/engine/src/cmd/file.rs, bindings/wasm/src/files.rs, crates/engine/engine/src/cmd/package.rs, crates/engine/engine/src/cmd/templates.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -195,7 +195,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [snippet.export, place.styles, snippet.place, place.load, place.drop, file.place, library.new, library.open, library.list, library.json, library.add, library.place, library.remove, conveyor.collect, conveyor.place, conveyor.list, conveyor.clear, library.close, links.copyTo, links.list, links.relink, links.relinkFolder, links.update, links.embed, links.goTo]
+    commands: [snippet.export, place.styles, snippet.place, place.load, place.drop, file.place, library.new, library.open, library.list, library.json, library.add, library.place, library.remove, conveyor.collect, conveyor.place, conveyor.list, conveyor.clear, library.close, linkedFile.copyTo, linkedFile.list, linkedFile.relink, linkedFile.relinkFolder, linkedFile.update, linkedFile.embed, linkedFile.goTo]
     paths: [crates/engine/engine/src/cmd/library.rs, crates/engine/engine/src/cmd/links.rs, crates/engine/engine/src/cmd/file.rs, bindings/wasm/src/files.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -215,7 +215,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [edit.undo, edit.redo, edit.selectAll, edit.deselectAll, edit.clear, edit.copy, edit.cut, edit.pasteWithoutFormatting, edit.paste, edit.pasteInto, edit.pasteInPlace, edit.duplicate, edit.stepAndRepeat, edit.transparencyBlendSpace]
+    commands: [edit.undo, edit.redo, edit.selectAll, edit.deselectAll, edit.delete, edit.copy, edit.cut, edit.pasteWithoutFormatting, edit.paste, edit.pasteInto, edit.pasteInPlace, edit.duplicate, edit.stepAndRepeat, edit.transparencyBlendSpace]
     paths: [crates/engine/engine/src/cmd/edit.rs, crates/engine/engine/src/cmd/table.rs, crates/engine/engine/src/cmd/fit_text.rs, crates/engine/engine/src/cmd/liquid.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -235,7 +235,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [object.arrange, object.bringToFront, object.bringForward, object.sendBackward, object.sendToBack, object.group, object.ungroup, object.lock, object.unlockAll, object.hide, object.showAll, object.align, object.distribute, object.setLayer]
+    commands: [object.arrange, arrange.bringToFront, arrange.bringForward, arrange.sendBackward, arrange.sendToBack, arrange.group, arrange.ungroup, object.lock, object.unlockAll, object.hide, object.showAll, object.align, object.distribute, object.setLayer]
     paths: [web/src/HomeTab.tsx, crates/engine/engine/src/cmd/file.rs, crates/engine/engine/src/cmd/select.rs, crates/engine/engine/src/cmd/states.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -245,7 +245,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [line.create, object.cornerOptions, path.create, path.appendAnchor, path.close, path.moveAnchors, object.clippingPath, path.addAnchor, path.deleteAnchor, path.convertAnchor, path.erase, path.smooth, object.makeCompoundPath, object.releaseCompoundPath, object.pathfinder, path.split, strokeStyle.list, strokeStyle.new, strokeStyle.delete, object.convertShape]
+    commands: [line.add, object.cornerOptions, path.add, path.appendAnchor, path.close, path.moveAnchors, object.clippingPath, path.addAnchor, path.deleteAnchor, path.convertAnchor, path.erase, path.smooth, object.makeCompoundPath, object.releaseCompoundPath, object.pathfinder, path.split, strokeStyle.list, strokeStyle.new, strokeStyle.delete, object.convertShape]
     paths: [crates/engine/engine/src/cmd/anchors.rs, crates/engine/engine/src/cmd/paths.rs, crates/engine/tools/src/anchors.rs, crates/engine/engine/src/cmd/strokes.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -275,7 +275,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [selection.set, selection.toggle, tool.polygonSettings, select.firstAbove, select.nextAbove, select.nextBelow, select.lastBelow, select.container, select.content, select.nextInGroup, select.previousInGroup, tool.select, tool.list]
+    commands: [select.set, select.toggle, tool.polygonSettings, select.firstAbove, select.nextAbove, select.nextBelow, select.lastBelow, select.container, select.content, select.nextInGroup, select.previousInGroup, tool.select, tool.list]
     paths: [crates/engine/engine/src/cmd/select.rs, web/src/commandIcons.ts, crates/engine/engine/src/cmd/edit.rs, crates/engine/engine/src/cmd/inspect.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -295,7 +295,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [gap.move, page.background, liquid.pageRule, liquid.object, guide.liquid, layout.createAlternate, layout.deleteAlternate, layout.list, page.transition, page.transitions, layout.pages.insert, layout.rotateSpreadView, layout.pages.delete, layout.pages.move, layout.pages.duplicateSpread, layout.pages.applyParent, layout.parents.new, layout.parents.edit, layout.marginsAndColumns, layout.documentSetup, layout.pages.toSpread, layout.spreadShuffle, layout.pageSize, layout.section, layout.overrideParentItems, layout.removeOverrides, layout.detachAll, guide.add, guide.move, guide.delete, guide.deleteAll, guide.list, layout.createGuides]
+    commands: [gap.move, page.background, liquid.pageRule, liquid.object, guide.liquid, layout.addAlternate, layout.deleteAlternate, layout.list, page.transition, page.transitions, layout.pages.insert, layout.rotateSpreadView, layout.pages.delete, layout.pages.move, layout.pages.duplicateSpread, layout.pages.applyParent, layout.parents.new, layout.parents.edit, layout.marginsAndColumns, layout.documentSetup, layout.pages.toSpread, layout.spreadShuffle, layout.pageSize, layout.section, layout.overrideParentItems, layout.removeOverrides, layout.detachAll, guide.add, guide.move, guide.delete, guide.deleteAll, guide.list, layout.addGuides]
     paths: [crates/engine/engine/src/cmd/layout.rs, crates/engine/engine/src/cmd/liquid.rs, crates/engine/engine/src/cmd/guides.rs, crates/engine/engine/src/cmd/templates.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -305,7 +305,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [frame.create, frame.grid, frame.thread, frame.unthread, frame.loadText, frame.fitText, story.placeAndLink, story.links, story.updateLink, story.unlink, math.insert, math.svg, text.placeCaret, text.release, text.extendTo, text.selectWord, text.select, text.insert, text.insertSpecial, text.delete, text.move, text.exitToFrame, story.setDirection, story.setText, story.replaceRange, story.get, anchored.insert, anchored.options, anchored.release, anchored.list]
+    commands: [frame.add, frame.grid, frame.thread, frame.unthread, frame.loadText, frame.fitText, story.placeAndLink, story.links, story.updateLink, story.unlink, math.insert, math.svg, text.placeCaret, text.release, text.extendTo, text.selectWord, text.select, text.insert, text.insertSpecial, text.delete, text.move, text.exitToFrame, story.setDirection, story.setText, story.replaceRange, story.get, anchored.insert, anchored.options, anchored.release, anchored.list]
     paths: [crates/engine/engine/src/cmd/text.rs, crates/engine/tools/src/text.rs, crates/engine/engine/src/cmd/anchored.rs, crates/engine/engine/src/cmd/linked.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -316,7 +316,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [type.createOutlines, type.onPath, type.pathOptions, type.fillWithPlaceholder, type.char, type.para, type.align, type.alignLeft, type.alignCenter, type.alignRight, type.justify, type.bold, type.italic, type.underline, type.allCaps, type.tateChuYoko, type.ruby, type.kenten, type.warichu, type.storyDirection, type.sizeUp, type.sizeDown, type.changeCase, type.openType, type.selectionAttrs, style.compositeFont.list, style.compositeFont.set, font.families, font.list, font.replace, hyphenation.addException, hyphenation.removeException, hyphenation.list]
+    commands: [text.convertToOutlines, text.onPath, text.pathOptions, text.fillWithPlaceholder, text.char, text.para, text.align, format.alignLeft, format.alignCenter, format.alignRight, format.justify, format.bold, format.italic, format.underline, text.allCaps, text.tateChuYoko, text.ruby, text.kenten, text.warichu, text.storyDirection, format.increaseFontSize, format.decreaseFontSize, text.changeCase, text.openType, text.selectionAttrs, style.compositeFont.list, style.compositeFont.set, font.families, font.list, font.replace, hyphenation.addException, hyphenation.removeException, hyphenation.list]
     paths: [crates/engine/engine/src/cmd/text.rs, crates/engine/engine/src/cmd/fonts.rs, crates/engine/engine/src/cmd/spelling.rs, crates/engine/engine/src/cmd/style.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -327,7 +327,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [style.cell.create, style.cell.apply, style.cell.edit, style.table.create, style.table.apply, style.table.edit, table.insert, table.convertFromText, table.convertToText, table.insertRow, table.insertRowAbove, table.insertRowBelow, table.insertColumn, table.insertColumnLeft, table.insertColumnRight, table.deleteRow, table.deleteColumn, table.delete, table.merge, table.dropCells, table.placeGraphic, table.textCell, table.moveRow, table.moveColumn, table.sortRows, table.unmerge, table.splitHorizontally, table.splitVertically, table.setCell, table.setRowHeight, table.setColumnWidth, table.distributeColumns, table.distributeRows, table.options, table.select, table.selectTable, table.selectRow, table.selectColumn, table.nextCell, table.prevCell, table.get]
+    commands: [style.cell.add, style.cell.apply, style.cell.edit, style.table.add, style.table.apply, style.table.edit, table.insert, table.convertFromText, table.convertToText, table.insertRow, table.insertRowAbove, table.insertRowBelow, table.insertColumn, table.insertColumnLeft, table.insertColumnRight, table.deleteRow, table.deleteColumn, table.delete, table.merge, table.dropCells, table.placeGraphic, table.textCell, table.moveRow, table.moveColumn, table.sortRows, table.unmerge, table.splitHorizontally, table.splitVertically, table.setCell, table.setRowHeight, table.setColumnWidth, table.distributeColumns, table.distributeRows, table.options, table.select, table.selectTable, table.selectRow, table.selectColumn, table.nextCell, table.prevCell, table.get]
     paths: [crates/engine/engine/src/cmd/table.rs, crates/engine/tools/src/text.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -337,7 +337,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [style.breakLink, style.exportTag, style.paragraph.apply, style.character.apply, style.paragraph.create, style.paragraph.edit, style.paragraph.delete, style.character.delete, style.character.create, style.character.edit, style.list, style.object.apply, style.object.create, style.group]
+    commands: [style.breakLink, style.exportTag, style.paragraph.apply, style.character.apply, style.paragraph.add, style.paragraph.edit, style.paragraph.delete, style.character.delete, style.character.add, style.character.edit, style.list, style.object.apply, style.object.add, style.group]
     paths: [crates/engine/engine/src/cmd/style.rs, crates/engine/engine/src/cmd/text.rs, crates/engine/engine/src/cmd/table.rs, crates/engine/engine/src/cmd/templates.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -347,7 +347,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [color.settings, color.loadProfile, color.convert, swatch.create, swatch.load, swatch.save, swatch.addToSwatches, swatch.addUnnamed, swatch.delete, ink.list, ink.options, swatch.newColorGroup, swatch.moveToGroup, swatch.ungroupColorGroup, swatch.renameColorGroup]
+    commands: [color.settings, color.loadProfile, color.convert, swatch.add, swatch.load, swatch.save, swatch.addToSwatches, swatch.addUnnamed, swatch.delete, ink.list, ink.options, swatch.newColorGroup, swatch.moveToGroup, swatch.ungroupColorGroup, swatch.renameColorGroup]
     paths: [crates/engine/engine/src/cmd/style.rs, crates/engine/engine/src/cmd/colorsettings.rs, bindings/wasm/src/files.rs, bindings/wasm/src/conformance.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -367,7 +367,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [list.define, list.delete, toc.generate, toc.update, toc.entries, xref.insert, anchor.create, xref.list, anchor.list, xref.formats, xref.defineFormat, xref.setFormat, index.addReference, index.list, index.generate, index.update, hyperlink.create, hyperlink.delete, hyperlink.list, hyperlink.edit, hyperlink.goToSource, bookmark.rename, bookmark.add, bookmark.delete, bookmark.list]
+    commands: [list.define, list.delete, toc.generate, toc.update, toc.entries, xref.insert, anchor.add, xref.list, anchor.list, xref.formats, xref.defineFormat, xref.setFormat, index.addReference, index.list, index.generate, index.update, link.add, link.delete, link.list, link.edit, link.goToSource, bookmark.rename, bookmark.add, bookmark.delete, bookmark.list]
     paths: [crates/engine/engine/src/cmd/interactive.rs, crates/engine/engine/src/cmd/xref.rs, crates/engine/engine/src/cmd/index.rs, crates/engine/engine/src/cmd/toc.rs]
     cases: [regressions/issue-schema-freeze-text-ranges]
     target: "InDesign 2026 (21.6)"
@@ -378,7 +378,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [article.list, article.new, article.add, article.remove, article.options, article.delete, button.set, button.clear, form.set, form.clear, form.list, button.list, media.options, media.get, states.create, states.list, states.show, states.rename, states.release]
+    commands: [article.list, article.new, article.add, article.remove, article.options, article.delete, button.set, button.clear, form.set, form.clear, form.list, button.list, media.options, media.get, state.add, state.list, state.show, state.rename, state.release]
     paths: [crates/engine/engine/src/cmd/articles.rs, crates/engine/engine/src/cmd/buttons.rs, crates/engine/engine/src/cmd/states.rs, crates/engine/engine/src/cmd/media.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -398,7 +398,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [variables.list, variables.define, variables.delete, variables.insert, data.source.select, data.source.update, data.source.remove, data.fields, data.placeholder.add, data.placeholder.remove, data.options, data.preview, data.preview.stop, data.merge]
+    commands: [variable.list, variable.define, variable.delete, variable.insert, data.source.select, data.source.update, data.source.remove, data.fields, data.placeholder.add, data.placeholder.remove, data.options, data.preview, data.preview.stop, data.merge]
     paths: [crates/engine/engine/src/cmd/datamerge/mod.rs, crates/engine/engine/src/cmd/variables.rs, crates/engine/engine/src/lib.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -408,7 +408,7 @@ features:
     dimension: [function]
     priority: P1
     status: partial
-    commands: [note.new, note.edit, note.delete, note.convertToText, note.list, changes.track, changes.list, changes.accept, changes.reject, changes.acceptAll, changes.rejectAll, condition.list, condition.new, condition.options, condition.delete, condition.apply, find.objects, find.changeObjects, find.find, find.change, find.next, spelling.check, spelling.setWords, spelling.words, spelling.addWord, spelling.change]
+    commands: [note.new, note.edit, note.delete, note.convertToText, note.list, change.track, change.list, change.accept, change.reject, change.acceptAll, change.rejectAll, condition.list, condition.new, condition.options, condition.delete, condition.apply, edit.findObjects, edit.replaceObjects, edit.find, edit.replace, edit.findNext, spelling.check, spelling.setWords, spelling.words, spelling.addWord, spelling.change]
     paths: [crates/engine/engine/src/cmd/changes.rs, crates/engine/engine/src/cmd/conditions.rs, crates/engine/engine/src/cmd/editorial.rs, crates/engine/engine/src/cmd/find.rs]
     target: "InDesign 2026 (21.6)"
     gap: "The engine has these commands; no case yet shows the area working end to end in the editor and surviving save and reopen."
@@ -428,7 +428,7 @@ features:
     dimension: [function, conversion]
     priority: P0
     status: has
-    commands: [frame.create, text.insert, frame.thread, object.textFrameOptions, story.get]
+    commands: [frame.add, text.insert, frame.thread, object.textFrameOptions, story.get]
     paths: [crates/engine/engine/src/cmd/text.rs, crates/kdm/kdm-model/src/**]
     target: "InDesign 2026 (21.6)"
     cases: [layout.text.threaded-frames/save-reopen]
@@ -438,7 +438,7 @@ features:
     dimension: [function, conversion]
     priority: P0
     status: has
-    commands: [style.paragraph.create, style.paragraph.apply, style.character.create, style.character.apply, text.select, type.para]
+    commands: [style.paragraph.add, style.paragraph.apply, style.character.add, style.character.apply, text.select, text.para]
     paths: [crates/engine/engine/src/cmd/style.rs, crates/kdm/kdm-model/src/marks.rs]
     target: "InDesign 2026 (21.6)"
     cases: [layout.type.styles/save-reopen]
@@ -448,7 +448,7 @@ features:
     dimension: [function, conversion]
     priority: P0
     status: has
-    commands: [swatch.create, path.create, object.fill, object.stroke, object.opacity, object.dropShadow, object.gradient]
+    commands: [swatch.add, path.add, object.fill, object.stroke, object.opacity, object.dropShadow, object.gradient]
     paths: [crates/engine/engine/src/cmd/object.rs, crates/kdm/kdm-model/src/**]
     target: "InDesign 2026 (21.6)"
     cases: [layout.object.fill-stroke/save-reopen]
@@ -458,7 +458,7 @@ features:
     dimension: [function, conversion]
     priority: P0
     status: has
-    commands: [layer.new, layer.set, object.group, object.arrange, transform.rotate, transform.move, selection.set]
+    commands: [layer.new, layer.set, arrange.group, object.arrange, transform.rotate, transform.move, select.set]
     paths: [crates/engine/engine/src/cmd/layout.rs, crates/engine/engine/src/cmd/object.rs]
     target: "InDesign 2026 (21.6)"
     cases: [layout.object.layers-groups/save-reopen]
@@ -468,7 +468,7 @@ features:
     dimension: [function, conversion]
     priority: P0
     status: has
-    commands: [layout.pages.insert, guide.add, layout.createGuides, page.background]
+    commands: [layout.pages.insert, guide.add, layout.addGuides, page.background]
     paths: [crates/engine/engine/src/cmd/layout.rs, crates/engine/engine/src/cmd/background.rs]
     target: "InDesign 2026 (21.6)"
     cases: [layout.layout.pages-guides/save-reopen]

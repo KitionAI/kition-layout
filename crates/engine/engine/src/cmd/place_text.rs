@@ -257,7 +257,7 @@ mod tests {
         assert_eq!(d.story(sid).unwrap().frames.len(), d.page_count());
         assert_eq!(d.story(sid).unwrap().paras.len(), 60);
         // Into the insertion point of another frame.
-        let fr = s.execute("frame.create", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "Start  end"})).unwrap();
+        let fr = s.execute("frame.add", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "Start  end"})).unwrap();
         let sid2 = fr["story"].as_u64().unwrap();
         s.execute("text.select", &json!({"story": sid2, "anchor": 6, "focus": 6})).unwrap();
         let small = dir.join("small.rtf");
@@ -307,7 +307,7 @@ mod place_pdf_tests {
         // A PDF made by our own exporter: a black square on a page.
         let mut s = Session::new();
         s.execute("file.new", &json!({"width": 200, "height": 100})).unwrap();
-        let id = s.execute("frame.create", &json!({"rect": [0, 0, 100, 100]})).unwrap()["id"].as_u64().unwrap();
+        let id = s.execute("frame.add", &json!({"rect": [0, 0, 100, 100]})).unwrap()["id"].as_u64().unwrap();
         s.execute("object.fill", &json!({"ids": [id], "swatch": "[Black]"})).unwrap();
         s.execute("file.exportPdf", &json!({"path": src.to_string_lossy()})).unwrap();
         // Place it in a new document.
@@ -418,7 +418,7 @@ mod pdf_page_tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 2, "facingPages": false, "width": 200, "height": 100})).unwrap();
         s.execute("layout.pageSize", &json!({"pages": [2], "width": 300, "height": 150})).unwrap();
-        let id = s.execute("frame.create", &json!({"spread": 1, "rect": [0, 0, 300, 150]})).unwrap()["id"].as_u64().unwrap();
+        let id = s.execute("frame.add", &json!({"spread": 1, "rect": [0, 0, 300, 150]})).unwrap()["id"].as_u64().unwrap();
         s.execute("object.fill", &json!({"ids": [id], "swatch": "[Black]"})).unwrap();
         s.execute("file.exportPdf", &json!({"path": src.to_string_lossy()})).unwrap();
         s.execute("file.new", &json!({})).unwrap();
@@ -464,8 +464,8 @@ mod pdf_page_tests {
         let b64 = crate::cmd::base64_encode(&word_file());
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("style.paragraph.create", &json!({"name": "Body", "chars": {"size": 9}})).unwrap();
-        s.execute("style.paragraph.create", &json!({"name": "Headline", "chars": {"size": 30}})).unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Body", "chars": {"size": 9}})).unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Headline", "chars": {"size": 30}})).unwrap();
         let info = s.execute("place.styles", &json!({"base64": b64, "name": "a.docx"})).unwrap();
         assert_eq!(info["conflicts"], json!(["Body"]));
         // Title → the document's Headline; Body clashes → imported as Body_wrd_1.

@@ -14,7 +14,7 @@ use serde_json::{Value, json};
 const FILE: &str = "Reread.klayout";
 
 fn frame(doc: &mut LayoutDocument, rect: [u32; 4]) -> Value {
-    doc.execute("frame.create", json!({"rect":rect,"content":"unassigned"})).unwrap()["id"].clone()
+    doc.execute("frame.add", json!({"rect":rect,"content":"unassigned"})).unwrap()["id"].clone()
 }
 
 fn field(doc: &mut LayoutDocument, id: &Value, name: &str) -> Value {
@@ -53,7 +53,7 @@ fn an_outside_save_keeps_agent_undo_and_the_colleagues_edit() {
 fn a_new_object_in_the_file_is_imported_and_saved_again() {
     let mut live = LayoutDocument::create(FILE, 612, 792).unwrap();
     frame(&mut live, [20, 20, 60, 60]);
-    let fresh = saved_and_rewritten(&mut live, &[("frame.create", json!({"rect":[300,300,340,340],"content":"unassigned"}))]);
+    let fresh = saved_and_rewritten(&mut live, &[("frame.add", json!({"rect":[300,300,340,340],"content":"unassigned"}))]);
     let wanted = fresh.inspect().unwrap()["items"].clone();
     assert!(live.reconcile_reread(&fresh).unwrap());
     assert_eq!(live.inspect().unwrap()["items"], wanted, "the session shows the file's items with their ids");
@@ -65,7 +65,7 @@ fn a_new_object_in_the_file_is_imported_and_saved_again() {
 fn the_editor_state_resolves_on_the_fresh_document() {
     let mut live = LayoutDocument::create(FILE, 612, 792).unwrap();
     let a = frame(&mut live, [20, 20, 60, 60]);
-    live.execute("selection.set", json!({"ids":[a]})).unwrap();
+    live.execute("select.set", json!({"ids":[a]})).unwrap();
     let mut fresh = saved_and_rewritten(&mut live, &[]);
     fresh.restore_editor_state(&live.editor_state()).unwrap();
     assert_eq!(fresh.inspect().unwrap()["selection"], live.inspect().unwrap()["selection"]);
@@ -76,9 +76,9 @@ fn a_reread_refuses_a_deleted_selected_item_and_keeps_the_session() {
     let mut live = LayoutDocument::create(FILE, 612, 792).unwrap();
     let a = frame(&mut live, [20, 20, 60, 60]);
     frame(&mut live, [100, 20, 140, 60]);
-    live.execute("selection.set", json!({"ids":[a]})).unwrap();
+    live.execute("select.set", json!({"ids":[a]})).unwrap();
     let saved = live.editor_state();
-    let mut fresh = saved_and_rewritten(&mut live, &[("edit.clear", json!({"ids":[a]}))]);
+    let mut fresh = saved_and_rewritten(&mut live, &[("edit.delete", json!({"ids":[a]}))]);
     let error = fresh.restore_editor_state(&saved).unwrap_err();
     assert_eq!(error, format!("deleted selected item {a}"));
     let before = live.save(None).unwrap();
@@ -93,9 +93,9 @@ fn the_sessions_own_state_is_put_back_after_a_call_deleted_what_it_selected() {
     // left out, as before.
     let mut live = LayoutDocument::create(FILE, 612, 792).unwrap();
     let a = frame(&mut live, [20, 20, 60, 60]);
-    live.execute("selection.set", json!({"ids":[a]})).unwrap();
+    live.execute("select.set", json!({"ids":[a]})).unwrap();
     let saved = live.editor_state();
-    live.execute("edit.clear", json!({"ids":[a]})).unwrap();
+    live.execute("edit.delete", json!({"ids":[a]})).unwrap();
     live.restore_editor_state(&saved).unwrap();
     assert_eq!(live.inspect().unwrap()["selection"]["items"], json!([]));
 }

@@ -221,7 +221,7 @@ mod tests {
         for page in 0..3usize {
             let sp = s.doc().unwrap().doc.page_loc(page).unwrap().0;
             let text = ["Kerning adjusts pairs.", "Leading sets line spacing. Kerning again.", "Grids organise pages."][page];
-            let r = s.execute("frame.create", &json!({"spread": sp, "rect": [72, 72, 400, 300], "content": "text", "text": text})).unwrap();
+            let r = s.execute("frame.add", &json!({"spread": sp, "rect": [72, 72, 400, 300], "content": "text", "text": text})).unwrap();
             sids.push(s.doc().unwrap().doc.item(kition_layout_doc::ItemId(r["id"].as_u64().unwrap())).unwrap().text_frame().unwrap().story);
         }
         // Topic from the selected word, explicit nested topics, a See reference.

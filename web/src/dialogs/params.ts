@@ -120,7 +120,7 @@ export function fieldFor(command: ParamsCommand, key: string, given: SchemaNode)
  * Delete Type from Path, Remove Section), or the row runs one way only (a static caption).
  */
 export const OMITTED: Readonly<Record<string, readonly string[]>> = {
-  'type.pathOptions': ['delete'],
+  'text.pathOptions': ['delete'],
   'layout.section': ['remove'],
   'object.caption': ['live'],
   // The gradient's ends are points on the page, which the Gradient Feather tool drags.

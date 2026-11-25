@@ -73,10 +73,10 @@ fn survives_save_and_reopen(s: &mut Session, name: &str) {
 #[test]
 fn threaded_text_frames_survive_save_and_reopen() {
     let mut s = session();
-    let a = s.execute("frame.create", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
+    let a = s.execute("frame.add", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
     let story = a["story"].as_u64().unwrap();
     s.execute("text.insert", &json!({"text": "A story that runs from the first frame into the second one."})).unwrap();
-    let b = s.execute("frame.create", &json!({"rect": [36, 260, 300, 420], "content": "text", "caret": false})).unwrap();
+    let b = s.execute("frame.add", &json!({"rect": [36, 260, 300, 420], "content": "text", "caret": false})).unwrap();
     s.execute("frame.thread", &json!({"from": id(&a), "to": id(&b)})).unwrap();
     s.execute("object.textFrameOptions", &json!({"ids": [id(&a)], "columns": 2, "gutter": 12})).unwrap();
     assert_eq!(s.execute("story.get", &json!({"story": story})).unwrap()["text"], "A story that runs from the first frame into the second one.");
@@ -90,16 +90,16 @@ fn threaded_text_frames_survive_save_and_reopen() {
 #[test]
 fn paragraph_and_character_styles_survive_save_and_reopen() {
     let mut s = session();
-    let f = s.execute("frame.create", &json!({"rect": [36, 36, 400, 300], "content": "text"})).unwrap();
+    let f = s.execute("frame.add", &json!({"rect": [36, 36, 400, 300], "content": "text"})).unwrap();
     let story = f["story"].as_u64().unwrap();
     s.execute("text.insert", &json!({"text": "Heading\nBody text with emphasis"})).unwrap();
-    s.execute("style.paragraph.create", &json!({"name": "Head", "chars": {"size": 24}})).unwrap();
+    s.execute("style.paragraph.add", &json!({"name": "Head", "chars": {"size": 24}})).unwrap();
     s.execute("text.select", &json!({"story": story, "anchor": 0, "focus": 7})).unwrap();
     s.execute("style.paragraph.apply", &json!({"name": "Head"})).unwrap();
-    s.execute("style.character.create", &json!({"name": "Emphasis", "chars": {"fontStyle": "Italic"}})).unwrap();
+    s.execute("style.character.add", &json!({"name": "Emphasis", "chars": {"fontStyle": "Italic"}})).unwrap();
     s.execute("text.select", &json!({"story": story, "anchor": 23, "focus": 31})).unwrap();
     s.execute("style.character.apply", &json!({"name": "Emphasis"})).unwrap();
-    s.execute("type.para", &json!({"attrs": {"listType": "numbers", "listName": "Steps"}})).unwrap();
+    s.execute("text.para", &json!({"attrs": {"listType": "numbers", "listName": "Steps"}})).unwrap();
     let d = norm(&s);
     let story = d["stories"].as_object().unwrap().values().next().unwrap().clone();
     assert_eq!(story["paras"][0]["style"], "Head");
@@ -112,19 +112,19 @@ fn paragraph_and_character_styles_survive_save_and_reopen() {
 #[test]
 fn paths_fills_strokes_and_effects_survive_save_and_reopen() {
     let mut s = session();
-    s.execute("swatch.create", &json!({"name": "Brand Teal", "color": "#108080"})).unwrap();
+    s.execute("swatch.add", &json!({"name": "Brand Teal", "color": "#108080"})).unwrap();
     let shape = s
         .execute(
-            "path.create",
+            "path.add",
             &json!({"anchors": [{"p": [100, 100]}, {"p": [300, 100], "in": [260, 60], "out": [340, 140]}, {"p": [200, 300]}], "closed": true}),
         )
         .unwrap();
-    let frame = s.execute("frame.create", &json!({"rect": [320, 320, 480, 480], "content": "graphic"})).unwrap();
+    let frame = s.execute("frame.add", &json!({"rect": [320, 320, 480, 480], "content": "graphic"})).unwrap();
     s.execute("object.fill", &json!({"ids": [id(&shape)], "swatch": "Brand Teal"})).unwrap();
     s.execute("object.stroke", &json!({"ids": [id(&shape)], "weight": 4, "swatch": "[Black]"})).unwrap();
     s.execute("object.opacity", &json!({"ids": [id(&frame)], "opacity": 0.5})).unwrap();
     s.execute("object.dropShadow", &json!({"on": true, "angle": 45, "ids": [id(&frame)]})).unwrap();
-    s.execute("selection.set", &json!({"ids": [id(&frame)]})).unwrap();
+    s.execute("select.set", &json!({"ids": [id(&frame)]})).unwrap();
     s.execute("object.gradient", &json!({"from": [320, 400], "to": [480, 400]})).unwrap();
     let d = norm(&s);
     let (path, framed) = (&d["spreads"][0]["items"][0], &d["spreads"][0]["items"][1]);
@@ -139,15 +139,15 @@ fn paths_fills_strokes_and_effects_survive_save_and_reopen() {
 fn layers_groups_and_transforms_survive_save_and_reopen() {
     let mut s = session();
     s.execute("layer.new", &json!({"name": "Art"})).unwrap();
-    let a = s.execute("frame.create", &json!({"rect": [100, 100, 200, 200]})).unwrap();
-    let b = s.execute("frame.create", &json!({"rect": [220, 100, 320, 200]})).unwrap();
-    let g = s.execute("object.group", &json!({"ids": [id(&a), id(&b)]})).unwrap();
-    let g = g["id"].as_u64().or_else(|| g["group"].as_u64()).unwrap_or_else(|| panic!("object.group answered {g}"));
+    let a = s.execute("frame.add", &json!({"rect": [100, 100, 200, 200]})).unwrap();
+    let b = s.execute("frame.add", &json!({"rect": [220, 100, 320, 200]})).unwrap();
+    let g = s.execute("arrange.group", &json!({"ids": [id(&a), id(&b)]})).unwrap();
+    let g = g["id"].as_u64().or_else(|| g["group"].as_u64()).unwrap_or_else(|| panic!("arrange.group answered {g}"));
     s.execute("transform.rotate", &json!({"angle": 10, "ids": [g]})).unwrap();
-    s.execute("selection.set", &json!({"ids": [g]})).unwrap();
+    s.execute("select.set", &json!({"ids": [g]})).unwrap();
     s.execute("transform.move", &json!({"dx": 24, "dy": 12})).unwrap();
     s.execute("object.arrange", &json!({"to": "back"})).unwrap();
-    let layers = s.execute("document.inspect", &json!({})).unwrap()["layers"].clone();
+    let layers = s.execute("file.inspect", &json!({})).unwrap()["layers"].clone();
     let art = layers.as_array().unwrap().iter().find(|l| l["name"] == "Art").unwrap()["id"].clone();
     s.execute("layer.set", &json!({"id": art, "locked": true})).unwrap();
     let d = norm(&s);
@@ -163,7 +163,7 @@ fn pages_guides_and_backgrounds_survive_save_and_reopen() {
     let mut s = session();
     s.execute("layout.pages.insert", &json!({"count": 2})).unwrap();
     s.execute("guide.add", &json!({"orientation": "vertical", "position": 200, "page": 0})).unwrap();
-    s.execute("layout.createGuides", &json!({"spread": 0, "columns": 3, "rows": 2, "rowGutter": 0.0})).unwrap();
+    s.execute("layout.addGuides", &json!({"spread": 0, "columns": 3, "rows": 2, "rowGutter": 0.0})).unwrap();
     s.execute("page.background", &json!({"color": "#f8f5e8"})).unwrap();
     assert_eq!(s.doc().unwrap().doc.page_count(), 4);
     let d = norm(&s);
@@ -176,7 +176,7 @@ fn pages_guides_and_backgrounds_survive_save_and_reopen() {
 #[test]
 fn tables_survive_save_and_reopen() {
     let mut s = session();
-    s.execute("frame.create", &json!({"rect": [36, 36, 500, 400], "content": "text"})).unwrap();
+    s.execute("frame.add", &json!({"rect": [36, 36, 500, 400], "content": "text"})).unwrap();
     s.execute("table.insert", &json!({"rows": 3, "cols": 3, "headerRows": 1})).unwrap();
     for (row, text) in ["Name", "Alpha", "Beta"].iter().enumerate() {
         s.execute("table.setCell", &json!({"row": row, "col": 0, "text": text})).unwrap();

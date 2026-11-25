@@ -131,7 +131,7 @@ mod tests {
         assert!((b1.center() - b0.center()).hypot() < 1.0, "{b0:?} → {b1:?}");
         assert!((b1.width() - b0.width()).abs() < 4.0);
         // Into an empty frame.
-        let f = s.execute("frame.create", &json!({"rect": [300, 300, 400, 400], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
+        let f = s.execute("frame.add", &json!({"rect": [300, 300, 400, 400], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
         s.execute("object.qrCode", &json!({"type": "vcard", "name": "Ada", "phone": "+44 1"})).unwrap();
         let fr = s.doc().unwrap().doc.item(kition_layout_doc::ItemId(f)).unwrap().clone();
         assert!(fr.has_nested_items());

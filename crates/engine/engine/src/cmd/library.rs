@@ -176,7 +176,7 @@ mod tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         s.execute("library.new", &json!({"path": path})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 172, 122], "content": "text", "text": "Logo", "caret": false})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 172, 122], "content": "text", "text": "Logo", "caret": false})).unwrap();
         s.execute("library.add", &json!({"name": "Logo block"})).unwrap();
         // A fresh session opens the saved library and places the item into another document.
         let mut t = Session::new();
@@ -200,9 +200,9 @@ mod tests {
     fn content_collector_and_placer() {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 2})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [72, 72, 172, 122], "content": "text", "text": "Reused", "caret": false})).unwrap()["id"]
-            .clone();
-        let b = s.execute("frame.create", &json!({"rect": [200, 72, 260, 122]})).unwrap()["id"].clone();
+        let a =
+            s.execute("frame.add", &json!({"rect": [72, 72, 172, 122], "content": "text", "text": "Reused", "caret": false})).unwrap()["id"].clone();
+        let b = s.execute("frame.add", &json!({"rect": [200, 72, 260, 122]})).unwrap()["id"].clone();
         assert_eq!(s.execute("conveyor.collect", &json!({"ids": [a, b]})).unwrap()["count"], 2);
         let r = s.execute("conveyor.place", &json!({"spread": 1, "x": 300, "y": 300})).unwrap();
         let id = kition_layout_doc::ItemId(r["ids"][0].as_u64().unwrap());

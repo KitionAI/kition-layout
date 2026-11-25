@@ -14,7 +14,7 @@ export function TemplatesDialog({ onClose }: { onClose: () => void }) {
   const { run, t } = useKitEditor()
   const templates = useEngineQuery<Template[]>('template.list', {}, 'templates') ?? []
   const choose = async (id: string) => {
-    await run('document.applyTemplate', { template: id })
+    await run('file.applyTemplate', { template: id })
     onClose()
   }
   return (

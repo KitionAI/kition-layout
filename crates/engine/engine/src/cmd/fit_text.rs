@@ -213,7 +213,7 @@ mod tests {
     use crate::Session;
 
     fn frame(s: &mut Session, rect: [f64; 4], text: &str) -> (u64, StoryId) {
-        let r = s.execute("frame.create", &json!({"rect": rect, "content": "text", "text": text, "caret": false})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": rect, "content": "text", "text": text, "caret": false})).unwrap();
         (r["id"].as_u64().unwrap(), StoryId(r["story"].as_u64().unwrap()))
     }
 
@@ -255,8 +255,8 @@ mod tests {
         let mut probe = Session::new();
         probe.execute("file.new", &json!({"width": 1080, "height": 1440, "pages": 1, "facingPages": false})).unwrap();
         let (p, b) = frame(&mut probe, [80.0, 80.0, 1000.0, 600.0], "Make something matter");
-        probe.execute("selection.set", &json!({"ids": [p]})).unwrap();
-        probe.execute("type.char", &json!({"size": grown * 1.05})).unwrap();
+        probe.execute("select.set", &json!({"ids": [p]})).unwrap();
+        probe.execute("text.char", &json!({"size": grown * 1.05})).unwrap();
         let crowded =
             overset(&probe, b) || probe.execute("frame.fitText", &json!({"ids": [p]})).unwrap()["stories"][0]["scale"].as_f64().unwrap() < 1.0;
         assert!(crowded, "the fitted size is the largest that fits");
@@ -264,7 +264,7 @@ mod tests {
         let long = "Words keep coming and the frame fills up quickly with them. ".repeat(20);
         let (big, c) = frame(&mut s, [80.0, 700.0, 400.0, 800.0], &long);
         assert!(overset(&s, c));
-        s.execute("selection.set", &json!({"ids": [big]})).unwrap();
+        s.execute("select.set", &json!({"ids": [big]})).unwrap();
         s.execute("frame.fitText", &json!({})).unwrap();
         assert!(!overset(&s, c));
         assert!(size(&s, c) < 12.0);
@@ -295,7 +295,7 @@ mod tests {
     fn bad_input_is_an_error_and_empty_text_is_left_alone() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let g = s.execute("frame.create", &json!({"rect": [10, 10, 100, 100], "content": "graphic"})).unwrap()["id"].as_u64().unwrap();
+        let g = s.execute("frame.add", &json!({"rect": [10, 10, 100, 100], "content": "graphic"})).unwrap()["id"].as_u64().unwrap();
         assert!(s.execute("frame.fitText", &json!({"ids": [g]})).is_err());
         assert!(s.execute("frame.fitText", &json!({"ids": [999_999]})).is_err());
         let (e, _) = frame(&mut s, [10.0, 200.0, 100.0, 300.0], "");

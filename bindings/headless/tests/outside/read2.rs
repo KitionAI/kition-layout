@@ -20,7 +20,7 @@ async fn read2_cell_style_source_holds_the_resolved_cell() {
         }]);
         let mut params = json!({"name":"From Cell","fromSelection":true});
         params.as_object_mut().unwrap().extend(address.as_object().unwrap().clone());
-        let answer = f.write(basis, "style.cell.create", params).await;
+        let answer = f.write(basis, "style.cell.add", params).await;
         if needed {
             assert!(answer.is_err(), "changed source must refuse: {answer:?}");
             conflict(&answer.unwrap_err(), "changed");
@@ -51,7 +51,7 @@ async fn waiting_for_sdk_read2_selection_step_source_premises() {
                 "run",
                 json!({"basis":basis,"steps":[
                     {"command":"table.select","params":{"story":f.story,"table":table,"row":1,"col":1}},
-                    {"command":"style.cell.create","params":{"name":"From Cell","fromSelection":true}}
+                    {"command":"style.cell.add","params":{"name":"From Cell","fromSelection":true}}
                 ]}),
             )
             .await;

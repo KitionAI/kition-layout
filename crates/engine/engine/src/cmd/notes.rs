@@ -172,7 +172,7 @@ mod tests {
     fn session_with_text() -> (Session, StoryId) {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 1})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 300, 400], "content": "text", "text": "Body text with a note here."})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 300, 400], "content": "text", "text": "Body text with a note here."})).unwrap();
         let sid = s.doc().unwrap().doc.item(kition_layout_doc::ItemId(r["id"].as_u64().unwrap())).unwrap().text_frame().unwrap().story;
         (s, sid)
     }

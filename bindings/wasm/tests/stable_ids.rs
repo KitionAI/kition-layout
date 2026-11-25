@@ -59,11 +59,11 @@ fn made() -> LayoutDocument {
     let mut doc = LayoutDocument::open("basic.klayout", BASIC).unwrap();
     run(&mut doc, "layer.new", json!({ "name": "Notes" }));
     run(&mut doc, "layout.pages.insert", json!({}));
-    let a = run(&mut doc, "frame.create", json!({ "rect": [40, 400, 200, 460], "content": "unassigned" }))["id"].clone();
-    let b = run(&mut doc, "frame.create", json!({ "rect": [240, 400, 400, 460], "content": "unassigned" }))["id"].clone();
-    run(&mut doc, "object.group", json!({ "ids": [a, b] }));
+    let a = run(&mut doc, "frame.add", json!({ "rect": [40, 400, 200, 460], "content": "unassigned" }))["id"].clone();
+    let b = run(&mut doc, "frame.add", json!({ "rect": [240, 400, 400, 460], "content": "unassigned" }))["id"].clone();
+    run(&mut doc, "arrange.group", json!({ "ids": [a, b] }));
     run(&mut doc, "file.place", json!({ "base64": picture(), "name": "dot.png", "x": 72, "y": 500, "width": 40 }));
-    run(&mut doc, "frame.create", json!({ "rect": [36, 36, 500, 300], "content": "text", "text": "A story of its own" }));
+    run(&mut doc, "frame.add", json!({ "rect": [36, 36, 500, 300], "content": "text", "text": "A story of its own" }));
     run(&mut doc, "table.insert", json!({ "rows": 2, "cols": 2 }));
     doc
 }
@@ -97,13 +97,13 @@ fn a_replica_opened_from_its_changes_answers_the_same_ids() {
 fn a_failed_run_rolled_back_by_reopening_answers_the_same_ids() {
     let mut doc = LayoutDocument::open("basic.klayout", BASIC).unwrap();
     // A run that succeeds and is saved.
-    run(&mut doc, "frame.create", json!({ "rect": [36, 36, 300, 200], "content": "text", "text": "Headline" }));
-    run(&mut doc, "frame.create", json!({ "rect": [36, 400, 300, 500], "content": "graphic" }));
+    run(&mut doc, "frame.add", json!({ "rect": [36, 36, 300, 200], "content": "text", "text": "Headline" }));
+    run(&mut doc, "frame.add", json!({ "rect": [36, 400, 300, 500], "content": "graphic" }));
     let saved = doc.save(None).unwrap();
     doc.mark_saved();
     let before = inspected(&doc);
     // A run whose last step fails.
-    run(&mut doc, "frame.create", json!({ "rect": [300, 300, 400, 400], "content": "text", "text": "More" }));
+    run(&mut doc, "frame.add", json!({ "rect": [300, 300, 400, 400], "content": "text", "text": "More" }));
     assert!(doc.execute("frame.fitText", json!({ "ids": [999_999] })).is_err(), "the last step fails");
     let rolled_back = LayoutDocument::open("basic.klayout", &saved).unwrap();
     assert_eq!(inspected(&rolled_back), before);

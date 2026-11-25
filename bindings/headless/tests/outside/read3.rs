@@ -9,7 +9,7 @@ async fn read3_typing_holds_track_changes() {
         let f = Fixture::new(Guard::Premise);
         let basis = f.basis().await;
         f.colleague(&[if change == "track" {
-            ("changes.track", json!({"on":true}))
+            ("change.track", json!({"on":true}))
         } else {
             ("object.rename", json!({"id":f.b,"name":"Colleague"}))
         }]);
@@ -43,7 +43,7 @@ async fn read3_new_text_frame_holds_creation_defaults() {
         } else {
             ("object.rename", json!({"id":f.b,"name":"Colleague"}))
         }]);
-        let answer = f.write(basis, "frame.create", json!({"rect":[400,20,500,120],"content":"text","text":"New"})).await;
+        let answer = f.write(basis, "frame.add", json!({"rect":[400,20,500,120],"content":"text","text":"New"})).await;
         if change == "binding" {
             conflict(&answer.unwrap_err(), "changed");
         } else {
@@ -62,7 +62,7 @@ async fn read3_table_style_edit_holds_the_tables_using_it() {
         let mut doc = f.disk();
         doc.execute("text.select", json!({"story":f.story,"anchor":0})).unwrap();
         let table = doc.execute("table.insert", json!({"rows":2,"cols":2})).unwrap()["table"].clone();
-        doc.execute("style.table.create", json!({"name":"Grid"})).unwrap();
+        doc.execute("style.table.add", json!({"name":"Grid"})).unwrap();
         doc.execute("style.table.apply", json!({"name":"Grid","story":f.story,"table":table})).unwrap();
         std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
         let basis = f.basis().await;
@@ -88,12 +88,12 @@ async fn read3_variable_insertion_holds_the_variable_list() {
     for change in ["earlier-variable", "other-item"] {
         let f = Fixture::new(Guard::Premise);
         let mut doc = f.disk();
-        doc.execute("variables.define", json!({"name":"First","type":"custom","text":"One"})).unwrap();
-        doc.execute("variables.define", json!({"name":"Var","type":"custom","text":"Value"})).unwrap();
+        doc.execute("variable.define", json!({"name":"First","type":"custom","text":"One"})).unwrap();
+        doc.execute("variable.define", json!({"name":"Var","type":"custom","text":"Value"})).unwrap();
         std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
         let basis = f.basis().await;
         f.colleague(&[if change == "earlier-variable" {
-            ("variables.delete", json!({"name":"First"}))
+            ("variable.delete", json!({"name":"First"}))
         } else {
             ("object.rename", json!({"id":f.b,"name":"Colleague"}))
         }]);
@@ -102,7 +102,7 @@ async fn read3_variable_insertion_holds_the_variable_list() {
                 "run",
                 json!({"basis":basis,"steps":[
                     {"command":"text.select","params":{"story":f.story,"anchor":2,"focus":2}},
-                    {"command":"variables.insert","params":{"name":"Var"}}
+                    {"command":"variable.insert","params":{"name":"Var"}}
                 ]}),
             )
             .await;

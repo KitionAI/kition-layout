@@ -2,7 +2,7 @@ use super::*;
 
 impl LayoutDocument {
     pub(super) fn settings_premises(&self, command: &str, params: &Value, under: &mut Under) -> Result<(), String> {
-        if command == "document.preferences" {
+        if command == "file.preferences" {
             let mut fields = Vec::new();
             for (key, value) in params.as_object().into_iter().flatten() {
                 if let Some(members) = value.as_object() {
@@ -15,7 +15,7 @@ impl LayoutDocument {
         }
         let named = match command {
             "condition.options" | "condition.delete" | "condition.apply" => Some("conditions"),
-            "variables.define" | "variables.delete" | "variables.insert" => Some("textVariables"),
+            "variable.define" | "variable.delete" | "variable.insert" => Some("textVariables"),
             "xref.defineFormat" => Some("xrefFormats"),
             "style.compositeFont.set" => Some("settings.compositeFonts"),
             "swatch.ungroupColorGroup" => Some("settings.colorGroups"),
@@ -74,7 +74,7 @@ impl LayoutDocument {
             "object.globalLight" => &["setup.globalLight"],
             "object.primaryTextFrame" => &["setup.primaryStory"],
             "edit.transparencyBlendSpace" => &["setup.blendSpace"],
-            "changes.track" => &["setup.trackChanges"],
+            "change.track" => &["setup.trackChanges"],
             "spelling.setWords" | "spelling.addWord" => &["settings.userWords"],
             "hyphenation.addException" | "hyphenation.removeException" => &["settings.hyphenationExceptions"],
             "footnote.options" | "footnote.insert" => &["settings.footnoteOptions"],

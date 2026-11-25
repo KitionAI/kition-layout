@@ -155,7 +155,7 @@ mod tests {
     fn buttons_become_pdf_links() {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 3})).unwrap();
-        let id = s.execute("frame.create", &json!({"rect": [72, 72, 200, 120]})).unwrap()["id"].clone();
+        let id = s.execute("frame.add", &json!({"rect": [72, 72, 200, 120]})).unwrap()["id"].clone();
         s.execute("button.set", &json!({"ids": [id], "action": "lastPage"})).unwrap();
         assert_eq!(s.execute("button.list", &json!({})).unwrap()[0]["action"]["kind"], "goToLastPage");
         let links = |s: &mut Session| {
@@ -167,8 +167,8 @@ mod tests {
         s.execute("button.clear", &json!({"ids": [id]})).unwrap();
         assert!(with > links(&mut s), "the button exports a link annotation");
         // Form fields: a text field and a check box become AcroForm widgets.
-        let t = s.execute("frame.create", &json!({"rect": [72, 300, 300, 330]})).unwrap()["id"].clone();
-        let c = s.execute("frame.create", &json!({"rect": [72, 350, 90, 368]})).unwrap()["id"].clone();
+        let t = s.execute("frame.add", &json!({"rect": [72, 300, 300, 330]})).unwrap()["id"].clone();
+        let c = s.execute("frame.add", &json!({"rect": [72, 350, 90, 368]})).unwrap()["id"].clone();
         s.execute("form.set", &json!({"ids": [t], "kind": "textField", "name": "Your name", "value": "Ada"})).unwrap();
         s.execute("form.set", &json!({"ids": [c], "kind": "checkBox", "value": "On"})).unwrap();
         assert_eq!(s.execute("form.list", &json!({})).unwrap().as_array().unwrap().len(), 2);

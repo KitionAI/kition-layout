@@ -4,7 +4,7 @@
 //! Surface) take the place of a brand binding, the background is a locked rectangle on the parent,
 //! text frames use paragraph styles named after their slot (Label, Headline, Body), and the
 //! layout's constraints become object-based liquid rules, so alternate layouts (sizes) follow them.
-//! `document.applyTemplate` puts one into the open document; the package ships each as a
+//! `file.applyTemplate` puts one into the open document; the package ships each as a
 //! `.klayout` file too (`web/public/templates/`, made by the `templates` test), the file an
 //! agent's `layout_create { from }` starts from.
 
@@ -79,7 +79,7 @@ struct TemplateItem {
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!(query "template.list", "Templates", [], None, "{} → [{id, name, width, height}] — the starter layouts `document.applyTemplate` makes", super::always, |_, _| {
+        cmd!(query "template.list", "Templates", [], None, "{} → [{id, name, width, height}] — the starter layouts `file.applyTemplate` makes", super::always, |_, _| {
             let mut out = Vec::new();
             for (_, text) in TEMPLATES {
                 let t = parse(text)?;
@@ -88,7 +88,7 @@ pub fn specs() -> Vec<CommandSpec> {
             Ok(Value::Array(out))
         }),
         cmd!(
-            "document.applyTemplate",
+            "file.applyTemplate",
             "New from Template…",
             [],
             None,
@@ -100,7 +100,7 @@ pub fn specs() -> Vec<CommandSpec> {
 }
 
 fn parse(text: &str) -> Result<Template> {
-    serde_json::from_str(text).map_err(|e| bad("document.applyTemplate", format!("a bundled template is damaged: {e}")))
+    serde_json::from_str(text).map_err(|e| bad("file.applyTemplate", format!("a bundled template is damaged: {e}")))
 }
 
 /// The template with `id`.
@@ -108,7 +108,7 @@ fn find(id: &str) -> Result<Template> {
     let (_, text) = TEMPLATES
         .iter()
         .find(|(tid, _)| *tid == id)
-        .ok_or_else(|| bad("document.applyTemplate", format!("no template `{id}` (editorial, event, sale, quote)")))?;
+        .ok_or_else(|| bad("file.applyTemplate", format!("no template `{id}` (editorial, event, sale, quote)")))?;
     parse(text)
 }
 
@@ -121,7 +121,7 @@ pub fn build(id: &str, title: &str) -> Result<Document> {
     run("file.new", json!({"width": t.width, "height": t.height, "pages": 1, "facingPages": false, "margins": 0, "title": title}))?;
     run("layout.documentSetup", json!({"intent": "web"}))?;
     for (name, color) in &t.swatches {
-        run("swatch.create", json!({"name": name, "color": color}))?;
+        run("swatch.add", json!({"name": name, "color": color}))?;
     }
     if let Some(background) = &t.background {
         run("page.background", json!({"color": background}))?;
@@ -132,19 +132,19 @@ pub fn build(id: &str, title: &str) -> Result<Document> {
         if let Some(fill) = &style.fill {
             chars["fill"] = json!(fill);
         }
-        run("style.paragraph.create", json!({"name": name, "chars": chars, "para": {"hyphenate": false}}))?;
+        run("style.paragraph.add", json!({"name": name, "chars": chars, "para": {"hyphenate": false}}))?;
     }
     for item in &t.items {
         let [x, y, w, h] = item.rect;
         let rect = [x, y, x + w, y + h];
         let made = match item.kind.as_str() {
-            "text" => run("frame.create", json!({"rect": rect, "content": "text", "text": item.text.clone().unwrap_or_default(), "caret": false}))?,
-            "rectangle" | "ellipse" => run("frame.create", json!({"rect": rect, "shape": item.kind, "content": "unassigned"}))?,
-            other => return Err(bad("document.applyTemplate", format!("unknown item type `{other}`"))),
+            "text" => run("frame.add", json!({"rect": rect, "content": "text", "text": item.text.clone().unwrap_or_default(), "caret": false}))?,
+            "rectangle" | "ellipse" => run("frame.add", json!({"rect": rect, "shape": item.kind, "content": "unassigned"}))?,
+            other => return Err(bad("file.applyTemplate", format!("unknown item type `{other}`"))),
         };
-        let id = made.get("id").and_then(Value::as_u64).ok_or_else(|| bad("document.applyTemplate", "a frame was not made"))?;
+        let id = made.get("id").and_then(Value::as_u64).ok_or_else(|| bad("file.applyTemplate", "a frame was not made"))?;
         let ids = json!([id]);
-        run("selection.set", json!({"ids": ids}))?;
+        run("select.set", json!({"ids": ids}))?;
         if let Some(style) = &item.style {
             run("style.paragraph.apply", json!({"name": style, "clearOverrides": true}))?;
         }
@@ -178,7 +178,7 @@ fn liquid(c: &Constraints, id: u64) -> Value {
 }
 
 fn apply_template(s: &mut Session, p: &Value) -> Result<Value> {
-    let id = str_param(p, "template").ok_or_else(|| bad("document.applyTemplate", "`template` required (editorial, event, sale, quote)"))?;
+    let id = str_param(p, "template").ok_or_else(|| bad("file.applyTemplate", "`template` required (editorial, event, sale, quote)"))?;
     let t = find(id)?;
     let title = s.doc()?.doc.title.clone();
     let built = build(id, &title)?;
@@ -204,7 +204,7 @@ mod tests {
             let id = entry["id"].as_str().unwrap();
             let mut s = Session::new();
             s.execute("file.new", &json!({"title": "Mine"})).unwrap();
-            let r = s.execute("document.applyTemplate", &json!({"template": id})).unwrap();
+            let r = s.execute("file.applyTemplate", &json!({"template": id})).unwrap();
             assert_eq!(r["width"], 1080.0);
             let d = s.doc().unwrap().doc.clone();
             d.check().unwrap();
@@ -213,7 +213,7 @@ mod tests {
             assert!(super::super::background::background_of(&d, 0).is_some(), "{id}: a background");
             assert!(d.styles.para("Headline").is_some(), "{id}: slot styles");
             assert!(d.swatch("Text").is_some(), "{id}: named swatches");
-            let inspected = s.execute("document.inspect", &json!({})).unwrap();
+            let inspected = s.execute("file.inspect", &json!({})).unwrap();
             let names: Vec<&str> = inspected["spreads"][0]["items"].as_array().unwrap().iter().filter_map(|i| i["name"].as_str()).collect();
             assert!(names.contains(&"Headline") && names.contains(&"Body"), "{id}: {names:?}");
             // Nothing oversets in the bundled fonts' absence either way: the stories exist.
@@ -224,17 +224,17 @@ mod tests {
         }
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        assert!(s.execute("document.applyTemplate", &json!({"template": "nope"})).is_err());
-        assert!(s.execute("document.applyTemplate", &json!({})).is_err());
+        assert!(s.execute("file.applyTemplate", &json!({"template": "nope"})).is_err());
+        assert!(s.execute("file.applyTemplate", &json!({})).is_err());
     }
 
     #[test]
     fn a_template_follows_its_constraints_into_a_size_variant() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("document.applyTemplate", &json!({"template": "event"})).unwrap();
-        s.execute("layout.createAlternate", &json!({"name": "Square", "width": 1080, "height": 1080})).unwrap();
-        let inspected = s.execute("document.inspect", &json!({})).unwrap();
+        s.execute("file.applyTemplate", &json!({"template": "event"})).unwrap();
+        s.execute("layout.addAlternate", &json!({"name": "Square", "width": 1080, "height": 1080})).unwrap();
+        let inspected = s.execute("file.inspect", &json!({})).unwrap();
         let body = |spread: usize| {
             inspected["spreads"][spread]["items"].as_array().unwrap().iter().find(|i| i["name"] == "Body").map(|i| i["bounds"].clone()).unwrap()
         };

@@ -202,7 +202,7 @@ impl Tool for PathTypeTool {
         let Some(it) = cx.doc.item(id) else { return vec![] };
         match &it.content {
             kition_layout_doc::Content::Unassigned => {
-                vec![Action::Exec("type.onPath".into(), json!({"id": id.0})), Action::SwitchTool("type".into())]
+                vec![Action::Exec("text.onPath".into(), json!({"id": id.0})), Action::SwitchTool("type".into())]
             }
             _ => vec![],
         }

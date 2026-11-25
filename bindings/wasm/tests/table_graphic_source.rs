@@ -5,7 +5,7 @@ use serde_json::json;
 #[test]
 fn table_graphic_source_parameters_reach_the_handler() {
     let mut doc = LayoutDocument::create("Graphic.klayout", 612, 792).unwrap();
-    doc.execute("frame.create", json!({"rect":[20,20,300,300],"content":"text"})).unwrap();
+    doc.execute("frame.add", json!({"rect":[20,20,300,300],"content":"text"})).unwrap();
     doc.execute("table.insert", json!({"rows":2,"cols":2})).unwrap();
     let png = kition_layout_render::Rendered { width: 2, height: 2, pixels: vec![120; 16] }.to_png();
     let result = doc.execute("table.placeGraphic", json!({"base64":kition_layout_engine::cmd::base64_encode(&png),"name":"cell.png"}));

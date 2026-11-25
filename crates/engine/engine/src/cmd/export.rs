@@ -631,7 +631,7 @@ mod text_tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         // A plain rectangle rasterised for EPUB, centred, after a page break.
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 200, 200], "shape": "ellipse"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 200, 200], "shape": "ellipse"})).unwrap();
         s.execute("object.fill", &json!({"swatch": "[Black]", "ids": [r["id"]]})).unwrap();
         s.execute(
             "object.exportOptions",
@@ -662,7 +662,7 @@ mod text_tests {
     fn epub_cover_and_fixed_layout() {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 2})).unwrap();
-        s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "Page one words", "caret": false})).unwrap();
+        s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "Page one words", "caret": false})).unwrap();
         let r = s.execute("file.exportEpub", &json!({"cover": true})).unwrap();
         let mut z = unzip(r["base64"].as_str().unwrap());
         let opf = read(&mut z, "OEBPS/content.opf");
@@ -681,14 +681,14 @@ mod text_tests {
     fn flattener_rasterises_spreads_with_transparency() {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 3})).unwrap();
-        let id = s.execute("frame.create", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].clone();
+        let id = s.execute("frame.add", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].clone();
         s.execute("object.fill", &json!({"swatch": "[Black]", "ids": [id]})).unwrap();
         // Opaque: nothing to flatten.
         let r = s.execute("file.exportPdf", &json!({"flatten": "low"})).unwrap();
         assert!(r["warnings"].as_array().unwrap().iter().all(|w| !w.as_str().unwrap().contains("flattened")));
         s.execute("object.opacity", &json!({"ids": [id], "opacity": 0.5})).unwrap();
         // Text away from the transparency stays live text.
-        s.execute("frame.create", &json!({"rect": [72, 400, 400, 450], "content": "text", "text": "Still vector", "caret": false})).unwrap();
+        s.execute("frame.add", &json!({"rect": [72, 400, 400, 450], "content": "text", "text": "Still vector", "caret": false})).unwrap();
         let r = s.execute("file.exportPdf", &json!({"flatten": "low"})).unwrap();
         let pdf = super::super::file::base64_decode(r["base64"].as_str().unwrap());
         assert!(String::from_utf8_lossy(&pdf).contains("/FontFile"), "the text is still text");
@@ -717,7 +717,7 @@ mod text_tests {
     fn export_story_as_text_and_rtf() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "One\nTwo"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "One\nTwo"})).unwrap();
         assert!(s.execute("file.exportText", &json!({"frame": r["id"]})).unwrap()["text"] == "One\r\nTwo");
         let html = s.execute("file.exportHtml", &json!({})).unwrap();
         assert!(html["text"].as_str().unwrap().contains("One</p>"));
@@ -744,8 +744,8 @@ mod tagged_tests {
     fn tagged_pdf_has_structure_and_alt_text() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Hello"})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 320, 200, 420]})).unwrap();
+        s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Hello"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 320, 200, 420]})).unwrap();
         s.execute("object.altText", &json!({"text": "A plain box", "ids": [r["id"]]})).unwrap();
         let pdf = |s: &mut Session, tagged: bool| {
             let b64 = s.execute("file.exportPdf", &json!({"tagged": tagged})).unwrap()["base64"].as_str().unwrap().to_string();
@@ -770,9 +770,9 @@ mod variable_font_tests {
         kition_layout_fonts::FontDb::global().add_font(data);
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Variable"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Variable"})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 8})).unwrap();
-        s.execute("type.char", &json!({"fontFamily": "Skia", "fontStyle": "Black"})).unwrap();
+        s.execute("text.char", &json!({"fontFamily": "Skia", "fontStyle": "Black"})).unwrap();
         let out = s.execute("file.exportPdf", &json!({})).unwrap();
         assert!(out["bytes"].as_u64().unwrap() > 1000);
         let fonts = s.execute("font.list", &json!({})).unwrap();
@@ -801,7 +801,7 @@ mod booklet_tests {
         assert!(mb.contains("1242"), "two 612 pt pages and an 18 pt gap: {mb}");
         assert!(s.execute("file.printBooklet", &json!({"type": "perfectBound"})).is_err());
         // Page 1's black box lands on the right half of the first sheet (page 4 is on the left).
-        let id = s.execute("frame.create", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].clone();
+        let id = s.execute("frame.add", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].clone();
         s.execute("object.fill", &json!({"swatch": "[Black]", "ids": [id]})).unwrap();
         let r = s.execute("file.printBooklet", &json!({})).unwrap();
         let bytes = super::super::file::base64_decode(r["base64"].as_str().unwrap());
@@ -825,7 +825,7 @@ mod placed_pdf_print_tests {
     fn logo() -> Vec<u8> {
         let mut s = Session::new();
         s.execute("file.new", &json!({"width": 100, "height": 50})).unwrap();
-        s.execute("frame.create", &json!({"rect": [10, 10, 90, 40]})).unwrap();
+        s.execute("frame.add", &json!({"rect": [10, 10, 90, 40]})).unwrap();
         s.execute("object.fill", &json!({"swatch": "[Black]"})).unwrap();
         let r = s.execute("file.exportPdf", &json!({})).unwrap();
         base64_decode(r["base64"].as_str().unwrap())
@@ -868,7 +868,7 @@ mod print_group_tests {
     fn logo() -> Vec<u8> {
         let mut s = Session::new();
         s.execute("file.new", &json!({"width": 100, "height": 50})).unwrap();
-        s.execute("frame.create", &json!({"rect": [10, 10, 90, 40]})).unwrap();
+        s.execute("frame.add", &json!({"rect": [10, 10, 90, 40]})).unwrap();
         s.execute("object.fill", &json!({"swatch": "[Black]"})).unwrap();
         let r = s.execute("file.exportPdf", &json!({})).unwrap();
         base64_decode(r["base64"].as_str().unwrap())

@@ -1,5 +1,5 @@
 //! Preferences: the application's (`prefs.set`, kept by the session) and the ones InDesign stores
-//! with the document (`document.preferences`: units, keyboard increment, grids, guide colours).
+//! with the document (`file.preferences`: units, keyboard increment, grids, guide colours).
 
 use serde_json::{Map, Value};
 
@@ -58,16 +58,16 @@ pub fn specs() -> Vec<CommandSpec> {
             }
         ),
         cmd!(
-            "document.preferences",
+            "file.preferences",
             "Document Preferences",
             [],
             None,
             "{horizontalUnits?, verticalUnits?: points|picas|inches|millimeters|…, keyboardIncrement? (pt), baselineGrid?: {start, increment, relativeTo, color, viewThreshold}, grid?: {horizontal, vertical, subdivisions, color, inBack}, pasteboard?: [h, v], marginColor?, columnColor?, bleedColor?, slugColor?: [r, g, b], advancedType?: {superscriptSize, superscriptPosition, subscriptSize, subscriptPosition} (%), overprintBlack?, glyphFallback? (draw characters the font lacks from fallback fonts; off: as the font's missing-glyph box)} → those settings",
             has_doc,
             |s, p| {
-                let cur = serde_json::to_value(&s.doc()?.doc.settings).map_err(|e| bad("document.preferences", e.to_string()))?;
-                let new = merge("document.preferences", cur, p, Some(DOC_KEYS))?;
-                let settings = serde_json::from_value(new.clone()).map_err(|e| bad("document.preferences", e.to_string()))?;
+                let cur = serde_json::to_value(&s.doc()?.doc.settings).map_err(|e| bad("file.preferences", e.to_string()))?;
+                let new = merge("file.preferences", cur, p, Some(DOC_KEYS))?;
+                let settings = serde_json::from_value(new.clone()).map_err(|e| bad("file.preferences", e.to_string()))?;
                 if p.as_object().is_some_and(|o| !o.is_empty()) {
                     s.edit(|d, _| {
                         d.settings = settings;
@@ -125,16 +125,15 @@ mod tests {
         assert!(s.prefs.show_font_names_in_english);
         assert!(s.execute("prefs.set", &json!({"nope": 1})).is_err());
         s.execute("file.new", &json!({})).unwrap();
-        let r = s
-            .execute("document.preferences", &json!({"horizontalUnits": "millimeters", "keyboardIncrement": 2.5, "grid": {"subdivisions": 4}}))
-            .unwrap();
+        let r =
+            s.execute("file.preferences", &json!({"horizontalUnits": "millimeters", "keyboardIncrement": 2.5, "grid": {"subdivisions": 4}})).unwrap();
         assert_eq!(r["horizontalUnits"], "millimeters");
         let st = &s.doc().unwrap().doc.settings;
         assert_eq!(st.horizontal_units, kition_layout_geom::Unit::Millimeters);
         assert_eq!(st.keyboard_increment, 2.5);
         assert_eq!(st.grid.subdivisions, 4);
         assert_eq!(st.grid.horizontal, 72.0, "the rest of the grid is kept");
-        assert!(s.execute("document.preferences", &json!({"pageWidth": 100})).is_err(), "Document Setup's, not Preferences'");
+        assert!(s.execute("file.preferences", &json!({"pageWidth": 100})).is_err(), "Document Setup's, not Preferences'");
         s.execute("edit.undo", &json!({})).unwrap();
         assert_eq!(s.doc().unwrap().doc.settings.horizontal_units, kition_layout_geom::Unit::Picas);
     }
@@ -150,10 +149,10 @@ mod advanced_type_tests {
     fn advanced_type_sizes_superscripts() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "x2"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "x2"})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         s.execute("text.select", &json!({"story": r["story"], "anchor": 1, "focus": 2})).unwrap();
-        s.execute("type.char", &json!({"position": "superscript"})).unwrap();
+        s.execute("text.char", &json!({"position": "superscript"})).unwrap();
         let glyph = |s: &Session| {
             let cs = s.cache.get(&s.doc().unwrap().doc, sid, None);
             let g = cs.frames[0].lines[0].glyphs.iter().find(|g| g.byte == 1).unwrap().clone();
@@ -162,7 +161,7 @@ mod advanced_type_tests {
         };
         let (k, rise) = glyph(&s);
         assert!((k - 0.583).abs() < 1e-3, "{k}");
-        s.execute("document.preferences", &json!({"advancedType": {"superscriptSize": 80, "superscriptPosition": 50}})).unwrap();
+        s.execute("file.preferences", &json!({"advancedType": {"superscriptSize": 80, "superscriptPosition": 50}})).unwrap();
         let (k2, rise2) = glyph(&s);
         assert!((k2 - 0.8).abs() < 1e-3, "{k2}");
         assert!(rise2 > rise, "{rise} → {rise2}");
@@ -181,7 +180,7 @@ mod advanced_type_idml_tests {
     fn advanced_type_round_trips_through_idml() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("document.preferences", &json!({"advancedType": {"subscriptPosition": 12.5}})).unwrap();
+        s.execute("file.preferences", &json!({"advancedType": {"subscriptPosition": 12.5}})).unwrap();
         let back = kition_layout_idml::import_idml(&kition_layout_idml::export_idml(&s.doc().unwrap().doc)).unwrap();
         assert_eq!(back.settings.advanced_type.subscript_position, 12.5);
         assert_eq!(back.settings.advanced_type.superscript_size, 58.3);
@@ -200,11 +199,11 @@ mod highlight_tests {
         s.execute("file.new", &json!({})).unwrap();
         // A narrow justified column of long words: loose lines.
         let r = s
-            .execute("frame.create", &json!({"rect": [72, 72, 172, 400], "content": "text", "text": "Incomprehensibilities notwithstanding characteristically uncharacteristically a b"}))
+            .execute("frame.add", &json!({"rect": [72, 72, 172, 400], "content": "text", "text": "Incomprehensibilities notwithstanding characteristically uncharacteristically a b"}))
             .unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 3})).unwrap();
-        s.execute("type.para", &json!({"align": "fullyJustified"})).unwrap();
-        s.execute("type.char", &json!({"tracking": 50})).unwrap();
+        s.execute("text.para", &json!({"align": "fullyJustified"})).unwrap();
+        s.execute("text.char", &json!({"tracking": 50})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let d = s.doc().unwrap().doc.clone();
         let cs = s.cache.get(&d, sid, None);
@@ -240,13 +239,13 @@ mod keep_highlight_tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         let text = "word ".repeat(120);
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 160], "content": "text", "text": text, "caret": false})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 160], "content": "text", "text": text, "caret": false})).unwrap();
         s.execute("object.textFrameOptions", &json!({"ids": [r["id"]], "columns": 2})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let flagged = |s: &Session| s.cache.get(&s.doc().unwrap().doc, sid, None).frames[0].lines.iter().any(|l| l.keep_violation);
         assert!(!flagged(&s), "no keep options, no violation");
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 0})).unwrap();
-        s.execute("type.para", &json!({"keepLinesTogether": true, "keepAllLines": true})).unwrap();
+        s.execute("text.para", &json!({"keepLinesTogether": true, "keepAllLines": true})).unwrap();
         assert!(flagged(&s), "too long to keep together in one column");
     }
 }
@@ -279,13 +278,13 @@ mod glyph_fallback_tests {
     fn glyph_fallback_is_an_undoable_document_preference() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        assert_eq!(s.execute("document.preferences", &json!({})).unwrap()["glyphFallback"], false, "new documents: off");
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "語"})).unwrap();
+        assert_eq!(s.execute("file.preferences", &json!({})).unwrap()["glyphFallback"], false, "new documents: off");
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "語"})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let gid = |s: &Session| s.cache.get(&s.doc().unwrap().doc, sid, None).frames[0].lines[0].glyphs[0].gid;
         assert_eq!(gid(&s), 0);
         kition_layout_fonts::FontDb::global().add_font(kition_layout_fonts::testing::font_with("DC Test Prefs Helper", &['語']).unwrap());
-        assert_eq!(s.execute("document.preferences", &json!({"glyphFallback": true})).unwrap()["glyphFallback"], true);
+        assert_eq!(s.execute("file.preferences", &json!({"glyphFallback": true})).unwrap()["glyphFallback"], true);
         assert!(s.doc().unwrap().doc.settings.glyph_fallback);
         assert_ne!(gid(&s), 0, "drawn from a fallback font");
         s.execute("edit.undo", &json!({})).unwrap();
@@ -297,7 +296,7 @@ mod glyph_fallback_tests {
     fn idml_imports_draw_missing_glyphs_as_boxes() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("document.preferences", &json!({"glyphFallback": true})).unwrap();
+        s.execute("file.preferences", &json!({"glyphFallback": true})).unwrap();
         let back = kition_layout_idml::import_idml(&kition_layout_idml::export_idml(&s.doc().unwrap().doc)).unwrap();
         assert!(!back.settings.glyph_fallback, "as InDesign draws them");
     }

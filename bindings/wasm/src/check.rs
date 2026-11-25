@@ -122,7 +122,7 @@ fn diagnostic(issue: Issue) -> Diagnostic {
         ("missingFont", _) if missing_family.is_some() => {
             diagnostic.fix("font.replace", Some(json!({ "family": missing_family, "toFamily": kition_layout_fonts::DEFAULT_FAMILY })))
         }
-        ("emptyText", Some(id)) => diagnostic.fix("edit.clear", Some(json!({ "ids": [id] }))),
+        ("emptyText", Some(id)) => diagnostic.fix("edit.delete", Some(json!({ "ids": [id] }))),
         _ => diagnostic,
     }
 }

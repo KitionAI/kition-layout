@@ -19,7 +19,7 @@ export function StylesSection({ info, kind }: { info: DocumentInfo; kind: Kind }
   const { run, phrase: p, t } = useKitEditor()
   const readOnly = useReadOnly()
   const names = kind === 'paragraph' ? info.paragraphStyles : info.characterStyles
-  const at = useEngineQuery<Selected>('type.selectionAttrs', {}, `${info.selection.join(',')}:${info.editingText}`)
+  const at = useEngineQuery<Selected>('text.selectionAttrs', {}, `${info.selection.join(',')}:${info.editingText}`)
   const current = kind === 'paragraph' ? at?.paragraphStyle : at?.characterStyle
   const [chosen, setChosen] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
@@ -33,11 +33,11 @@ export function StylesSection({ info, kind }: { info: DocumentInfo; kind: Kind }
     let name = base
     for (let n = 2; names.includes(name); n += 1) name = `${base} ${n}`
     if (kind === 'paragraph') {
-      await run('style.paragraph.create', { name, fromSelection: info.editingText || info.selection.length > 0 })
+      await run('style.paragraph.add', { name, fromSelection: info.editingText || info.selection.length > 0 })
     } else {
       const chars = at?.chars ?? {}
       const picked = Object.fromEntries(['fontFamily', 'fontStyle', 'size', 'fill', 'tracking'].filter((key) => chars[key] != null).map((key) => [key, chars[key]]))
-      await run('style.character.create', { name, chars: picked })
+      await run('style.character.add', { name, chars: picked })
     }
     setChosen(name)
   }

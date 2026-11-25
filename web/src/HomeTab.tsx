@@ -91,11 +91,11 @@ export function HomeTab({ onDialog, onCommand }: { onDialog: (dialog: 'documentS
       </RibbonGroup>
 
       <RibbonGroup label={p('Arrange')} icon={Group}>
-        <CommandButton command="object.group" icon={Group} size="large" primary />
+        <CommandButton command="arrange.group" icon={Group} size="large" primary />
         <RibbonStack>
-          <CommandButton command="object.ungroup" icon={Ungroup} />
-          <CommandButton command="object.bringForward" icon={BringToFront} />
-          <CommandButton command="object.sendBackward" icon={SendToBack} />
+          <CommandButton command="arrange.ungroup" icon={Ungroup} />
+          <CommandButton command="arrange.bringForward" icon={BringToFront} />
+          <CommandButton command="arrange.sendBackward" icon={SendToBack} />
         </RibbonStack>
       </RibbonGroup>
 

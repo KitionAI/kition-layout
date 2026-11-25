@@ -34,7 +34,7 @@ impl FrameTool {
                 json!({"spread": spread, "shape": shape, "content": content, "rect": rect_json(r), "cols": c, "rows": rw}),
             )
         } else {
-            Action::Preview("frame.create".into(), json!({"spread": spread, "shape": shape, "content": content, "rect": rect_json(r)}))
+            Action::Preview("frame.add".into(), json!({"spread": spread, "shape": shape, "content": content, "rect": rect_json(r)}))
         }
     }
     fn kind(&self) -> (&'static str, &'static str) {
@@ -363,7 +363,7 @@ impl Tool for FrameTool {
                             snap_free_line(cx, sr, sa, b, &mut self.guides)
                         };
                     }
-                    out.push(Action::Preview("line.create".into(), json!({"spread": spread_json(sr), "a": [sa.x, sa.y], "b": [b.x, b.y]})));
+                    out.push(Action::Preview("line.add".into(), json!({"spread": spread_json(sr), "a": [sa.x, sa.y], "b": [b.x, b.y]})));
                 } else {
                     // Shift constrains the shape first. Only the driving edge snaps, then the other follows.
                     let end = cx.layout.to_spread(sr, ev.pos);

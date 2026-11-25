@@ -115,7 +115,7 @@ mod tests {
     fn notes_are_anchored_unprinted_and_convertible() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Draft copy."})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Draft copy."})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let end_x = |s: &Session| s.cache.get(&s.doc().unwrap().doc, sid, None).frames[0].lines[0].end_x;
         let before = end_x(&s);

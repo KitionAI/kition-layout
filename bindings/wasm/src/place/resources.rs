@@ -21,7 +21,7 @@ impl LayoutDocument {
                 }
             }
         }
-        if command == "document.applyTemplate" {
+        if command == "file.applyTemplate" {
             under.premises.push(Premise::on("layout"));
         }
         if command == "font.replace" {
@@ -31,7 +31,7 @@ impl LayoutDocument {
             }
             under.premises.push(Premise::on("layout").fields(fields).positions(Vec::<String>::new()));
         }
-        if matches!(command, "find.objects" | "find.changeObjects")
+        if matches!(command, "edit.findObjects" | "edit.replaceObjects")
             && let Some(layer) = params
                 .get("layer")
                 .and_then(|value| doc.layers.iter().find(|layer| value.as_u64() == Some(layer.id.0) || value.as_str() == Some(layer.name.as_str())))
@@ -42,11 +42,11 @@ impl LayoutDocument {
             command,
             "edit.copy"
                 | "edit.cut"
-                | "edit.clear"
+                | "edit.delete"
                 | "object.content"
                 | "edit.duplicate"
                 | "edit.stepAndRepeat"
-                | "type.createOutlines"
+                | "text.convertToOutlines"
                 | "library.add"
                 | "conveyor.collect"
         ) || command == "transform.move" && params.get("copy").and_then(Value::as_bool).unwrap_or(false);
@@ -89,7 +89,7 @@ impl LayoutDocument {
         if matches!(command, "frame.unthread" | "frame.loadText") {
             items.extend(params.get("frame").and_then(Value::as_u64).map(ItemId));
         }
-        if command == "type.pathOptions" && params.get("delete").and_then(Value::as_bool).unwrap_or(false) {
+        if command == "text.pathOptions" && params.get("delete").and_then(Value::as_bool).unwrap_or(false) {
             items.extend(params.get("id").and_then(Value::as_u64).map(ItemId).or_else(|| {
                 state.selection.items.first().copied().or_else(|| state.selection.text.and_then(|t| doc.story(t.story)?.frames.first().copied()))
             }));
@@ -139,7 +139,7 @@ impl LayoutDocument {
             match &item.content {
                 Content::Text(frame) => {
                     under.premises.push(Premise::on(frame.story.0));
-                    if command == "type.createOutlines" {
+                    if command == "text.convertToOutlines" {
                         self.composition_premises(frame.story, under)?;
                     }
                 }
@@ -178,7 +178,7 @@ impl LayoutDocument {
             }
         }
         let record = match command {
-            "hyperlink.edit" | "hyperlink.delete" | "hyperlink.goToSource" => Some("hyperlinks"),
+            "link.edit" | "link.delete" | "link.goToSource" => Some("hyperlinks"),
             "data.placeholder.remove" => Some("placeholders"),
             _ => None,
         };

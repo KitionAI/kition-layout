@@ -141,10 +141,7 @@ mod tests {
         s.execute("file.new", &json!({"pages": 3, "facingPages": false})).unwrap();
         // A folio frame on the parent.
         let r = s
-            .execute(
-                "frame.create",
-                &json!({"spread": {"kind": "parent", "index": 0}, "rect": [72, 720, 300, 750], "content": "text", "text": "Folio"}),
-            )
+            .execute("frame.add", &json!({"spread": {"kind": "parent", "index": 0}, "rect": [72, 720, 300, 750], "content": "text", "text": "Folio"}))
             .unwrap();
         let parent_id = ItemId(r["id"].as_u64().unwrap());
         let r = s.execute("layout.overrideParentItems", &json!({"page": 1})).unwrap();

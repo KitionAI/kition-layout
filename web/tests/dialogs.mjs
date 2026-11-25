@@ -37,7 +37,7 @@ const details = async () => (await page.evaluate(async () => window.devHost.conn
 const agent = (steps) => page.evaluate(async (list) => window.devHost.connection().ai.run(list, false), steps)
 const one = async (command, params = {}) => (await agent([{ command, params }])).completed[0]?.result
 /** The person's history, as the engine lists it. */
-const history = async () => one('document.history')
+const history = async () => one('file.history')
 const itemOf = async (id) => {
   const search = (items) => items.flatMap((item) => [item, ...search(item.children ?? [])])
   return search((await details()).spreads.flatMap((spread) => spread.items)).find((item) => item.id === id)
@@ -79,12 +79,12 @@ try {
   const pageBox = (await details()).spreads[0].pages[0].bounds
 
   // The Object menu: in Chinese, the rows that ask end in "…", and the Window rows came home.
-  const frame = await one('frame.create', { rect: [pageBox[0] + 60, 60, pageBox[0] + 300, 200], content: 'text', text: 'Kition 排版 Kition', caret: false })
+  const frame = await one('frame.add', { rect: [pageBox[0] + 60, 60, pageBox[0] + 300, 200], content: 'text', text: 'Kition 排版 Kition', caret: false })
   await select(frame.id)
   await kit.getByTestId('layout-menu-Object').click()
   const tfo = kit.getByTestId('layout-cmd-object.textFrameOptions')
   step('Object › Text Frame Options… reads in Chinese and asks first', (await tfo.textContent())?.includes('文本框架选项…'), await tfo.textContent())
-  const group = kit.getByTestId('layout-cmd-object.group')
+  const group = kit.getByTestId('layout-cmd-arrange.group')
   step('Group is greyed out with one object, and says why', (await group.isDisabled()) && (await until(async () => (await group.getAttribute('title'))?.includes('两个'))), String(await group.getAttribute('title')))
   await kit.getByRole('menuitem', { name: '对齐', exact: true }).hover()
   step('Object › Align holds Align Left Edges (moved from Window)', await kit.getByTestId('layout-cmd-object.align|left').isVisible())
@@ -124,7 +124,7 @@ try {
   step('its values run', (await itemOf(frame.id)).corner?.shape === 'rounded' && (await itemOf(frame.id)).corner?.size === 9, JSON.stringify((await itemOf(frame.id)).corner))
 
   // Find/Change, open beside the layout: Change All.
-  await menu('Edit', 'layout-cmd-find.find')
+  await menu('Edit', 'layout-cmd-edit.find')
   await kit.getByTestId('layout-find-text').fill('Kition')
   await kit.getByTestId('layout-find-change-text').fill('Layout')
   await kit.getByTestId('layout-find-change-all').click()
@@ -139,7 +139,7 @@ try {
   const insertTable = kit.getByTestId('layout-cmd-table.insert')
   step('Table › Insert Table… is the first row, greyed out without a text cursor', (await insertTable.isDisabled()) && (await kit.locator('.kui-menu-item').first().getAttribute('data-testid')) === 'layout-cmd-table.insert')
   await page.keyboard.press('Escape')
-  const typing = await one('frame.create', { rect: [pageBox[0] + 60, 260, pageBox[0] + 400, 420], content: 'text', text: 'Table here', caret: false })
+  const typing = await one('frame.add', { rect: [pageBox[0] + 60, 260, pageBox[0] + 400, 420], content: 'text', text: 'Table here', caret: false })
   await kit.getByTestId('layout-tool-type').click()
   await kit.getByTestId('layout-spread-0').click()
   await page.waitForTimeout(400)

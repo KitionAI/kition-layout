@@ -15,7 +15,7 @@ text to the OpenType shaper. The composer retains complete cluster text for
 paragraph-level bidi resolution, then applies line-level ordering and placement.
 The renderer continues to consume placed glyphs without Arabic-specific policy.
 
-Existing `type.char`, `type.para` and `table.options` commands edit the controls.
+Existing `text.char`, `text.para` and `table.options` commands edit the controls.
 `story.setDirection` edits column flow with history and cache invalidation;
 `story.get` reports it. Table cell indices remain logical even when their visual
 positions are reversed. Physical left/right insertion commands account for direction.

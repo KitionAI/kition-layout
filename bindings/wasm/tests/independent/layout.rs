@@ -236,7 +236,7 @@ pub fn checks() -> Vec<Check> {
         ),
         check("guide.list", r#"{"spread":0}"#, &[], &[], &[]),
         check(
-            "layout.createGuides",
+            "layout.addGuides",
             r#"{"spread":0,"page":0,"columns":3,"fitTo":"margins"}"#,
             &[("$PAGE", &["size", "margins", "side", "x", "@position"])],
             &[("$A", &["*"]), ("$PAGE", &["props.transition"])],
@@ -264,14 +264,14 @@ pub fn checks() -> Vec<Check> {
             &["mode"],
         ),
         check(
-            "layout.createAlternate",
+            "layout.addAlternate",
             r#"{"name":"Alt","width":300,"height":500}"#,
             &[("layout", &["sections", "spreads"]), ("$PAGE", &["*"]), ("$A", &["*"]), ("$STORY", &["*"])],
             &[],
             &["mode"],
         ),
         Check {
-            setup: &[("layout.createAlternate", r#"{"name":"Alt","width":300,"height":500}"#)],
+            setup: &[("layout.addAlternate", r#"{"name":"Alt","width":300,"height":500}"#)],
             ..check("layout.deleteAlternate", r#"{"name":"Alt"}"#, &[("layout", &["sections"])], &[("$A", &["name", "fill"])], &["mode"])
         },
         check("layout.list", "{}", &[], &[], &[]),
@@ -334,7 +334,7 @@ pub fn checks() -> Vec<Check> {
             )
         },
         check("template.list", "{}", &[], &[], &[]),
-        check("document.applyTemplate", r#"{"template":"event"}"#, &[("layout", &["*"]), ("$A", &["*"]), ("$STORY", &["*"])], &[], &["mode"]),
+        check("file.applyTemplate", r#"{"template":"event"}"#, &[("layout", &["*"]), ("$A", &["*"]), ("$STORY", &["*"])], &[], &["mode"]),
         check("file.exportIdml", "{}", &[], &[], &[]),
         check("file.openIdml", r#"{"name":"input.idml","base64":""}"#, &[], &[], &[]),
         check("file.exportPdf", "{}", &[], &[], &[]),
@@ -354,7 +354,7 @@ pub fn checks() -> Vec<Check> {
         ),
         check("prefs.set", r#"{"scaleStrokes":false}"#, &[], &[("$A", &["*"])], &["mode"]),
         check(
-            "document.preferences",
+            "file.preferences",
             r#"{"grid":{"subdivisions":4}}"#,
             &[("layout", &["setup.grid.subdivisions"])],
             &[("$A", &["*"]), ("layout", &["setup.grid.horizontal", "setup.pageWidth"])],
@@ -363,7 +363,7 @@ pub fn checks() -> Vec<Check> {
         check("file.printers", "{}", &[], &[], &[]),
         check("file.print", r#"{"dryRun":true}"#, &[], &[], &[]),
         check("file.package", r#"{"dir":"output"}"#, &[], &[], &[]),
-        check("links.copyTo", r#"{"dir":"output","assets":[]}"#, &[], &[("$A", &["*"])], &["mode"]),
+        check("linkedFile.copyTo", r#"{"dir":"output","assets":[]}"#, &[], &[("$A", &["*"])], &["mode"]),
         check("preflight.run", "{}", &[], &[], &[]),
     ]
 }
@@ -577,7 +577,7 @@ pub fn rows() -> Vec<Row> {
         ),
         row("guide.list", "spread: index or {kind,index}, missing doc0", "Read-only query: spread page guides", "None", &[]),
         row(
-            "layout.createGuides",
+            "layout.addGuides",
             "spread: index or {kind,index}, missing doc0; page: index within spread, omitted all spread pages",
             "Selected page bounds or margin boxes, guide lists when removing existing, page membership and active layer identity",
             "Append generated guides, optionally clear existing guides",
@@ -605,7 +605,7 @@ pub fn rows() -> Vec<Row> {
             &[],
         ),
         row(
-            "layout.createAlternate",
+            "layout.addAlternate",
             "source: layout name resolved from section markers, null/missing original; name: new layout name",
             "Sections/layout names and page list/count; source pages/guides/liquid/items/descendants/stories/assets/parents; destination insertion template and repagination inputs; parent prefixes; layer identities/default; resize/liquid inputs",
             "Append copied pages/items/linked stories/parents, resize/reflow copies, add marked section",
@@ -765,7 +765,7 @@ pub fn rows() -> Vec<Row> {
         ),
         row("template.list", "No object parameters", "Read-only query: bundled template descriptors", "None", &[]),
         row(
-            "document.applyTemplate",
+            "file.applyTemplate",
             "template: bundled template id, not document name",
             "Existing title preserved, otherwise replaces whole document; bundled template built through engine commands",
             "Replace entire document and clear selection",
@@ -850,7 +850,7 @@ pub fn rows() -> Vec<Row> {
             &["preferences"],
         ),
         row(
-            "document.preferences",
+            "file.preferences",
             "No document object parameters; empty params queries allowed keys",
             "Document settings; one-level merge preserves unsupplied subfields; only supplied paths logically depend on old values being replaced",
             "Document preference settings",
@@ -872,7 +872,7 @@ pub fn rows() -> Vec<Row> {
             &[],
         ),
         row(
-            "links.copyTo",
+            "linkedFile.copyTo",
             "assets[]: asset ids; missing all assets; dir: external output directory",
             "Selected assets' bytes/name/link for portable unique filename; all selected asset identity membership; hosted mode refuses",
             "External copies and selected assets' link paths",

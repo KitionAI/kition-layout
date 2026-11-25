@@ -122,7 +122,7 @@ async fn review2_text_offset_unlocatable_changes_refuse() {
         if case == "long-text-after" {
             f.colleague(&[("story.replaceRange", json!({"story":f.story,"start":100,"end":100,"text":"Late"}))]);
         } else {
-            f.colleague(&[("text.select", json!({"story":f.story,"anchor":8,"focus":10})), ("type.char", json!({"attrs":{"size":20}}))]);
+            f.colleague(&[("text.select", json!({"story":f.story,"anchor":8,"focus":10})), ("text.char", json!({"attrs":{"size":20}}))]);
         }
         let answer = f.write(basis, "story.replaceRange", json!({"story":f.story,"start":4,"end":6,"text":"Mine"})).await;
         if case == "long-text-after" {
@@ -144,7 +144,7 @@ async fn review2_scanner_places_hold_counted_pages_and_spreads() {
     // are counted positions. A page inserted before them must refuse; an unrelated edit applies.
     for (command, params) in [
         ("button.set", json!({"action":"page","page":3})),
-        ("frame.create", json!({"rect":[20,20,60,60],"content":"unassigned","spread":3})),
+        ("frame.add", json!({"rect":[20,20,60,60],"content":"unassigned","spread":3})),
         ("liquid.pageRule", json!({"rule":"scale","pages":[4]})),
         ("page.background", json!({"color":"#102030","pages":[4]})),
     ] {
@@ -195,12 +195,12 @@ async fn review2_identical_spelling_in_another_folder_refuses_a_write_by_name() 
             let f = Fixture::new(Guard::Premise);
             let mut doc = f.disk();
             if family == "swatches" {
-                doc.execute("swatch.create", json!({"name":"Brand","color":{"c":70,"m":75,"y":0,"k":0}})).unwrap();
-                doc.execute("swatch.create", json!({"name":"Other","color":{"c":0,"m":75,"y":70,"k":0}})).unwrap();
+                doc.execute("swatch.add", json!({"name":"Brand","color":{"c":70,"m":75,"y":0,"k":0}})).unwrap();
+                doc.execute("swatch.add", json!({"name":"Other","color":{"c":0,"m":75,"y":70,"k":0}})).unwrap();
                 doc.execute("swatch.newColorGroup", json!({"name":"Folder","swatches":["Other"]})).unwrap();
             } else {
-                doc.execute("style.paragraph.create", json!({"name":"Head"})).unwrap();
-                doc.execute("style.paragraph.create", json!({"name":"Other"})).unwrap();
+                doc.execute("style.paragraph.add", json!({"name":"Head"})).unwrap();
+                doc.execute("style.paragraph.add", json!({"name":"Other"})).unwrap();
             }
             std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
             let other = address_of(&f, family, "Other");
@@ -242,12 +242,12 @@ async fn review2_identical_spelling_already_observed_refuses_a_write_by_name() {
         let f = Fixture::new(Guard::Premise);
         let mut doc = f.disk();
         if family == "swatches" {
-            doc.execute("swatch.create", json!({"name":"Brand","color":{"c":70,"m":75,"y":0,"k":0}})).unwrap();
-            doc.execute("swatch.create", json!({"name":"Other","color":{"c":0,"m":75,"y":70,"k":0}})).unwrap();
+            doc.execute("swatch.add", json!({"name":"Brand","color":{"c":70,"m":75,"y":0,"k":0}})).unwrap();
+            doc.execute("swatch.add", json!({"name":"Other","color":{"c":0,"m":75,"y":70,"k":0}})).unwrap();
             doc.execute("swatch.newColorGroup", json!({"name":"Folder","swatches":["Other"]})).unwrap();
         } else {
-            doc.execute("style.paragraph.create", json!({"name":"Head"})).unwrap();
-            doc.execute("style.paragraph.create", json!({"name":"Other"})).unwrap();
+            doc.execute("style.paragraph.add", json!({"name":"Head"})).unwrap();
+            doc.execute("style.paragraph.add", json!({"name":"Other"})).unwrap();
         }
         std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
         let other = address_of(&f, family, "Other");

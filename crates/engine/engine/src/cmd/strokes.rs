@@ -82,8 +82,7 @@ mod tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         s.execute("strokeStyle.new", &json!({"name": "Rails", "type": "stripes", "bands": [[0, 0.3], [0.7, 0.3]]})).unwrap();
-        let id =
-            s.execute("frame.create", &json!({"rect": [100, 100, 300, 300], "shape": "rectangle", "content": "unassigned"})).unwrap()["id"].clone();
+        let id = s.execute("frame.add", &json!({"rect": [100, 100, 300, 300], "shape": "rectangle", "content": "unassigned"})).unwrap()["id"].clone();
         s.execute("object.stroke", &json!({"ids": [id], "weight": 20, "swatch": "[Black]", "type": {"kind": "style", "name": "Rails"}})).unwrap();
         let d = s.doc().unwrap().doc.clone();
         let mut r = kition_layout_render::Renderer::new();

@@ -258,7 +258,7 @@ mod tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         let pts: Vec<Value> = (0..=20).map(|i| json!({"p": [100.0 + i as f64 * 20.0, if i % 2 == 0 { 300.0 } else { 306.0 }]})).collect();
-        let id = s.execute("path.create", &json!({"anchors": pts})).unwrap()["id"].as_u64().unwrap();
+        let id = s.execute("path.add", &json!({"anchors": pts})).unwrap()["id"].as_u64().unwrap();
         let n = s.doc().unwrap().doc.item(ItemId(id)).unwrap().path.anchor_count();
         let drag: Vec<Value> = (0..=12).map(|i| json!([150.0 + i as f64 * 20.0, 303.0])).collect();
         s.execute("path.smooth", &json!({"id": id, "points": drag})).unwrap();
@@ -274,7 +274,7 @@ mod tests {
     fn add_convert_delete_anchor_points() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let id = ItemId(s.execute("frame.create", &json!({"rect": [100, 100, 200, 200]})).unwrap()["id"].as_u64().unwrap());
+        let id = ItemId(s.execute("frame.add", &json!({"rect": [100, 100, 200, 200]})).unwrap()["id"].as_u64().unwrap());
         let count = |s: &Session| s.doc().unwrap().doc.item(id).unwrap().path.anchor_count();
         assert_eq!(count(&s), 4);
         assert!(s.execute("path.addAnchor", &json!({"id": id.0, "at": [150, 150]})).is_err(), "not on the path");

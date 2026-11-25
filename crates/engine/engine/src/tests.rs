@@ -11,7 +11,7 @@ fn session() -> Session {
 #[test]
 fn create_frame_type_and_undo() {
     let mut s = session();
-    let r = s.execute("frame.create", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
+    let r = s.execute("frame.add", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
     let sid = r["story"].as_u64().unwrap();
     s.execute("text.insert", &json!({"text": "Hello, world"})).unwrap();
     let st = s.execute("story.get", &json!({"story": sid})).unwrap();
@@ -28,17 +28,17 @@ fn create_frame_type_and_undo() {
 #[test]
 fn smart_quotes_and_formatting() {
     let mut s = session();
-    s.execute("frame.create", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
+    s.execute("frame.add", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
     s.execute("text.insert", &json!({"text": "\"hi\" it's"})).unwrap();
-    let t = s.execute("document.inspect", &json!({})).unwrap();
+    let t = s.execute("file.inspect", &json!({})).unwrap();
     let sid = t["stories"][0]["id"].as_u64().unwrap();
     assert_eq!(s.execute("story.get", &json!({"story": sid})).unwrap()["text"], "\u{201C}hi\u{201D} it\u{2019}s");
     s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 4})).unwrap();
-    s.execute("type.char", &json!({"attrs": {"size": 24, "fontStyle": "Bold"}})).unwrap();
-    let a = s.execute("type.selectionAttrs", &json!({})).unwrap();
+    s.execute("text.char", &json!({"attrs": {"size": 24, "fontStyle": "Bold"}})).unwrap();
+    let a = s.execute("text.selectionAttrs", &json!({})).unwrap();
     assert_eq!(a["chars"]["size"], 24.0);
-    s.execute("type.para", &json!({"attrs": {"align": "center"}})).unwrap();
-    assert_eq!(s.execute("type.selectionAttrs", &json!({})).unwrap()["para"]["align"], "center");
+    s.execute("text.para", &json!({"attrs": {"align": "center"}})).unwrap();
+    assert_eq!(s.execute("text.selectionAttrs", &json!({})).unwrap()["para"]["align"], "center");
 }
 
 #[test]
@@ -79,7 +79,7 @@ fn tool_gesture_creates_one_undo_step() {
 fn shift_move_does_not_take_the_other_axis() {
     use kition_layout_tools::{PointerEvent, PointerKind};
     let mut s = session();
-    s.execute("frame.create", &json!({"rect": [80.0, 100.0, 140.0, 140.0], "content": "unassigned"})).unwrap();
+    s.execute("frame.add", &json!({"rect": [80.0, 100.0, 140.0, 140.0], "content": "unassigned"})).unwrap();
     s.execute("guide.add", &json!({"orientation": "horizontal", "position": 102.0, "page": 0})).unwrap();
     s.set_tool("selection");
     let v = ViewInfo::at_zoom(1.0);
@@ -96,7 +96,7 @@ fn shift_move_does_not_take_the_other_axis() {
 fn cmd_move_does_not_snap() {
     use kition_layout_tools::{PointerEvent, PointerKind};
     let mut s = session();
-    s.execute("frame.create", &json!({"rect": [80.0, 100.0, 140.0, 140.0], "content": "unassigned"})).unwrap();
+    s.execute("frame.add", &json!({"rect": [80.0, 100.0, 140.0, 140.0], "content": "unassigned"})).unwrap();
     s.execute("guide.add", &json!({"orientation": "horizontal", "position": 102.0, "page": 0})).unwrap();
     s.set_tool("selection");
     let v = ViewInfo::at_zoom(1.0);
@@ -113,7 +113,7 @@ fn cmd_move_does_not_snap() {
 fn cmd_resize_still_snaps_to_a_guide() {
     use kition_layout_tools::{PointerEvent, PointerKind};
     let mut s = session();
-    s.execute("frame.create", &json!({"rect": [100.0, 100.0, 200.0, 180.0], "content": "unassigned"})).unwrap();
+    s.execute("frame.add", &json!({"rect": [100.0, 100.0, 200.0, 180.0], "content": "unassigned"})).unwrap();
     s.execute("guide.add", &json!({"orientation": "vertical", "position": 250.0, "page": 0})).unwrap();
     s.set_tool("selection");
     let v = ViewInfo::at_zoom(1.0);
@@ -135,7 +135,7 @@ fn cmd_resize_still_snaps_to_a_guide() {
 fn shift_move_on_a_turned_spread_stays_on_the_line() {
     use kition_layout_tools::{PointerEvent, PointerKind};
     let mut s = session();
-    s.execute("frame.create", &json!({"rect": [80.0, 100.0, 140.0, 140.0], "content": "unassigned"})).unwrap();
+    s.execute("frame.add", &json!({"rect": [80.0, 100.0, 140.0, 140.0], "content": "unassigned"})).unwrap();
     s.execute("layout.rotateSpreadView", &json!({"angle": 90})).unwrap();
     // Vertical guide sits on the spread axis that a screen-horizontal Shift lock must not offer.
     s.execute("guide.add", &json!({"orientation": "vertical", "position": 82.0, "page": 0})).unwrap();
@@ -170,7 +170,7 @@ fn sample_document_is_valid_and_composes() {
     let st = s.doc().unwrap();
     st.doc.check().unwrap();
     assert_eq!(st.doc.page_count(), 4);
-    let i = s.execute("document.inspect", &json!({})).unwrap();
+    let i = s.execute("file.inspect", &json!({})).unwrap();
     assert!(i["stories"].as_array().unwrap().len() >= 8);
     // Save/load round trip.
     let bytes = cmd::file_bytes(&s.doc().unwrap().doc);
@@ -195,7 +195,7 @@ fn align_and_distribute() {
     let mut s = session();
     let mut ids = vec![];
     for (x, w) in [(10.0, 20.0), (100.0, 40.0), (300.0, 10.0)] {
-        let r = s.execute("frame.create", &json!({"rect": [x, 50.0 + x / 10.0, x + w, 100.0], "content": "unassigned"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [x, 50.0 + x / 10.0, x + w, 100.0], "content": "unassigned"})).unwrap();
         ids.push(r["id"].as_u64().unwrap());
     }
     s.execute("object.align", &json!({"ids": ids, "edge": "top"})).unwrap();
@@ -235,7 +235,7 @@ fn pen_draws_and_direct_selection_edits() {
     let id = it.id;
     // Direct Selection: drag the first anchor.
     s.set_tool("directSelection");
-    s.execute("selection.set", &json!({"ids": [id.0]})).unwrap();
+    s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
     s.pointer(&PointerEvent::new(PointerKind::Down, 100.0, 100.0), v).unwrap();
     s.pointer(&PointerEvent::new(PointerKind::Drag, 90.0, 80.0), v).unwrap();
     s.pointer(&PointerEvent::new(PointerKind::Up, 90.0, 80.0), v).unwrap();
@@ -248,16 +248,16 @@ fn pen_draws_and_direct_selection_edits() {
 #[test]
 fn rotate_scale_shear_and_eyedropper() {
     let mut s = session();
-    let a = s.execute("frame.create", &json!({"rect": [100, 100, 200, 150], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
+    let a = s.execute("frame.add", &json!({"rect": [100, 100, 200, 150], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
     s.execute("object.fill", &json!({"swatch": "C=100 M=0 Y=0 K=0"})).unwrap();
-    let b = s.execute("frame.create", &json!({"rect": [300, 100, 340, 140], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
+    let b = s.execute("frame.add", &json!({"rect": [300, 100, 340, 140], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
     s.execute("transform.rotate", &json!({"ids": [a], "angle": 90})).unwrap();
     let r = s.doc().unwrap().doc.item(kition_layout_doc::ItemId(a)).unwrap().bounds();
     assert!((r.width() - 50.0).abs() < 1e-6 && (r.height() - 100.0).abs() < 1e-6, "{r:?}");
     s.execute("transform.scale", &json!({"ids": [b], "sx": 2.0})).unwrap();
     let r = s.doc().unwrap().doc.item(kition_layout_doc::ItemId(b)).unwrap().bounds();
     assert!((r.width() - 80.0).abs() < 1e-6, "{r:?}");
-    s.execute("selection.set", &json!({"ids": [b]})).unwrap();
+    s.execute("select.set", &json!({"ids": [b]})).unwrap();
     s.execute("object.matchAttributes", &json!({"from": a})).unwrap();
     assert_eq!(s.doc().unwrap().doc.item(kition_layout_doc::ItemId(b)).unwrap().fill.swatch, "C=100 M=0 Y=0 K=0");
     s.execute("transform.shear", &json!({"ids": [b], "angle": 20})).unwrap();
@@ -281,7 +281,7 @@ fn place_gun_click_drag_and_into_frame() {
     assert_eq!(it.bounds(), kition_layout_geom::Rect::new(100.0, 100.0, 180.0, 140.0));
     assert_eq!(s.tool_id(), "selection");
     // Into an empty frame.
-    let f = s.execute("frame.create", &json!({"rect": [300, 300, 400, 400], "content": "graphic"})).unwrap()["id"].as_u64().unwrap();
+    let f = s.execute("frame.add", &json!({"rect": [300, 300, 400, 400], "content": "graphic"})).unwrap()["id"].as_u64().unwrap();
     s.execute("place.load", &json!({"base64": b64})).unwrap();
     s.execute("place.drop", &json!({"frame": f})).unwrap();
     assert!(matches!(s.doc().unwrap().doc.item(kition_layout_doc::ItemId(f)).unwrap().content, kition_layout_doc::Content::Graphic(_)));
@@ -290,10 +290,10 @@ fn place_gun_click_drag_and_into_frame() {
 #[test]
 fn preflight_reports_overset_and_missing_fonts() {
     let mut s = session();
-    s.execute("frame.create", &json!({"rect": [36, 36, 100, 50], "content": "text", "text": "This text will not fit in such a tiny frame at all."}))
+    s.execute("frame.add", &json!({"rect": [36, 36, 100, 50], "content": "text", "text": "This text will not fit in such a tiny frame at all."}))
         .unwrap();
     s.execute("text.select", &json!({"story": s.doc().unwrap().doc.stories.keys().next().unwrap().0, "anchor": 0, "focus": 4})).unwrap();
-    s.execute("type.char", &json!({"attrs": {"fontFamily": "Nonexistent Sans"}})).unwrap();
+    s.execute("text.char", &json!({"attrs": {"fontFamily": "Nonexistent Sans"}})).unwrap();
     let r = s.execute("preflight.run", &json!({})).unwrap();
     let kinds: Vec<&str> = r["issues"].as_array().unwrap().iter().map(|i| i["kind"].as_str().unwrap()).collect();
     assert!(kinds.contains(&"overset") && kinds.contains(&"missingFont"), "{kinds:?}");
@@ -304,15 +304,15 @@ fn preflight_reports_overset_and_missing_fonts() {
 fn hyperlinks_and_bookmarks_reach_the_pdf() {
     let mut s = Session::new();
     s.execute("file.newSample", &json!({})).unwrap();
-    s.execute("selection.set", &json!({"ids": [39]})).unwrap();
-    s.execute("hyperlink.create", &json!({"url": "https://example.com/kition-layout"})).unwrap();
-    let d = s.execute("document.inspect", &json!({})).unwrap();
+    s.execute("select.set", &json!({"ids": [39]})).unwrap();
+    s.execute("link.add", &json!({"url": "https://example.com/kition-layout"})).unwrap();
+    let d = s.execute("file.inspect", &json!({})).unwrap();
     let sid = d["stories"][0]["id"].as_u64().unwrap();
     s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 3})).unwrap();
-    s.execute("hyperlink.create", &json!({"page": 3})).unwrap();
+    s.execute("link.add", &json!({"page": 3})).unwrap();
     s.execute("bookmark.add", &json!({"name": "Cover", "page": 1})).unwrap();
     s.execute("bookmark.add", &json!({"name": "Feature", "page": 2})).unwrap();
-    assert_eq!(s.execute("hyperlink.list", &json!({})).unwrap().as_array().unwrap().len(), 2);
+    assert_eq!(s.execute("link.list", &json!({})).unwrap().as_array().unwrap().len(), 2);
     let r = s.execute("file.exportPdf", &json!({})).unwrap();
     let bytes = cmd::base64_decode(r["base64"].as_str().unwrap());
     let pdf = hayro_syntax::Pdf::new(bytes).expect("valid pdf");
@@ -327,13 +327,13 @@ fn hyperlinks_and_bookmarks_reach_the_pdf() {
 fn serialized_document_opens_again() {
     // The web app saves (downloads) what `file.serialize` returns: it must be the file's exact bytes.
     let mut s = session();
-    s.execute("frame.create", &json!({"rect": [36, 36, 300, 200], "content": "text", "text": "Saved on the web"})).unwrap();
+    s.execute("frame.add", &json!({"rect": [36, 36, 300, 200], "content": "text", "text": "Saved on the web"})).unwrap();
     let r = s.execute("file.serialize", &json!({})).unwrap();
     let bytes = cmd::base64_decode(r["base64"].as_str().expect("base64"));
     assert_eq!(bytes, s.doc_mut().unwrap().klayout_bytes().unwrap(), "the .klayout file, replica and all");
     assert!(kition_layout_kdm::is_klayout(&bytes));
     s.execute("file.openBytes", &json!({"name": "copy", "base64": r["base64"]})).unwrap();
-    let d = s.execute("document.inspect", &json!({})).unwrap();
+    let d = s.execute("file.inspect", &json!({})).unwrap();
     assert_eq!(d["stories"][0]["preview"], "Saved on the web");
 }
 
@@ -341,7 +341,7 @@ fn serialized_document_opens_again() {
 fn active_layer_survives_undoing_new_layer() {
     let mut s = session();
     let layer_of = |s: &mut Session, id: u64| {
-        let d = s.execute("document.inspect", &json!({})).unwrap();
+        let d = s.execute("file.inspect", &json!({})).unwrap();
         let items = d["spreads"].as_array().unwrap().iter().flat_map(|sp| sp["items"].as_array().unwrap().clone()).collect::<Vec<_>>();
         let it = items.into_iter().find(|i| i["id"] == id).unwrap();
         let layers: Vec<Value> = d["layers"].as_array().unwrap().iter().map(|l| l["id"].clone()).collect();
@@ -350,13 +350,13 @@ fn active_layer_survives_undoing_new_layer() {
     // New Layer, then Undo: the new layer is gone, so it can't stay the active one.
     s.execute("layer.new", &json!({})).unwrap();
     s.execute("edit.undo", &json!({})).unwrap();
-    let f = s.execute("frame.create", &json!({"rect": [36, 36, 300, 200], "content": "text", "text": "Visible"})).unwrap();
+    let f = s.execute("frame.add", &json!({"rect": [36, 36, 300, 200], "content": "text", "text": "Visible"})).unwrap();
     let (layer, layers) = layer_of(&mut s, f["id"].as_u64().unwrap());
     assert!(layers.contains(&layer), "frame on layer {layer} not in {layers:?}");
     // Delete Unused Layers removing the (empty) active layer.
     s.execute("layer.new", &json!({})).unwrap();
     s.execute("layer.deleteUnused", &json!({})).unwrap();
-    let f = s.execute("frame.create", &json!({"rect": [36, 236, 300, 400], "content": "text", "text": "Also visible"})).unwrap();
+    let f = s.execute("frame.add", &json!({"rect": [36, 236, 300, 400], "content": "text", "text": "Also visible"})).unwrap();
     let (layer, layers) = layer_of(&mut s, f["id"].as_u64().unwrap());
     assert!(layers.contains(&layer), "frame on layer {layer} not in {layers:?}");
 }
@@ -364,7 +364,7 @@ fn active_layer_survives_undoing_new_layer() {
 #[test]
 fn step_and_repeat_grid() {
     let mut s = session();
-    s.execute("frame.create", &json!({"rect": [36, 36, 66, 66], "content": "unassigned"})).unwrap();
+    s.execute("frame.add", &json!({"rect": [36, 36, 66, 66], "content": "unassigned"})).unwrap();
     let r = s.execute("edit.stepAndRepeat", &json!({"rows": 3, "columns": 4, "dx": 40, "dy": 40})).unwrap();
     assert_eq!(r["created"], 11);
     assert_eq!(s.doc().unwrap().doc.spreads[0].items.len(), 12);
@@ -378,7 +378,7 @@ fn step_and_repeat_grid() {
 #[test]
 fn step_and_repeat_with_a_huge_grid_makes_no_grid() {
     let mut s = session();
-    s.execute("frame.create", &json!({"rect": [36, 36, 66, 66], "content": "unassigned"})).unwrap();
+    s.execute("frame.add", &json!({"rect": [36, 36, 66, 66], "content": "unassigned"})).unwrap();
     let items = |s: &Session| s.doc().unwrap().doc.spreads[0].items.len();
     let before = items(&s);
     // Counts past the limit are an error, and nothing is copied.
@@ -401,7 +401,7 @@ fn new_document_caps_the_column_count() {
 fn snippets_roundtrip_between_documents() {
     let mut s = Session::new();
     s.execute("file.newSample", &json!({})).unwrap();
-    s.execute("selection.set", &json!({"ids": [39]})).unwrap();
+    s.execute("select.set", &json!({"ids": [39]})).unwrap();
     let snip = s.execute("snippet.export", &json!({})).unwrap();
     s.execute("file.new", &json!({})).unwrap();
     let r = s.execute("snippet.place", &json!({"base64": snip["base64"], "x": 36.0, "y": 36.0})).unwrap();
@@ -418,11 +418,11 @@ fn snippets_roundtrip_between_documents() {
 #[test]
 fn object_styles_create_and_apply() {
     let mut s = session();
-    let a = s.execute("frame.create", &json!({"rect": [36, 36, 136, 136], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
+    let a = s.execute("frame.add", &json!({"rect": [36, 36, 136, 136], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
     s.execute("object.fill", &json!({"swatch": "C=0 M=100 Y=0 K=0"})).unwrap();
     s.execute("object.stroke", &json!({"weight": 4.0})).unwrap();
-    s.execute("style.object.create", &json!({"name": "Magenta Box"})).unwrap();
-    let b = s.execute("frame.create", &json!({"rect": [200, 36, 300, 136], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
+    s.execute("style.object.add", &json!({"name": "Magenta Box"})).unwrap();
+    let b = s.execute("frame.add", &json!({"rect": [200, 36, 300, 136], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
     s.execute("style.object.apply", &json!({"name": "Magenta Box"})).unwrap();
     let d = &s.doc().unwrap().doc;
     let (ia, ib) = (d.item(kition_layout_doc::ItemId(a)).unwrap(), d.item(kition_layout_doc::ItemId(b)).unwrap());
@@ -500,7 +500,7 @@ fn export_pdf_of_the_sample() {
 #[test]
 fn object_set_flags_and_wrap_invert() {
     let mut s = session();
-    let r = s.execute("frame.create", &json!({"rect": [36, 36, 300, 200]})).unwrap();
+    let r = s.execute("frame.add", &json!({"rect": [36, 36, 300, 200]})).unwrap();
     let id = r["id"].as_u64().unwrap();
     let item = |s: &Session| s.doc().unwrap().doc.item(kition_layout_doc::ItemId(id)).cloned().unwrap();
     s.execute("object.setFlags", &json!({"ids": [id], "hidden": true})).unwrap();
@@ -509,7 +509,7 @@ fn object_set_flags_and_wrap_invert() {
     assert!(!item(&s).hidden && item(&s).locked);
     s.execute("object.setFlags", &json!({"ids": [id], "locked": false})).unwrap();
     assert!(!item(&s).locked);
-    s.execute("selection.set", &json!({"ids": [id]})).unwrap();
+    s.execute("select.set", &json!({"ids": [id]})).unwrap();
     s.execute("object.textWrap", &json!({"mode": "boundingBox", "invert": true})).unwrap();
     assert!(item(&s).wrap.invert);
 }
@@ -539,7 +539,7 @@ fn gridify_while_drawing_frames() {
 fn gap_tool_drag_moves_the_gap() {
     use kition_layout_tools::{PointerEvent, PointerKind};
     let mut s = session();
-    let a = s.execute("frame.create", &json!({"rect": [100, 100, 200, 300]})).unwrap()["id"].as_u64().unwrap();
+    let a = s.execute("frame.add", &json!({"rect": [100, 100, 200, 300]})).unwrap()["id"].as_u64().unwrap();
     s.set_tool("gap");
     let v = ViewInfo::at_zoom(1.0);
     s.pointer(&PointerEvent::new(PointerKind::Down, 250.0, 200.0), v).unwrap();
@@ -566,7 +566,7 @@ fn commands_take_non_object_params_without_panicking() {
 #[test]
 fn typing_undoes_a_word_at_a_time() {
     let mut s = session();
-    let r = s.execute("frame.create", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
+    let r = s.execute("frame.add", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
     let sid = r["story"].as_u64().unwrap();
     let text = |s: &mut Session| s.execute("story.get", &json!({"story": sid})).unwrap()["text"].as_str().unwrap().to_owned();
     let steps = |s: &Session| s.doc().unwrap().undo_steps();
@@ -610,7 +610,7 @@ fn typing_undoes_a_word_at_a_time() {
 #[test]
 fn cmd_arrows_move_the_caret_to_the_line_and_story_ends() {
     let mut s = session();
-    let r = s.execute("frame.create", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
+    let r = s.execute("frame.add", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
     let sid = r["story"].as_u64().unwrap();
     s.set_tool("type");
     s.type_text("Hello world").unwrap();

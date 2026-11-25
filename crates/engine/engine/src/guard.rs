@@ -71,12 +71,12 @@ mod tests {
     fn a_panicking_command_is_an_error_and_keeps_the_document() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("frame.create", &json!({"rect": [36, 36, 200, 200], "content": "text", "text": "keep me"})).unwrap();
+        s.execute("frame.add", &json!({"rect": [36, 36, 200, 200], "content": "text", "text": "keep me"})).unwrap();
         let before = s.active().unwrap().doc.clone();
         // A command that edits the document and then panics half way.
         let err = s
             .guarded("test.panic", |s| {
-                s.execute("frame.create", &json!({"rect": [36, 236, 200, 400]}))?;
+                s.execute("frame.add", &json!({"rect": [36, 236, 200, 400]}))?;
                 panic!("boom");
             })
             .unwrap_err();
@@ -84,6 +84,6 @@ mod tests {
         let st = s.active().unwrap();
         assert!(std::sync::Arc::ptr_eq(&st.doc, &before), "the document is the one from before the command");
         // The session keeps working.
-        s.execute("frame.create", &json!({"rect": [36, 236, 200, 400]})).unwrap();
+        s.execute("frame.add", &json!({"rect": [36, 236, 200, 400]})).unwrap();
     }
 }

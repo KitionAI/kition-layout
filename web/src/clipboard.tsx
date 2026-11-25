@@ -183,7 +183,7 @@ export function useSystemClipboard({ info, typing, canvas }: ClipboardOptions) {
       if (!now || !middle || !spread) return
       const x = middle.x - spread.area.x0 + spread.left - TEXT_FRAME.width / 2
       const y = middle.y - spread.area.y0 - TEXT_FRAME.height / 2
-      await run('frame.create', { spread: spread.index, rect: [x, y, x + TEXT_FRAME.width, y + TEXT_FRAME.height], content: 'text', text, caret: false })
+      await run('frame.add', { spread: spread.index, rect: [x, y, x + TEXT_FRAME.width, y + TEXT_FRAME.height], content: 'text', text, caret: false })
     }
 
     window.addEventListener('keydown', onKey, true)
@@ -243,7 +243,7 @@ export function useFileDrop(region: RefObject<HTMLElement | null>, info: Documen
           if (under && takesImage(under)) await run('file.place', { ...source, frame: under.id })
           else {
             // Not into a frame that happens to be selected: where it was dropped.
-            await run('selection.set', { ids: [] })
+            await run('select.set', { ids: [] })
             await run('file.place', { ...source, spread: spread.index, x, y })
           }
           return
@@ -253,7 +253,7 @@ export function useFileDrop(region: RefObject<HTMLElement | null>, info: Documen
           return
         }
         const page = spread.pages.find((item) => x >= item.bounds[0] && x <= item.bounds[2]) ?? spread.pages[0]
-        await run('selection.set', { ids: [] })
+        await run('select.set', { ids: [] })
         await run('file.place', { ...source, page: (page?.index ?? 0) + 1, rect: [x, y, x + TEXT_FRAME.width, y + TEXT_FRAME.height] })
       })()
     }

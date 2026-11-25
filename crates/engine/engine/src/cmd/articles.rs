@@ -97,11 +97,10 @@ mod tests {
     fn articles_set_the_export_reading_order() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a =
-            s.execute("frame.create", &json!({"rect": [72, 72, 300, 100], "content": "text", "text": "Top story", "caret": false})).unwrap()["id"]
-                .clone();
+        let a = s.execute("frame.add", &json!({"rect": [72, 72, 300, 100], "content": "text", "text": "Top story", "caret": false})).unwrap()["id"]
+            .clone();
         let b =
-            s.execute("frame.create", &json!({"rect": [72, 400, 300, 430], "content": "text", "text": "Lower story", "caret": false})).unwrap()["id"]
+            s.execute("frame.add", &json!({"rect": [72, 400, 300, 430], "content": "text", "text": "Lower story", "caret": false})).unwrap()["id"]
                 .clone();
         let html = |s: &mut Session| s.execute("file.exportHtml", &json!({})).unwrap()["text"].as_str().unwrap().to_string();
         let h = html(&mut s);

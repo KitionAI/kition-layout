@@ -131,9 +131,9 @@ export function LayoutDialogs({ api, info, place, onShowPage }: { api: RefObject
           return
         }
         // Find Next runs the last search; with none yet it opens Find/Change.
-        if (command === 'find.next') {
+        if (command === 'edit.findNext') {
           const search = lastFind()
-          if (!search) openDialog('find.find')
+          if (!search) openDialog('edit.find')
           else
             void run(command, search).then((answer) => {
               if (answer === 'null') toast('info', now.t('find.none'))

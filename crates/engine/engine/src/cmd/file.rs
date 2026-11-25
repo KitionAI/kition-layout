@@ -602,7 +602,7 @@ fn place_layout_page(s: &mut Session, p: &Value, name: &str, bytes: &[u8]) -> Re
         Ok(new)
     })?;
     if placed.len() > 1 {
-        let g = s.execute("object.group", &json!({"ids": placed.iter().map(|i| i.0).collect::<Vec<_>>()}))?;
+        let g = s.execute("arrange.group", &json!({"ids": placed.iter().map(|i| i.0).collect::<Vec<_>>()}))?;
         return Ok(json!({"id": g["id"], "items": placed.len()}));
     }
     Ok(json!({"id": placed[0].0, "items": 1}))
@@ -746,8 +746,8 @@ mod layout_place_tests {
     fn place_a_page_of_an_idml_file_as_a_group() {
         let mut a = Session::new();
         a.execute("file.new", &json!({"pages": 2})).unwrap();
-        a.execute("frame.create", &json!({"rect": [100, 100, 200, 150], "content": "text", "text": "From page one", "caret": false})).unwrap();
-        a.execute("frame.create", &json!({"rect": [300, 400, 350, 450]})).unwrap();
+        a.execute("frame.add", &json!({"rect": [100, 100, 200, 150], "content": "text", "text": "From page one", "caret": false})).unwrap();
+        a.execute("frame.add", &json!({"rect": [300, 400, 350, 450]})).unwrap();
         let idml = kition_layout_idml::export_idml(&a.doc().unwrap().doc);
         let b64 = super::base64_encode(&idml);
         let mut b = Session::new();
@@ -784,9 +784,9 @@ mod document_fonts_tests {
     /// A new document in `s` with a text frame holding `text` set in `family`.
     fn new_document(s: &mut Session, family: &str, text: &str) {
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": text})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": text})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": text.len()})).unwrap();
-        s.execute("type.char", &json!({"fontFamily": family, "fontStyle": "Regular"})).unwrap();
+        s.execute("text.char", &json!({"fontFamily": family, "fontStyle": "Regular"})).unwrap();
     }
 
     /// A document whose text ("Hello") is set in `family`, written to `path` (`.idml`: as IDML).
@@ -927,7 +927,7 @@ mod document_fonts_tests {
         open(&mut s, &a.join("A.klayout"));
         open(&mut s, &b.join("B.klayout"));
         // Fallback fonts for the `a` B's font lacks: never A's font.
-        s.execute("document.preferences", &json!({"glyphFallback": true})).unwrap();
+        s.execute("file.preferences", &json!({"glyphFallback": true})).unwrap();
         let in_b = glyph_faces(&s);
         s.execute("file.activate", &json!({"index": 0})).unwrap();
         let in_a = glyph_faces(&s);
@@ -978,7 +978,7 @@ mod document_fonts_tests {
 
         let mut s = Session::new();
         open(&mut s, &path);
-        s.execute("frame.create", &json!({"rect": [72, 400, 200, 500], "content": "text", "text": "x"})).unwrap();
+        s.execute("frame.add", &json!({"rect": [72, 400, 200, 500], "content": "text", "text": "x"})).unwrap();
         s.execute("file.revert", &json!({})).unwrap();
         assert_eq!(font_entry(&mut s, FAMILY)["source"], "document");
         assert!(glyph_faces(&s).iter().all(|(_, f)| f.family == FAMILY));

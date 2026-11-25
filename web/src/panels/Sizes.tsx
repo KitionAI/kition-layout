@@ -81,7 +81,7 @@ function NewSizeDialog({ info, onClose, onMade }: { info: DocumentInfo; onClose:
   const valid = shown.trim() !== '' && !taken.has(shown.trim())
   const make = async () => {
     if (!valid) return
-    await run('layout.createAlternate', { name: shown.trim(), width, height })
+    await run('layout.addAlternate', { name: shown.trim(), width, height })
     onMade(shown.trim())
     onClose()
   }

@@ -66,14 +66,14 @@ fn set_title(doc: &mut LayoutDocument, title: &str) {
 fn layout_with_history() -> (LayoutDocument, Value, Vec<u8>) {
     let mut doc = LayoutDocument::create(FILE, 612, 792).unwrap();
     let made_at = doc.version().unwrap();
-    let kept = doc.execute("frame.create", json!({ "rect": [72, 72, 300, 200], "content": "text", "text": "Kept" })).unwrap();
+    let kept = doc.execute("frame.add", json!({ "rect": [72, 72, 300, 200], "content": "text", "text": "Kept" })).unwrap();
     let story = kept["story"].clone();
     doc.execute("text.select", json!({ "story": story, "anchor": 4, "focus": 4 })).unwrap();
     doc.execute("text.insert", json!({ "text": TYPED_THEN_DELETED, "raw": true })).unwrap();
     doc.execute("text.select", json!({ "story": story, "anchor": 4, "focus": 4 + TYPED_THEN_DELETED.len() })).unwrap();
     doc.execute("text.delete", json!({})).unwrap();
-    let gone = doc.execute("frame.create", json!({ "rect": [72, 300, 300, 400], "content": "text", "text": DELETED_ELEMENT })).unwrap()["id"].clone();
-    doc.execute("edit.clear", json!({ "ids": [gone] })).unwrap();
+    let gone = doc.execute("frame.add", json!({ "rect": [72, 300, 300, 400], "content": "text", "text": DELETED_ELEMENT })).unwrap()["id"].clone();
+    doc.execute("edit.delete", json!({ "ids": [gone] })).unwrap();
     set_title(&mut doc, OVERWRITTEN);
     set_title(&mut doc, "Final");
     (doc, kept["id"].clone(), made_at)
@@ -117,7 +117,7 @@ fn two_sessions_that_open_one_file_and_save_unedited_write_the_same_bytes() {
     let mut one = LayoutDocument::open(FILE, &file).unwrap();
     let mut two = LayoutDocument::open(FILE, &file).unwrap();
     // Each person looks at it differently: a selection, a render, an inspect.
-    one.execute("selection.set", json!({ "ids": [kept] })).unwrap();
+    one.execute("select.set", json!({ "ids": [kept] })).unwrap();
     let _ = one.render(0.0, 0.0, 0.5, 300, 400).unwrap();
     let _ = two.inspect().unwrap();
     assert!(!one.dirty() && !two.dirty(), "looking is no edit");
@@ -137,7 +137,7 @@ fn a_file_opened_without_a_store_is_the_same_document_and_edits() {
     assert_eq!(state(&mut back), state(&mut doc), "the same state");
     assert!(!back.dirty() && !back.can_undo());
     back.execute("object.opacity", json!({ "ids": [kept], "opacity": 0.5 })).unwrap();
-    let made = back.execute("frame.create", json!({ "rect": [72, 500, 300, 600], "content": "text", "text": "New" })).unwrap()["id"].clone();
+    let made = back.execute("frame.add", json!({ "rect": [72, 500, 300, 600], "content": "text", "text": "New" })).unwrap()["id"].clone();
     let saved = host_save(&mut back);
     let again = LayoutDocument::open(FILE, &saved).unwrap();
     assert_eq!(again.doc_id(), doc.doc_id());
@@ -149,7 +149,7 @@ fn a_file_opened_without_a_store_is_the_same_document_and_edits() {
 #[test]
 fn undo_after_a_save_takes_back_the_last_edit() {
     let mut doc = LayoutDocument::create(FILE, 612, 792).unwrap();
-    let id = doc.execute("frame.create", json!({ "rect": [72, 72, 200, 200], "content": "unassigned" })).unwrap()["id"].clone();
+    let id = doc.execute("frame.add", json!({ "rect": [72, 72, 200, 200], "content": "unassigned" })).unwrap()["id"].clone();
     doc.execute("object.opacity", json!({ "ids": [id], "opacity": 0.5 })).unwrap();
     host_save(&mut doc);
     doc.mark_saved();
@@ -186,7 +186,7 @@ fn a_file_saved_elsewhere_opens_on_the_stored_replica_by_its_state() {
     // Elsewhere, from the file alone: an edit, a new frame, a save.
     let mut elsewhere = LayoutDocument::open(FILE, &bytes).unwrap();
     elsewhere.execute("object.opacity", json!({ "ids": [kept], "opacity": 0.25 })).unwrap();
-    elsewhere.execute("frame.create", json!({ "rect": [72, 600, 172, 700], "content": "unassigned" })).unwrap();
+    elsewhere.execute("frame.add", json!({ "rect": [72, 600, 172, 700], "content": "unassigned" })).unwrap();
     let edited = host_save(&mut elsewhere);
     let mut opened = LayoutDocument::open_with_replica(FILE, &edited, &stored, &blobs).unwrap();
     assert_eq!(opened.doc_id(), doc.doc_id());

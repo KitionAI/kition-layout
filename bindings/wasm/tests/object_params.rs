@@ -30,7 +30,7 @@ fn environment_schema_names_objects_and_bounds_opacity() {
 #[test]
 fn model_addresses_are_command_addresses() {
     let mut doc = LayoutDocument::create("Addresses.klayout", 612, 792).unwrap();
-    let item = doc.execute("frame.create", serde_json::json!({"rect":[20,20,60,60],"content":"unassigned"})).unwrap()["id"].clone();
+    let item = doc.execute("frame.add", serde_json::json!({"rect":[20,20,60,60],"content":"unassigned"})).unwrap()["id"].clone();
     let mut exchange = Exchange::new();
     let root = exchange.batch(&mut doc, &serde_json::json!({"ops":[],"load":[{"target":"layout","fields":["swatches"]}]}), true).unwrap();
     let loads: Vec<Value> =
@@ -44,7 +44,7 @@ fn model_addresses_are_command_addresses() {
 #[test]
 fn character_export_tagging_resolves_the_character_family() {
     let mut doc = LayoutDocument::create("Styles.klayout", 612, 792).unwrap();
-    doc.execute("style.character.create", serde_json::json!({"name":"Mark","chars":{"size":14}})).unwrap();
+    doc.execute("style.character.add", serde_json::json!({"name":"Mark","chars":{"size":14}})).unwrap();
     let mut exchange = Exchange::new();
     let root = exchange.batch(&mut doc, &serde_json::json!({"ops":[],"load":[{"target":"layout","fields":["characterStyles"]}]}), true).unwrap();
     let loads: Vec<_> = root["loaded"][0]["fields"]["characterStyles"]
@@ -127,7 +127,7 @@ fn name_gaps(commands: &[kition_kit::KitCommand]) -> Vec<String> {
     // These strings are values or new names, never lookups. Each exception follows parse_color
     // or the new-name assignment in cmd/style.rs, rather than the schema's imprecise wording.
     const VALUES: &[(&str, &str, &str)] = &[
-        ("swatch.create", "color", "parse_color accepts a literal hex colour, never a swatch name"),
+        ("swatch.add", "color", "parse_color accepts a literal hex colour, never a swatch name"),
         ("object.color", "color", "parse_color accepts a literal hex colour, never a swatch name"),
         ("swatch.addToSwatches", "name", "the new name assigned to the selected swatch, not a lookup"),
     ];
@@ -179,10 +179,10 @@ fn typed_parameters_follow_the_implementation() {
         ("object.setLayer", "layer", &["Layer"][..]),
         ("layer.merge", "into", &["Layer"][..]),
         ("object.fill", "swatch", &["Swatch"][..]),
-        ("type.char", "attrs.fill", &["Swatch"][..]),
-        ("type.para", "attrs.nestedStyles[].style", &["Style"][..]),
+        ("text.char", "attrs.fill", &["Swatch"][..]),
+        ("text.para", "attrs.nestedStyles[].style", &["Style"][..]),
         ("object.caption", "style", &["Style"][..]),
-        ("style.table.create", "body", &["Style"][..]),
+        ("style.table.add", "body", &["Style"][..]),
         ("style.table.edit", "altRows.firstColor", &["Swatch"][..]),
     ] {
         let command = commands.iter().find(|command| command.id == id).unwrap();

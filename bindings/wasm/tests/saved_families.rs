@@ -19,10 +19,10 @@ fn fixtures() -> Vec<std::path::PathBuf> {
 #[test]
 fn clipboard_paste_into_text_allocates_fresh_item_ids_after_reopen() {
     let mut doc = LayoutDocument::create("Paste.klayout", 612, 792).unwrap();
-    let item = doc.execute("frame.create", json!({"rect":[20,20,100,100]})).unwrap()["id"].clone();
-    doc.execute("selection.set", json!({"ids":[item]})).unwrap();
+    let item = doc.execute("frame.add", json!({"rect":[20,20,100,100]})).unwrap()["id"].clone();
+    doc.execute("select.set", json!({"ids":[item]})).unwrap();
     doc.execute("edit.copy", json!({})).unwrap();
-    let text = doc.execute("frame.create", json!({"rect":[20,200,400,600],"content":"text","text":"Body"})).unwrap();
+    let text = doc.execute("frame.add", json!({"rect":[20,200,400,600],"content":"text","text":"Body"})).unwrap();
     doc.execute("text.select", json!({"story":text["story"],"anchor":0})).unwrap();
     let state = doc.editor_state();
     let bytes = doc.save(None).unwrap();
@@ -38,18 +38,18 @@ fn clipboard_paste_into_text_allocates_fresh_item_ids_after_reopen() {
 }
 
 fn writes(doc: &mut LayoutDocument) -> Vec<(&'static str, Value)> {
-    let a = doc.execute("frame.create", json!({"rect":[20,20,200,180],"content":"text","text":"Guard review text"})).unwrap();
-    let b = doc.execute("frame.create", json!({"rect":[220,20,400,180],"content":"unassigned"})).unwrap();
+    let a = doc.execute("frame.add", json!({"rect":[20,20,200,180],"content":"text","text":"Guard review text"})).unwrap();
+    let b = doc.execute("frame.add", json!({"rect":[220,20,400,180],"content":"unassigned"})).unwrap();
     let layer = doc.execute("layer.new", json!({"name":"Saved review"})).unwrap()["id"].clone();
-    doc.execute("style.paragraph.create", json!({"name":"Saved para"})).unwrap();
-    doc.execute("style.paragraph.create", json!({"name":"Saved applied para","chars":{"size":19}})).unwrap();
-    doc.execute("style.character.create", json!({"name":"Saved char"})).unwrap();
-    doc.execute("style.object.create", json!({"name":"Saved object","fromSelection":false,"fill":"Black"})).unwrap();
-    doc.execute("style.cell.create", json!({"name":"Saved cell","fill":"Black"})).unwrap();
-    doc.execute("style.table.create", json!({"name":"Saved table","body":"Saved cell"})).unwrap();
+    doc.execute("style.paragraph.add", json!({"name":"Saved para"})).unwrap();
+    doc.execute("style.paragraph.add", json!({"name":"Saved applied para","chars":{"size":19}})).unwrap();
+    doc.execute("style.character.add", json!({"name":"Saved char"})).unwrap();
+    doc.execute("style.object.add", json!({"name":"Saved object","fromSelection":false,"fill":"Black"})).unwrap();
+    doc.execute("style.cell.add", json!({"name":"Saved cell","fill":"Black"})).unwrap();
+    doc.execute("style.table.add", json!({"name":"Saved table","body":"Saved cell"})).unwrap();
     doc.execute("condition.new", json!({"name":"Saved condition"})).unwrap();
     doc.execute("bookmark.add", json!({"name":"Saved bookmark"})).unwrap();
-    let table_frame = doc.execute("frame.create", json!({"rect":[20,420,400,700],"content":"text","text":""})).unwrap();
+    let table_frame = doc.execute("frame.add", json!({"rect":[20,420,400,700],"content":"text","text":""})).unwrap();
     doc.execute("text.select", json!({"story":table_frame["story"],"anchor":0})).unwrap();
     let table = doc.execute("table.insert", json!({"rows":3,"cols":3})).unwrap();
     doc.execute("table.setCell", json!({"story":table_frame["story"],"table":table["table"],"row":0,"col":0,"text":"Distinct first cell"})).unwrap();
@@ -59,19 +59,19 @@ fn writes(doc: &mut LayoutDocument) -> Vec<(&'static str, Value)> {
         (command, params)
     };
     let guide = doc.execute("guide.add", json!({"orientation":"horizontal","position":27,"page":0})).unwrap();
-    let line = doc.execute("line.create", json!({"a":[30,300],"b":[300,300]})).unwrap();
-    let path_text = doc.execute("line.create", json!({"a":[30,330],"b":[300,330]})).unwrap();
-    doc.execute("type.onPath", json!({"id":path_text["id"],"text":"Saved path text"})).unwrap();
-    let c = doc.execute("frame.create", json!({"rect":[420,20,480,80]})).unwrap();
-    let d = doc.execute("frame.create", json!({"rect":[480,20,540,80]})).unwrap();
-    let group = doc.execute("states.create", json!({"ids":[c["id"],d["id"]]})).unwrap();
+    let line = doc.execute("line.add", json!({"a":[30,300],"b":[300,300]})).unwrap();
+    let path_text = doc.execute("line.add", json!({"a":[30,330],"b":[300,330]})).unwrap();
+    doc.execute("text.onPath", json!({"id":path_text["id"],"text":"Saved path text"})).unwrap();
+    let c = doc.execute("frame.add", json!({"rect":[420,20,480,80]})).unwrap();
+    let d = doc.execute("frame.add", json!({"rect":[480,20,540,80]})).unwrap();
+    let group = doc.execute("state.add", json!({"ids":[c["id"],d["id"]]})).unwrap();
     let media = doc.execute("file.place", json!({"base64":"AAAAGGZ0eXBtcDQy","name":"Saved.mp4","x":420,"y":220})).unwrap();
-    doc.execute("selection.set", json!({"ids":[b["id"]]})).unwrap();
+    doc.execute("select.set", json!({"ids":[b["id"]]})).unwrap();
     doc.execute("edit.copy", json!({})).unwrap();
     doc.execute("conveyor.collect", json!({"ids":[b["id"]]})).unwrap();
     doc.execute("library.new", json!({})).unwrap();
     doc.execute("library.add", json!({"name":"Saved library"})).unwrap();
-    doc.execute("variables.define", json!({"name":"Saved variable","text":"Before"})).unwrap();
+    doc.execute("variable.define", json!({"name":"Saved variable","text":"Before"})).unwrap();
     doc.execute("list.define", json!({"name":"Saved list"})).unwrap();
     doc.execute("strokeStyle.new", json!({"name":"Saved stroke","type":"dot"})).unwrap();
     doc.execute("text.select", json!({"story":a["story"],"anchor":17})).unwrap();
@@ -82,7 +82,7 @@ fn writes(doc: &mut LayoutDocument) -> Vec<(&'static str, Value)> {
     doc.execute("text.select", json!({"story":a["story"],"anchor":0,"focus":4})).unwrap();
     doc.execute("style.paragraph.apply", json!({"name":"Saved para"})).unwrap();
     doc.execute("index.addReference", json!({"topic":"Saved topic"})).unwrap();
-    let anchor = doc.execute("anchor.create", json!({"name":"Saved anchor"})).unwrap();
+    let anchor = doc.execute("anchor.add", json!({"name":"Saved anchor"})).unwrap();
     doc.execute("toc.generate", json!({"styles":["Saved para"],"title":"Before contents"})).unwrap();
     doc.execute("index.generate", json!({"title":"Before index"})).unwrap();
     let linked = doc.execute("story.placeAndLink", json!({"story":a["story"],"rect":[20,220,300,400]})).unwrap();
@@ -90,20 +90,20 @@ fn writes(doc: &mut LayoutDocument) -> Vec<(&'static str, Value)> {
     doc.execute("data.source.select", json!({"name":"Saved.csv","base64":"bmFtZQpBZGEK"})).unwrap();
     doc.execute("text.select", json!({"story":a["story"],"anchor":0})).unwrap();
     let placeholder = doc.execute("data.placeholder.add", json!({"field":"name"})).unwrap();
-    doc.execute("style.paragraph.create", json!({"name":"Saved missing font","chars":{"fontFamily":"ReviewMissing"}})).unwrap();
+    doc.execute("style.paragraph.add", json!({"name":"Saved missing font","chars":{"fontFamily":"ReviewMissing"}})).unwrap();
     doc.execute("text.select", json!({"story":a["story"],"anchor":0,"focus":4})).unwrap();
     let mut scenarios = vec![
         ("object.rename", json!({"id":a["id"],"name":"Saved name"})),
         ("object.opacity", json!({"ids":[a["id"]],"opacity":0.123456789})),
         ("object.stroke", json!({"ids":[a["id"]],"weight":1.23456789})),
         ("transform.move", json!({"ids":[a["id"]],"dx":0.123456789,"dy":-2.3456789})),
-        ("object.group", json!({"ids":[a["id"],b["id"]]})),
-        ("edit.clear", json!({"ids":[b["id"]]})),
+        ("arrange.group", json!({"ids":[a["id"],b["id"]]})),
+        ("edit.delete", json!({"ids":[b["id"]]})),
         ("transform.move", json!({"ids":[a["id"]],"dx":10,"copy":true})),
         ("edit.stepAndRepeat", json!({"ids":[a["id"]],"count":2,"dx":15})),
         ("story.replaceRange", json!({"story":a["story"],"start":1,"end":3,"text":"Saved"})),
-        ("type.char", json!({"attrs":{"size":18.123456789}})),
-        ("type.para", json!({"attrs":{"leftIndent":1.23456789}})),
+        ("text.char", json!({"attrs":{"size":18.123456789}})),
+        ("text.para", json!({"attrs":{"leftIndent":1.23456789}})),
         ("style.paragraph.apply", json!({"name":"Saved applied para"})),
         ("style.character.apply", json!({"name":"Saved char"})),
         ("style.object.apply", json!({"ids":[a["id"]],"name":"Saved object"})),
@@ -111,7 +111,7 @@ fn writes(doc: &mut LayoutDocument) -> Vec<(&'static str, Value)> {
         ("style.character.edit", json!({"name":"Saved char","chars":{"size":20}})),
         ("style.cell.edit", json!({"name":"Saved cell","tint":0.42})),
         ("style.table.edit", json!({"name":"Saved table","spaceBefore":4})),
-        ("swatch.create", json!({"name":"Saved colour","color":"#123456"})),
+        ("swatch.add", json!({"name":"Saved colour","color":"#123456"})),
         ("object.gradient", json!({"ids":[b["id"]],"angle":31})),
         ("layer.set", json!({"id":layer,"visible":false})),
         ("layer.move", json!({"id":layer,"to":1})),
@@ -121,10 +121,10 @@ fn writes(doc: &mut LayoutDocument) -> Vec<(&'static str, Value)> {
         ("layout.pages.applyParent", json!({"pages":[1],"parent":null})),
         ("guide.add", json!({"orientation":"horizontal","position":25})),
         ("bookmark.rename", json!({"index":0,"name":"Saved changed"})),
-        ("hyperlink.create", json!({"ids":[b["id"]],"url":"https://saved.example"})),
+        ("link.add", json!({"ids":[b["id"]],"url":"https://saved.example"})),
         ("article.new", json!({"ids":[b["id"]],"name":"Saved article"})),
         ("condition.apply", json!({"name":"Saved condition"})),
-        ("variables.define", json!({"name":"Saved variable","type":"custom","text":"Saved"})),
+        ("variable.define", json!({"name":"Saved variable","type":"custom","text":"Saved"})),
         ("note.new", json!({"text":"Saved note"})),
         ("footnote.insert", json!({"text":"Saved footnote"})),
         ("endnote.insert", json!({"text":"Saved endnote"})),
@@ -160,23 +160,23 @@ fn writes(doc: &mut LayoutDocument) -> Vec<(&'static str, Value)> {
         ("transform.scale", json!({"ids":[b["id"]],"sx":1.2,"sy":0.8})),
         ("transform.shear", json!({"ids":[b["id"]],"angle":12})),
         ("object.align", json!({"ids":[a["id"],b["id"]],"edge":"left"})),
-        ("object.ungroup", json!({"ids":[group["id"]]})),
+        ("arrange.ungroup", json!({"ids":[group["id"]]})),
         ("object.textFrameOptions", json!({"ids":[a["id"]],"columns":2})),
         ("object.textWrap", json!({"ids":[b["id"]],"mode":"bounds","offset":5})),
         ("object.dropShadow", json!({"ids":[b["id"]],"on":true,"opacity":0.6})),
         ("object.cornerOptions", json!({"ids":[b["id"]],"size":12})),
         ("object.qrCode", json!({"content":"https://saved.example","rect":[420,420,500,500]})),
         ("form.set", json!({"ids":[b["id"]],"kind":"textField","name":"Saved field","value":"Saved"})),
-        ("states.show", json!({"id":group["id"],"index":1})),
-        ("states.rename", json!({"id":group["id"],"index":0,"name":"Saved state"})),
-        ("states.release", json!({"id":group["id"]})),
+        ("state.show", json!({"id":group["id"],"index":1})),
+        ("state.rename", json!({"id":group["id"],"index":0,"name":"Saved state"})),
+        ("state.release", json!({"id":group["id"]})),
         ("media.options", json!({"ids":[media["id"]],"loop":true})),
         ("math.insert", json!({"latex":"x^2"})),
         ("path.addAnchor", json!({"id":line["id"],"at":[165,300]})),
         ("path.convertAnchor", json!({"id":line["id"],"anchor":0,"to":[50,320]})),
-        ("type.pathOptions", json!({"id":path_text["id"],"flip":true})),
-        ("type.pathOptions", json!({"id":path_text["id"],"delete":true})),
-        ("type.createOutlines", json!({"ids":[path_text["id"]]})),
+        ("text.pathOptions", json!({"id":path_text["id"],"flip":true})),
+        ("text.pathOptions", json!({"id":path_text["id"],"delete":true})),
+        ("text.convertToOutlines", json!({"ids":[path_text["id"]]})),
         ("edit.paste", json!({"text":"Saved paste"})),
         ("edit.pasteWithoutFormatting", json!({"text":"Saved plain paste"})),
         ("edit.pasteInto", json!({"id":b["id"]})),
@@ -194,31 +194,31 @@ fn writes(doc: &mut LayoutDocument) -> Vec<(&'static str, Value)> {
         ("toc.generate", json!({"styles":["Saved para"],"title":"Saved contents"})),
         ("xref.insert", json!({"anchor":anchor["id"]})),
         ("xref.defineFormat", json!({"name":"Saved format","definition":"<pageNum />"})),
-        ("anchor.create", json!({"name":"Saved new anchor"})),
+        ("anchor.add", json!({"name":"Saved new anchor"})),
         ("story.updateLink", json!({"story":linked["story"]})),
         ("story.unlink", json!({"story":linked["story"]})),
         ("anchored.insert", json!({"ids":[b["id"]],"story":a["story"],"pos":0})),
-        ("variables.insert", json!({"name":"Saved variable"})),
+        ("variable.insert", json!({"name":"Saved variable"})),
         ("condition.options", json!({"name":"Saved condition","visible":false})),
         ("condition.delete", json!({"name":"Saved condition"})),
-        ("variables.delete", json!({"name":"Saved variable"})),
+        ("variable.delete", json!({"name":"Saved variable"})),
         ("spelling.setWords", json!({"words":["savedword"]})),
         ("hyphenation.addException", json!({"word":"sav~edword"})),
         ("spelling.change", json!({"story":a["story"],"start":0,"end":0,"to":"Saved"})),
-        ("find.change", json!({"story":a["story"],"find":"review","change":"saved"})),
+        ("edit.replace", json!({"story":a["story"],"find":"review","change":"saved"})),
         ("font.replace", json!({"family":"ReviewMissing","toFamily":"Inter"})),
         ("guide.move", json!({"page":guide["page"],"index":guide["index"],"position":45})),
         ("guide.delete", json!({"page":guide["page"],"index":guide["index"]})),
         ("guide.liquid", json!({"page":guide["page"],"index":guide["index"],"on":true})),
-        ("layout.createGuides", json!({"rows":2,"columns":2})),
+        ("layout.addGuides", json!({"rows":2,"columns":2})),
         ("page.background", json!({"pages":[1],"color":"#123456"})),
         ("page.transition", json!({"pages":[1],"kind":"fade"})),
         ("liquid.pageRule", json!({"pages":[1],"rule":"scale"})),
         ("liquid.object", json!({"ids":[b["id"]],"pinLeft":true})),
-        ("layout.createAlternate", json!({"name":"Saved alternate","width":500,"height":700})),
-        ("document.preferences", json!({"keyboardIncrement":2.3456789})),
+        ("layout.addAlternate", json!({"name":"Saved alternate","width":500,"height":700})),
+        ("file.preferences", json!({"keyboardIncrement":2.3456789})),
         ("edit.transparencyBlendSpace", json!({"space":"rgb"})),
-        ("document.applyTemplate", json!({"template":"event"})),
+        ("file.applyTemplate", json!({"template":"event"})),
         ("style.group", json!({"kind":"paragraph","names":["Saved para"],"group":"Saved group"})),
         ("style.exportTag", json!({"style":"Saved para","tag":"h2"})),
         ("xml.newTag", json!({"name":"SavedNewTag"})),
@@ -256,8 +256,8 @@ fn every_conformance_fixture_write_family_survives_native_save() {
                 let context = format!("{} imported={imported} {command} {params}", path.display());
                 let mut doc = LayoutDocument::open("Review.klayout", &prepared).unwrap();
                 doc.restore_editor_state(&state).unwrap();
-                if command.starts_with("states.") {
-                    doc.execute("selection.set", json!({"ids":[params["id"]]})).unwrap();
+                if command.starts_with("state.") {
+                    doc.execute("select.set", json!({"ids":[params["id"]]})).unwrap();
                 }
                 if command == "table.unmerge" {
                     doc.execute("table.merge", json!({"story":params["story"],"table":params["table"],"rows":[0,1],"cols":[0,1]})).unwrap();

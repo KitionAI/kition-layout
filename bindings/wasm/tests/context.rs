@@ -8,14 +8,13 @@ use serde_json::json;
 fn additional_selection_and_active_dependencies_are_declared() {
     let doc = LayoutDocument::create("Reads.klayout", 612, 792).unwrap();
     let commands = doc.commands();
-    for id in
-        ["footnote.insert", "footnote.goToReference", "endnote.insert", "note.new", "style.paragraph.create", "style.object.create", "object.rename"]
+    for id in ["footnote.insert", "footnote.goToReference", "endnote.insert", "note.new", "style.paragraph.add", "style.object.add", "object.rename"]
     {
         let command = commands.iter().find(|command| command.id == id).unwrap();
         assert!(command.reads.contains(&kition_kit::EditorState::Selection), "{id} reads the insertion point, fromSelection, or targets fallback");
     }
     let grid = commands.iter().find(|command| command.id == "frame.grid").unwrap();
-    assert!(grid.reads.contains(&kition_kit::EditorState::Active), "frame.grid delegates to frame.create, including its active layer");
+    assert!(grid.reads.contains(&kition_kit::EditorState::Active), "frame.grid delegates to frame.add, including its active layer");
 }
 
 #[test]
@@ -23,7 +22,7 @@ fn command_reads_cover_implicit_engine_state() {
     use kition_kit::EditorState::{Active, Mode, Selection};
     let doc = LayoutDocument::create("Reads.klayout", 612, 792).unwrap();
     let commands = doc.commands();
-    for (id, reads) in [("frame.create", vec![Active, Mode]), ("object.fill", vec![Selection, Mode]), ("text.insert", vec![Selection, Mode])] {
+    for (id, reads) in [("frame.add", vec![Active, Mode]), ("object.fill", vec![Selection, Mode]), ("text.insert", vec![Selection, Mode])] {
         let command = commands.iter().find(|command| command.id == id).unwrap();
         for read in reads {
             assert!(command.reads.contains(&read), "{id} omits {read:?}");
@@ -34,9 +33,9 @@ fn command_reads_cover_implicit_engine_state() {
 #[test]
 fn full_context_is_reversible_without_an_edit() {
     let mut doc = LayoutDocument::create("Context.klayout", 612, 792).unwrap();
-    let a = doc.execute("frame.create", json!({"rect":[20,20,60,60],"content":"text"})).unwrap()["id"].clone();
-    let b = doc.execute("frame.create", json!({"rect":[100,20,140,60],"content":"unassigned"})).unwrap()["id"].clone();
-    doc.execute("selection.set", json!({"ids":[a]})).unwrap();
+    let a = doc.execute("frame.add", json!({"rect":[20,20,60,60],"content":"text"})).unwrap()["id"].clone();
+    let b = doc.execute("frame.add", json!({"rect":[100,20,140,60],"content":"unassigned"})).unwrap()["id"].clone();
+    doc.execute("select.set", json!({"ids":[a]})).unwrap();
     let saved = doc.editor_state();
     assert!(saved.is_object(), "the complete editor state must be available");
     kition_kit::testing::check_context(&mut doc, &CallContext { on: vec![b], ..Default::default() }, &["/selection", "/activeLayer", "/tool"])

@@ -9,7 +9,7 @@ use crate::{Result, Session};
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!(noundo "find.objects", "Find Object", [], None,
+        cmd!(noundo "edit.findObjects", "Find Object", [], None,
         "{fill?, stroke?: swatch, strokeWeight?, opacity? (0–1), kind?: text|graphic|shape|line|group, layer?, label?, select?: bool (default true)} → {ids} — Find/Change › Object, through the document",
         has_doc, |s, p| {
             let ids = find_objects(&s.doc()?.doc, p);
@@ -21,7 +21,7 @@ pub fn specs() -> Vec<CommandSpec> {
             Ok(json!({"ids": ids.iter().map(|i| i.0).collect::<Vec<_>>()}))
         }),
         cmd!(
-            "find.changeObjects",
+            "edit.replaceObjects",
             "Change All (Object)",
             [],
             None,
@@ -31,7 +31,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 let ids = find_objects(&s.doc()?.doc, p);
                 let ch = p.get("change").cloned().unwrap_or(Value::Null);
                 if !ch.is_object() {
-                    return Err(bad("find.changeObjects", "`change` required"));
+                    return Err(bad("edit.replaceObjects", "`change` required"));
                 }
                 s.edit(|d, _| {
                     for id in &ids {
@@ -53,11 +53,11 @@ pub fn specs() -> Vec<CommandSpec> {
                 })
             }
         ),
-        cmd!(query "find.find", "Find", ["Edit", "Find/Change"], None,
+        cmd!(query "edit.find", "Find", ["Edit", "Find/Change"], None,
             "{find, grep?: bool, caseSensitive?: bool, wholeWord?: bool, scope?: document|story|selection, story?} → matches [{story, start, end, text}]",
             has_doc, find),
         cmd!(
-            "find.change",
+            "edit.replace",
             "Change All",
             ["Edit", "Find/Change"],
             None,
@@ -65,7 +65,7 @@ pub fn specs() -> Vec<CommandSpec> {
             has_doc,
             change
         ),
-        cmd!(noundo "find.next", "Find Next", ["Edit"], Some("Cmd+Alt+F"), "{find, grep?, …} — selects the next match after the caret", has_doc, find_next),
+        cmd!(noundo "edit.findNext", "Find Next", ["Edit"], Some("Cmd+Alt+F"), "{find, grep?, …} — selects the next match after the caret", has_doc, find_next),
     ]
 }
 
@@ -178,7 +178,7 @@ fn change(s: &mut Session, p: &Value) -> Result<Value> {
     let mut over = kition_layout_doc::CharAttrs::default();
     if let Some(o) = attrs.as_ref().and_then(Value::as_object) {
         for (k, v) in o {
-            over.set_json(k, v).map_err(|e| bad("find.change", e))?;
+            over.set_json(k, v).map_err(|e| bad("edit.replace", e))?;
         }
     }
     let targets = scope(s, p)?;
@@ -258,23 +258,23 @@ mod tests {
     fn find_and_change_text_and_grep() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("frame.create", &json!({"rect": [36, 36, 300, 300], "content": "text", "text": "Call 555-1234 or 555-9876.\nColour and colour."}))
+        s.execute("frame.add", &json!({"rect": [36, 36, 300, 300], "content": "text", "text": "Call 555-1234 or 555-9876.\nColour and colour."}))
             .unwrap();
-        let m = s.execute("find.find", &json!({"find": "colour"})).unwrap();
+        let m = s.execute("edit.find", &json!({"find": "colour"})).unwrap();
         assert_eq!(m.as_array().unwrap().len(), 2);
-        let m = s.execute("find.find", &json!({"find": "colour", "caseSensitive": true})).unwrap();
+        let m = s.execute("edit.find", &json!({"find": "colour", "caseSensitive": true})).unwrap();
         assert_eq!(m.as_array().unwrap().len(), 1);
-        let r = s.execute("find.change", &json!({"find": r"(\d{3})-(\d{4})", "change": "($1) $2", "grep": true})).unwrap();
+        let r = s.execute("edit.replace", &json!({"find": r"(\d{3})-(\d{4})", "change": "($1) $2", "grep": true})).unwrap();
         assert_eq!(r["count"], 2);
-        let r = s.execute("find.change", &json!({"find": "colour", "change": "color", "attrs": {"fontStyle": "Italic"}})).unwrap();
+        let r = s.execute("edit.replace", &json!({"find": "colour", "change": "color", "attrs": {"fontStyle": "Italic"}})).unwrap();
         assert_eq!(r["count"], 2);
-        let d = s.execute("document.inspect", &json!({})).unwrap();
+        let d = s.execute("file.inspect", &json!({})).unwrap();
         let sid = d["stories"][0]["id"].as_u64().unwrap();
         let text = s.execute("story.get", &json!({"story": sid})).unwrap()["text"].as_str().unwrap().to_string();
         assert_eq!(text, "Call (555) 1234 or (555) 9876.\ncolor and color.");
         // Paragraph metacharacter in text mode.
-        assert_eq!(s.execute("find.find", &json!({"find": ".^pc"})).unwrap().as_array().unwrap().len(), 1);
-        s.execute("find.next", &json!({"find": "or"})).unwrap();
+        assert_eq!(s.execute("edit.find", &json!({"find": ".^pc"})).unwrap().as_array().unwrap().len(), 1);
+        s.execute("edit.findNext", &json!({"find": "or"})).unwrap();
         assert!(s.doc().unwrap().selection.text.is_some());
     }
 }
@@ -341,16 +341,16 @@ mod object_find_tests {
     fn find_and_change_objects_by_attributes() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [10, 10, 50, 50], "content": "unassigned"})).unwrap()["id"].clone();
-        let _b = s.execute("frame.create", &json!({"rect": [60, 10, 90, 50], "content": "unassigned"})).unwrap()["id"].clone();
+        let a = s.execute("frame.add", &json!({"rect": [10, 10, 50, 50], "content": "unassigned"})).unwrap()["id"].clone();
+        let _b = s.execute("frame.add", &json!({"rect": [60, 10, 90, 50], "content": "unassigned"})).unwrap()["id"].clone();
         s.execute("object.fill", &json!({"swatch": "[Black]", "ids": [a]})).unwrap();
-        s.execute("frame.create", &json!({"rect": [10, 60, 90, 90], "content": "text", "text": "t"})).unwrap();
-        let r = s.execute("find.objects", &json!({"fill": "[Black]"})).unwrap();
+        s.execute("frame.add", &json!({"rect": [10, 60, 90, 90], "content": "text", "text": "t"})).unwrap();
+        let r = s.execute("edit.findObjects", &json!({"fill": "[Black]"})).unwrap();
         assert_eq!(r["ids"], json!([a]));
         assert_eq!(s.doc().unwrap().selection.items.len(), 1, "found objects are selected");
-        assert_eq!(s.execute("find.objects", &json!({"kind": "text", "select": false})).unwrap()["ids"].as_array().unwrap().len(), 1);
-        let c = s.execute("find.changeObjects", &json!({"kind": "shape", "change": {"opacity": 0.5}})).unwrap();
+        assert_eq!(s.execute("edit.findObjects", &json!({"kind": "text", "select": false})).unwrap()["ids"].as_array().unwrap().len(), 1);
+        let c = s.execute("edit.replaceObjects", &json!({"kind": "shape", "change": {"opacity": 0.5}})).unwrap();
         assert_eq!(c["changed"], 2);
-        assert_eq!(s.execute("find.objects", &json!({"opacity": 0.5, "select": false})).unwrap()["ids"].as_array().unwrap().len(), 2);
+        assert_eq!(s.execute("edit.findObjects", &json!({"opacity": 0.5, "select": false})).unwrap()["ids"].as_array().unwrap().len(), 2);
     }
 }

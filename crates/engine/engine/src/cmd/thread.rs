@@ -256,7 +256,7 @@ mod tests {
     }
 
     fn text_frame(s: &mut Session, rect: [f64; 4], text: &str) -> u64 {
-        s.execute("frame.create", &json!({"rect": rect, "content": "text", "text": text, "caret": false})).unwrap()["id"].as_u64().unwrap()
+        s.execute("frame.add", &json!({"rect": rect, "content": "text", "text": text, "caret": false})).unwrap()["id"].as_u64().unwrap()
     }
 
     fn story(s: &Session, frame: u64) -> (StoryId, Vec<u64>, String) {
@@ -268,7 +268,7 @@ mod tests {
 
     /// A frame holding a placed image (it cannot take text).
     fn image_frame(s: &mut Session, rect: [f64; 4]) -> u64 {
-        let f = s.execute("frame.create", &json!({"rect": rect, "content": "graphic"})).unwrap()["id"].as_u64().unwrap();
+        let f = s.execute("frame.add", &json!({"rect": rect, "content": "graphic"})).unwrap()["id"].as_u64().unwrap();
         let png = kition_layout_render::Rendered { width: 4, height: 4, pixels: vec![200; 4 * 4 * 4] }.to_png();
         s.execute("place.load", &json!({"base64": crate::cmd::base64_encode(&png), "name": "a.png"})).unwrap();
         s.execute("place.drop", &json!({"frame": f})).unwrap();
@@ -284,7 +284,7 @@ mod tests {
     fn threads_an_empty_frame_and_undoes_it_in_one_step() {
         let mut s = session();
         let a = text_frame(&mut s, [36.0, 36.0, 200.0, 120.0], &LONG.repeat(12));
-        let b = s.execute("frame.create", &json!({"rect": [36, 200, 200, 600], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
+        let b = s.execute("frame.add", &json!({"rect": [36, 200, 200, 600], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
         assert!(overset(&s, a));
         let r = s.execute("frame.thread", &json!({"from": a, "to": b})).unwrap();
         assert_eq!(r["frames"], json!([a, b]));
@@ -335,13 +335,13 @@ mod tests {
     fn threads_before_a_frame_from_its_in_port() {
         let mut s = session();
         let a = text_frame(&mut s, [36.0, 300.0, 200.0, 400.0], "story");
-        let b = s.execute("frame.create", &json!({"rect": [36, 36, 200, 120], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
+        let b = s.execute("frame.add", &json!({"rect": [36, 36, 200, 120], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
         // A new first frame.
         s.execute("frame.thread", &json!({"from": a, "to": b, "side": "in"})).unwrap();
         let (_, frames, text) = story(&s, a);
         assert_eq!((frames, text.as_str()), (vec![b, a], "story"));
         // Between the first frame and this one.
-        let c = s.execute("frame.create", &json!({"rect": [300, 36, 500, 120], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
+        let c = s.execute("frame.add", &json!({"rect": [300, 36, 500, 120], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
         s.execute("frame.thread", &json!({"from": a, "to": c, "side": "in"})).unwrap();
         assert_eq!(story(&s, a).1, vec![b, c, a]);
         s.doc().unwrap().doc.check().unwrap();
@@ -410,8 +410,8 @@ mod tests {
     fn port_click_loads_the_cursor_and_a_click_threads() {
         let mut s = session();
         let a = text_frame(&mut s, [100.0, 100.0, 300.0, 200.0], &LONG.repeat(12));
-        let b = s.execute("frame.create", &json!({"rect": [100, 300, 300, 500], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
-        s.execute("selection.set", &json!({"ids": [a]})).unwrap();
+        let b = s.execute("frame.add", &json!({"rect": [100, 300, 300, 500], "content": "unassigned"})).unwrap()["id"].as_u64().unwrap();
+        s.execute("select.set", &json!({"ids": [a]})).unwrap();
         let view = ViewInfo::at_zoom(1.0);
         let off = s.layout().xf(kition_layout_doc::SpreadRef::Doc(0)).translation();
         let at = |x: f64, y: f64, kind| PointerEvent::new(kind, x + off.x, y + off.y);
@@ -459,7 +459,7 @@ mod tests {
         let mut s = session();
         let a = text_frame(&mut s, [100.0, 100.0, 300.0, 200.0], &LONG.repeat(12));
         s.execute("frame.thread", &json!({"from": a, "rect": [100, 300, 300, 500]})).unwrap();
-        s.execute("selection.set", &json!({"ids": [a]})).unwrap();
+        s.execute("select.set", &json!({"ids": [a]})).unwrap();
         let view = ViewInfo::at_zoom(1.0);
         let off = s.layout().xf(kition_layout_doc::SpreadRef::Doc(0)).translation();
         let at = |kind| PointerEvent::new(kind, 300.0 + off.x, 188.0 + off.y);
@@ -470,7 +470,7 @@ mod tests {
         assert_eq!(s.tool_id(), "selection");
         // The Selection tool takes a double-click on a port too.
         let b = s.execute("frame.thread", &json!({"from": a, "rect": [100, 300, 300, 500]})).unwrap()["frame"].as_u64().unwrap();
-        s.execute("selection.set", &json!({"ids": [a]})).unwrap();
+        s.execute("select.set", &json!({"ids": [a]})).unwrap();
         s.pointer(&at(PointerKind::DoubleClick), view).unwrap();
         assert_eq!(story(&s, a).1, vec![a]);
         assert_ne!(story(&s, b).0, story(&s, a).0);
@@ -538,11 +538,11 @@ mod tests {
         let other = text_frame(&mut s, [300.0, 36.0, 500.0, 120.0], "alone");
         let view = ViewInfo::at_zoom(1.0);
         let lines = |s: &mut Session| s.overlays(view).into_iter().filter(|o| matches!(o, kition_layout_tools::Overlay::Line { .. })).count();
-        s.execute("selection.set", &json!({"ids": [a]})).unwrap();
+        s.execute("select.set", &json!({"ids": [a]})).unwrap();
         assert_eq!(lines(&mut s), 0, "off by default");
         assert_eq!(s.execute("view.showTextThreads", &json!({})).unwrap()["on"], true);
         assert_eq!(lines(&mut s), 1);
-        s.execute("selection.set", &json!({"ids": [other]})).unwrap();
+        s.execute("select.set", &json!({"ids": [other]})).unwrap();
         assert_eq!(lines(&mut s), 0, "a story in one frame has no thread");
         assert_eq!(s.execute("view.showTextThreads", &json!({"on": false})).unwrap()["on"], false);
     }
@@ -574,7 +574,7 @@ mod tests {
         s.execute("text.insert", &json!({"text": LONG.repeat(250)})).unwrap();
         let pages = s.doc().unwrap().doc.page_count();
         assert!(pages >= 3, "{pages}");
-        s.execute("selection.set", &json!({"ids": []})).unwrap();
+        s.execute("select.set", &json!({"ids": []})).unwrap();
         s.execute("layout.pages.delete", &json!({"pages": [pages - 1]})).unwrap();
         assert_eq!(s.doc().unwrap().doc.page_count(), pages - 1, "the deleted page stays deleted");
         let frames: Vec<u64> = s.doc().unwrap().doc.story(StoryId(sid)).unwrap().frames.iter().map(|f| f.0).collect();

@@ -12,13 +12,13 @@ fn prepare(f: &Fixture, steps: &[(&str, Value)]) -> Vec<Value> {
 async fn review_delegated_text_consumers_hold_selected_story() {
     for (command, params) in [
         ("condition.apply", json!({"name":"Review"})),
-        ("variables.insert", json!({"name":"Review"})),
+        ("variable.insert", json!({"name":"Review"})),
         ("xml.tagText", json!({"tag":"Review"})),
         ("index.addReference", json!({"topic":"Review"})),
     ] {
         for needed in [true, false] {
             let f = Fixture::new(Guard::Premise);
-            prepare(&f, &[("condition.new", json!({"name":"Review"})), ("variables.define", json!({"name":"Review","text":"Value"}))]);
+            prepare(&f, &[("condition.new", json!({"name":"Review"})), ("variable.define", json!({"name":"Review","text":"Value"}))]);
             let mut selected = f.disk();
             selected.execute("text.select", json!({"story":f.story,"anchor":4,"focus":6})).unwrap();
             let held = selected.under(command, &params).unwrap().unwrap_or_default();
@@ -56,7 +56,7 @@ async fn review_generated_text_holds_source_content() {
             prepare(
                 &f,
                 &[
-                    ("style.paragraph.create", json!({"name":"Review"})),
+                    ("style.paragraph.add", json!({"name":"Review"})),
                     ("text.select", json!({"story":f.story,"anchor":0,"focus":6})),
                     ("style.paragraph.apply", json!({"name":"Review"})),
                     ("index.addReference", json!({"topic":"Review"})),
@@ -97,12 +97,12 @@ async fn review_page_deletion_holds_items_arriving_on_the_page() {
     // after the observation must refuse; an item put on a later spread must not.
     for change in ["created-on-page", "moved-onto-page", "created-elsewhere"] {
         let f = Fixture::new(Guard::Premise);
-        let elsewhere = prepare(&f, &[("frame.create", json!({"rect":[20,20,60,60],"content":"unassigned","spread":3}))]).remove(0);
+        let elsewhere = prepare(&f, &[("frame.add", json!({"rect":[20,20,60,60],"content":"unassigned","spread":3}))]).remove(0);
         let basis = f.basis().await;
         f.colleague(&[match change {
-            "created-on-page" => ("frame.create", json!({"rect":[400,400,440,440],"content":"unassigned"})),
+            "created-on-page" => ("frame.add", json!({"rect":[400,400,440,440],"content":"unassigned"})),
             "moved-onto-page" => ("transform.move", json!({"ids":[elsewhere["id"]],"dx":0,"dy":0,"toSpread":{"kind":"doc","index":0}})),
-            _ => ("frame.create", json!({"rect":[100,100,140,140],"content":"unassigned","spread":4})),
+            _ => ("frame.add", json!({"rect":[100,100,140,140],"content":"unassigned","spread":4})),
         }]);
         expect_conflict_or_apply(&f, basis, "layout.pages.delete", json!({"pages":[0]}), change != "created-elsewhere").await;
         f.close().await;
@@ -117,7 +117,7 @@ async fn review_page_size_holds_items_arriving_on_the_page() {
     // never observed. (At the earlier pin only a deletion of the page's items refused.)
     let f = Fixture::new(Guard::Premise);
     let basis = f.basis().await;
-    f.colleague(&[("frame.create", json!({"rect":[400,400,440,440],"content":"unassigned"}))]);
+    f.colleague(&[("frame.add", json!({"rect":[400,400,440,440],"content":"unassigned"}))]);
     let answer = f.write(basis, "layout.pageSize", json!({"pages":[1],"width":500})).await;
     conflict(&answer.unwrap_err(), "relocated");
     f.close().await;
@@ -188,10 +188,10 @@ async fn list_move_after_deletion_before_its_indices_refuses() {
 #[tokio::test]
 async fn review_settings_written_fields_hold_old_values() {
     for (command, theirs, mine) in [
-        ("document.preferences", json!({"keyboardIncrement":2}), json!({"keyboardIncrement":3})),
+        ("file.preferences", json!({"keyboardIncrement":2}), json!({"keyboardIncrement":3})),
         ("edit.transparencyBlendSpace", json!({"space":"rgb"}), json!({"space":"cmyk"})),
         ("spelling.setWords", json!({"words":["colleagueword"]}), json!({"words":["agentword"]})),
-        ("changes.track", json!({"on":true}), json!({"on":false})),
+        ("change.track", json!({"on":true}), json!({"on":false})),
     ] {
         for needed in [true, false] {
             let f = Fixture::new(Guard::Premise);
@@ -210,7 +210,7 @@ async fn review_reflow_holds_wrap_geometry() {
         let frame = prepare(
             &f,
             &[(
-                "frame.create",
+                "frame.add",
                 json!({"rect":[20,20,250,200],"content":"text","text":"Words that fit around a wrapping object and occupy several lines."}),
             )],
         )
@@ -297,7 +297,7 @@ async fn review_find_change_holds_query_membership_and_target_fields() {
             "membership" => ("object.label", json!({"ids":[f.b],"label":"Review"})),
             _ => ("object.opacity", json!({"ids":[f.c],"opacity":0.25})),
         }]);
-        expect_conflict_or_apply(&f, basis, "find.changeObjects", json!({"label":"Review","change":{"opacity":0.75}}), change != "other").await;
+        expect_conflict_or_apply(&f, basis, "edit.replaceObjects", json!({"label":"Review","change":{"opacity":0.75}}), change != "other").await;
         f.close().await;
     }
 }
@@ -320,7 +320,7 @@ async fn review_joined_fit_and_caret_keep_story_text() {
     for command in ["frame.fitText", "text.placeCaret"] {
         for needed in [true, false] {
             let f = Fixture::new(Guard::Premise);
-            let frame = prepare(&f, &[("frame.create", json!({"rect":[20,200,300,400],"content":"text","text":"Original text"}))]).remove(0);
+            let frame = prepare(&f, &[("frame.add", json!({"rect":[20,200,300,400],"content":"text","text":"Original text"}))]).remove(0);
             let basis = f.basis().await;
             f.colleague(&[if needed {
                 ("story.setText", json!({"story":frame["story"],"text":"Colleague text that is longer than before"}))
@@ -362,7 +362,7 @@ async fn review_joined_page_prefix_keeps_earlier_page_content() {
 async fn review_places_note_identity_and_content() {
     for needed in [true, false] {
         let f = Fixture::new(Guard::Premise);
-        let frame = prepare(&f, &[("frame.create", json!({"rect":[20,200,300,400],"content":"text","text":"Body"}))]).remove(0);
+        let frame = prepare(&f, &[("frame.add", json!({"rect":[20,200,300,400],"content":"text","text":"Body"}))]).remove(0);
         let note = prepare(&f, &[("text.select", json!({"story":frame["story"],"anchor":0})), ("note.new", json!({"text":"Original"}))]).remove(1);
         let basis = f.basis().await;
         f.colleague(&[if needed {
@@ -379,14 +379,14 @@ async fn review_places_note_identity_and_content() {
 async fn review_places_frame_formatting_holds_story_text() {
     for needed in [true, false] {
         let f = Fixture::new(Guard::Premise);
-        let frame = prepare(&f, &[("frame.create", json!({"rect":[20,200,300,400],"content":"text","text":"Original text"}))]).remove(0);
+        let frame = prepare(&f, &[("frame.add", json!({"rect":[20,200,300,400],"content":"text","text":"Original text"}))]).remove(0);
         let basis = f.basis().await;
         f.colleague(&[if needed {
             ("story.replaceRange", json!({"story":frame["story"],"start":0,"end":0,"text":"Earlier "}))
         } else {
             ("object.opacity", json!({"ids":[f.c],"opacity":0.25}))
         }]);
-        let answer = f.call("run", json!({"basis":basis,"steps":[{"command":"type.char","on":[frame["id"]],"params":{"attrs":{"size":18}}}]})).await;
+        let answer = f.call("run", json!({"basis":basis,"steps":[{"command":"text.char","on":[frame["id"]],"params":{"attrs":{"size":18}}}]})).await;
         if needed {
             assert_eq!(answer.as_ref().err().map(|e| &e["error"]["code"]), Some(&json!("conflict")), "{answer:?}");
         } else {
@@ -398,10 +398,10 @@ async fn review_places_frame_formatting_holds_story_text() {
 
 #[tokio::test]
 async fn review_sources_copies_and_outlines_hold_story_content() {
-    for command in ["transform.move", "edit.stepAndRepeat", "type.createOutlines"] {
+    for command in ["transform.move", "edit.stepAndRepeat", "text.convertToOutlines"] {
         for needed in [true, false] {
             let f = Fixture::new(Guard::Premise);
-            let frame = prepare(&f, &[("frame.create", json!({"rect":[20,200,300,400],"content":"text","text":"Original text"}))]).remove(0);
+            let frame = prepare(&f, &[("frame.add", json!({"rect":[20,200,300,400],"content":"text","text":"Original text"}))]).remove(0);
             let basis = f.basis().await;
             f.colleague(&[if needed {
                 ("story.setText", json!({"story":frame["story"],"text":"Colleague text"}))
@@ -423,15 +423,15 @@ async fn review_sources_copies_and_outlines_hold_story_content() {
 async fn review_sources_destructive_groups_hold_descendant_stories() {
     for needed in [true, false] {
         let f = Fixture::new(Guard::Premise);
-        let frame = prepare(&f, &[("frame.create", json!({"rect":[20,200,300,400],"content":"text","text":"Keep colleague text"}))]).remove(0);
-        let group = prepare(&f, &[("object.group", json!({"ids":[frame["id"],f.b]}))]).remove(0)["id"].clone();
+        let frame = prepare(&f, &[("frame.add", json!({"rect":[20,200,300,400],"content":"text","text":"Keep colleague text"}))]).remove(0);
+        let group = prepare(&f, &[("arrange.group", json!({"ids":[frame["id"],f.b]}))]).remove(0)["id"].clone();
         let basis = f.basis().await;
         f.colleague(&[if needed {
             ("story.setText", json!({"story":frame["story"],"text":"Colleague"}))
         } else {
             ("object.opacity", json!({"ids":[f.c],"opacity":0.25}))
         }]);
-        expect_conflict_or_apply(&f, basis, "edit.clear", json!({"ids":[group]}), needed).await;
+        expect_conflict_or_apply(&f, basis, "edit.delete", json!({"ids":[group]}), needed).await;
         f.close().await;
     }
 }
@@ -440,7 +440,7 @@ async fn review_sources_destructive_groups_hold_descendant_stories() {
 async fn review_consumers_font_replacement() {
     for needed in [true, false] {
         let f = Fixture::new(Guard::Premise);
-        prepare(&f, &[("style.paragraph.create", json!({"name":"Font source","chars":{"fontFamily":"ReviewMissing","fontStyle":"Regular"}}))]);
+        prepare(&f, &[("style.paragraph.add", json!({"name":"Font source","chars":{"fontFamily":"ReviewMissing","fontStyle":"Regular"}}))]);
         let basis = f.basis().await;
         f.colleague(&[if needed {
             ("style.paragraph.edit", json!({"name":"Font source","chars":{"fontStyle":"Italic"}}))
@@ -456,15 +456,15 @@ async fn review_consumers_font_replacement() {
 async fn review_consumers_path_text_removal() {
     for needed in [true, false] {
         let f = Fixture::new(Guard::Premise);
-        let frame = prepare(&f, &[("line.create", json!({"a":[20,200],"b":[400,200]}))]).remove(0);
-        let story = prepare(&f, &[("type.onPath", json!({"id":frame["id"],"text":"Do not discard"}))]).remove(0);
+        let frame = prepare(&f, &[("line.add", json!({"a":[20,200],"b":[400,200]}))]).remove(0);
+        let story = prepare(&f, &[("text.onPath", json!({"id":frame["id"],"text":"Do not discard"}))]).remove(0);
         let basis = f.basis().await;
         f.colleague(&[if needed {
             ("story.setText", json!({"story":story["story"],"text":"Colleague"}))
         } else {
             ("object.opacity", json!({"ids":[f.c],"opacity":0.25}))
         }]);
-        expect_conflict_or_apply(&f, basis, "type.pathOptions", json!({"id":frame["id"],"delete":true}), needed).await;
+        expect_conflict_or_apply(&f, basis, "text.pathOptions", json!({"id":frame["id"],"delete":true}), needed).await;
         f.close().await;
     }
 }
@@ -474,7 +474,7 @@ async fn review_consumers_document_replacement() {
     let f = Fixture::new(Guard::Premise);
     let basis = f.basis().await;
     f.colleague(&[("object.opacity", json!({"ids":[f.c],"opacity":0.25}))]);
-    expect_conflict_or_apply(&f, basis, "document.applyTemplate", json!({"template":"event"}), true).await;
+    expect_conflict_or_apply(&f, basis, "file.applyTemplate", json!({"template":"event"}), true).await;
     f.close().await;
 }
 
@@ -486,8 +486,8 @@ async fn review_sources_threading_holds_both_stories() {
             let frames = prepare(
                 &f,
                 &[
-                    ("frame.create", json!({"rect":[20,200,300,400],"content":"text","text":"First"})),
-                    ("frame.create", json!({"rect":[20,420,300,700],"content":"text","text":"Second"})),
+                    ("frame.add", json!({"rect":[20,200,300,400],"content":"text","text":"First"})),
+                    ("frame.add", json!({"rect":[20,420,300,700],"content":"text","text":"Second"})),
                 ],
             );
             if side == "unthread" {
@@ -512,16 +512,16 @@ async fn review_sources_threading_holds_both_stories() {
 
 #[tokio::test]
 async fn review_reflow_holds_used_style_based_on_definitions() {
-    for command in ["type.createOutlines", "frame.fitText"] {
+    for command in ["text.convertToOutlines", "frame.fitText"] {
         for needed in [true, false] {
             let f = Fixture::new(Guard::Premise);
             let frame = prepare(
                 &f,
                 &[
-                    ("frame.create", json!({"rect":[20,200,300,400],"content":"text","text":"Style composition"})),
-                    ("style.paragraph.create", json!({"name":"Composition base","chars":{"size":12}})),
-                    ("style.paragraph.create", json!({"name":"Composition","basedOn":"Composition base"})),
-                    ("style.paragraph.create", json!({"name":"Unused","chars":{"size":12}})),
+                    ("frame.add", json!({"rect":[20,200,300,400],"content":"text","text":"Style composition"})),
+                    ("style.paragraph.add", json!({"name":"Composition base","chars":{"size":12}})),
+                    ("style.paragraph.add", json!({"name":"Composition","basedOn":"Composition base"})),
+                    ("style.paragraph.add", json!({"name":"Unused","chars":{"size":12}})),
                 ],
             )
             .remove(0);
@@ -541,14 +541,14 @@ async fn review_reflow_holds_used_style_based_on_definitions() {
 async fn review_settings_hyperlink_content_is_held() {
     for needed in [true, false] {
         let f = Fixture::new(Guard::Premise);
-        let link = prepare(&f, &[("hyperlink.create", json!({"ids":[f.a],"url":"https://one.example"}))]).remove(0)["ids"][0].clone();
+        let link = prepare(&f, &[("link.add", json!({"ids":[f.a],"url":"https://one.example"}))]).remove(0)["ids"][0].clone();
         let basis = f.basis().await;
         f.colleague(&[if needed {
-            ("hyperlink.edit", json!({"id":link,"url":"https://two.example"}))
+            ("link.edit", json!({"id":link,"url":"https://two.example"}))
         } else {
             ("object.opacity", json!({"ids":[f.c],"opacity":0.25}))
         }]);
-        expect_conflict_or_apply(&f, basis, "hyperlink.edit", json!({"id":link,"url":"https://mine.example"}), needed).await;
+        expect_conflict_or_apply(&f, basis, "link.edit", json!({"id":link,"url":"https://mine.example"}), needed).await;
         f.close().await;
     }
 }
@@ -559,7 +559,7 @@ async fn review_names_style_application_holds_resolution_not_definition() {
         let f = Fixture::new(Guard::Premise);
         let frame = prepare(
             &f,
-            &[("frame.create", json!({"rect":[20,200,300,400],"content":"text","text":"Text"})), ("style.paragraph.create", json!({"name":"A"}))],
+            &[("frame.add", json!({"rect":[20,200,300,400],"content":"text","text":"Text"})), ("style.paragraph.add", json!({"name":"A"}))],
         )
         .remove(0);
         let basis = f.basis().await;
@@ -599,11 +599,9 @@ async fn review_settings_bookmark_index_holds_prefix() {
 async fn review_sources_master_override_holds_copied_story() {
     for needed in [true, false] {
         let f = Fixture::new(Guard::Premise);
-        let source = prepare(
-            &f,
-            &[("frame.create", json!({"spread":{"kind":"parent","index":0},"rect":[20,20,300,200],"content":"text","text":"Master text"}))],
-        )
-        .remove(0);
+        let source =
+            prepare(&f, &[("frame.add", json!({"spread":{"kind":"parent","index":0},"rect":[20,20,300,200],"content":"text","text":"Master text"}))])
+                .remove(0);
         let basis = f.basis().await;
         f.colleague(&[if needed {
             ("story.setText", json!({"story":source["story"],"text":"Colleague master"}))
@@ -619,7 +617,7 @@ async fn review_sources_master_override_holds_copied_story() {
 async fn review_tables_addressed_cells_and_windows() {
     for change in ["target", "other", "row-before", "row-after", "merged"] {
         let f = Fixture::new(Guard::Premise);
-        let frame = prepare(&f, &[("frame.create", json!({"rect":[20,200,500,700],"content":"text","text":""}))]).remove(0);
+        let frame = prepare(&f, &[("frame.add", json!({"rect":[20,200,500,700],"content":"text","text":""}))]).remove(0);
         let table = prepare(
             &f,
             &[
@@ -673,7 +671,7 @@ async fn review_tables_structural_scopes_and_story_anchor() {
     ] {
         for needed in [true, false] {
             let f = Fixture::new(Guard::Premise);
-            let frame = prepare(&f, &[("frame.create", json!({"rect":[20,200,500,700],"content":"text","text":"Before\nAfter"}))]).remove(0);
+            let frame = prepare(&f, &[("frame.add", json!({"rect":[20,200,500,700],"content":"text","text":"Before\nAfter"}))]).remove(0);
             let table =
                 prepare(&f, &[("text.select", json!({"story":frame["story"],"anchor":7})), ("table.insert", json!({"rows":4,"cols":4}))]).remove(1);
             let mut mine = params.clone();
@@ -708,7 +706,7 @@ async fn review_receipt_all_offsets_are_stated() {
     let mut doc = f.disk();
     let mut ids = Vec::new();
     for n in 0..200 {
-        ids.push(doc.execute("frame.create", json!({"rect":[10+n,100,20+n,110],"content":"unassigned"})).unwrap()["id"].clone());
+        ids.push(doc.execute("frame.add", json!({"rect":[10+n,100,20+n,110],"content":"unassigned"})).unwrap()["id"].clone());
     }
     std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
     let receipt = f.write(f.basis().await, "transform.move", json!({"ids":ids,"dx":0.123456789,"dy":0})).await.unwrap();
@@ -737,7 +735,7 @@ async fn review_names_cell_and_table_edits_hold_definition_content() {
     for family in ["cell", "table"] {
         for needed in [true, false] {
             let f = Fixture::new(Guard::Premise);
-            let create = format!("style.{family}.create");
+            let create = format!("style.{family}.add");
             let edit = format!("style.{family}.edit");
             prepare(&f, &[(&create, json!({"name":"Review"}))]);
             let basis = f.basis().await;
@@ -771,7 +769,7 @@ async fn review_settings_named_registers_and_document_options() {
     let mut failures = Vec::new();
     for (command, initial, theirs, mine) in [
         (
-            "variables.define",
+            "variable.define",
             json!({"name":"Review","text":"Initial"}),
             json!({"name":"Review","text":"Theirs"}),
             json!({"name":"Review","text":"Mine"}),
@@ -808,14 +806,14 @@ async fn review_settings_named_registers_and_document_options() {
 
 #[tokio::test]
 async fn review_reflow_point_and_outlines_hold_earlier_thread_geometry() {
-    for command in ["text.placeCaret", "type.createOutlines", "frame.fitText"] {
+    for command in ["text.placeCaret", "text.convertToOutlines", "frame.fitText"] {
         for needed in [true, false] {
             let f = Fixture::new(Guard::Premise);
             let frames = prepare(
                 &f,
                 &[
-                    ("frame.create", json!({"rect":[20,200,200,240],"content":"text","text":"Threaded words ".repeat(30)})),
-                    ("frame.create", json!({"rect":[20,300,200,500],"content":"text","text":""})),
+                    ("frame.add", json!({"rect":[20,200,200,240],"content":"text","text":"Threaded words ".repeat(30)})),
+                    ("frame.add", json!({"rect":[20,300,200,500],"content":"text","text":""})),
                 ],
             );
             prepare(&f, &[("frame.thread", json!({"from":frames[0]["id"],"to":frames[1]["id"]}))]);

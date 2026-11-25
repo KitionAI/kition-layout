@@ -33,26 +33,26 @@ const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwA
 
 /** The states a person meets, each made on the sample layout. */
 const STATES = {
-  nothing: (run) => run('selection.set', { ids: [] }),
+  nothing: (run) => run('select.set', { ids: [] }),
   frame: (run) => {
-    const frame = run('frame.create', { spread: 0, rect: [40, 40, 240, 240], content: 'text', text: 'Kition a\tb\nc\td', caret: false })
-    run('selection.set', { ids: [frame.id] })
+    const frame = run('frame.add', { spread: 0, rect: [40, 40, 240, 240], content: 'text', text: 'Kition a\tb\nc\td', caret: false })
+    run('select.set', { ids: [frame.id] })
   },
   three: (run) => {
-    const ids = [0, 1, 2].map((index) => run('frame.create', { spread: 0, rect: [40 + index * 60, 300, 90 + index * 60, 350], content: 'graphic' }).id)
-    run('selection.set', { ids })
+    const ids = [0, 1, 2].map((index) => run('frame.add', { spread: 0, rect: [40 + index * 60, 300, 90 + index * 60, 350], content: 'graphic' }).id)
+    run('select.set', { ids })
   },
   image: (run) => {
-    const frame = run('frame.create', { spread: 0, rect: [40, 400, 140, 500], content: 'graphic' })
+    const frame = run('frame.add', { spread: 0, rect: [40, 400, 140, 500], content: 'graphic' })
     run('file.place', { base64: PNG, name: 'dot.png', frame: frame.id })
-    run('selection.set', { ids: [frame.id] })
+    run('select.set', { ids: [frame.id] })
   },
   caret: (run) => {
-    const frame = run('frame.create', { spread: 0, rect: [40, 40, 240, 240], content: 'text', text: 'Kition a\tb\nc\td', caret: false })
+    const frame = run('frame.add', { spread: 0, rect: [40, 40, 240, 240], content: 'text', text: 'Kition a\tb\nc\td', caret: false })
     run('text.select', { story: frame.story, anchor: 3, focus: 3 })
   },
   table: (run) => {
-    const frame = run('frame.create', { spread: 0, rect: [40, 40, 240, 240], content: 'text', text: 'Kition', caret: false })
+    const frame = run('frame.add', { spread: 0, rect: [40, 40, 240, 240], content: 'text', text: 'Kition', caret: false })
     run('text.select', { story: frame.story, anchor: 6, focus: 6 })
     run('table.insert', { rows: 2, cols: 2 })
   },
@@ -78,7 +78,7 @@ function click(row, state) {
   try {
     if (layout.disabled.has(command) || contextReason(command, layout.context)) return 'greyed'
     // Find Next with no search yet opens Find/Change.
-    if (!variant && (asks(command) || command === 'find.next')) return 'dialog'
+    if (!variant && (asks(command) || command === 'edit.findNext')) return 'dialog'
     const params = { ...placeParams(command, { page: 0, spread: 0 }), ...variant?.params }
     // In text, Paste takes the system clipboard's text (the editor reads it).
     if (command.startsWith('edit.paste') && layout.context.editingText) params.text = 'clipboard'
@@ -137,7 +137,7 @@ test("every generic dialog's starting values run, once the values a person must 
       const layout = layoutIn(state)
       try {
         // Insert Variable chooses one of the document's variables: there is one.
-        if (command.id === 'variables.insert') layout.run('variables.define', { name: TYPED.name, type: 'custom' })
+        if (command.id === 'variable.insert') layout.run('variable.define', { name: TYPED.name, type: 'custom' })
         if (layout.disabled.has(command.id) || contextReason(command.id, layout.context)) continue
         tried = true
         layout.run(command.id, params)

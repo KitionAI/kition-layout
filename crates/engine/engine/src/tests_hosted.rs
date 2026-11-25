@@ -62,8 +62,8 @@ fn a_hosted_session_writes_reads_and_lists_nothing_by_path() {
     let at = |name: &str| dir.join(name).to_string_lossy().into_owned();
     let mut s = hosted();
     assert!(s.host_files_only());
-    let id = s.execute("frame.create", &json!({"rect": [72, 72, 200, 200], "content": "text", "text": "Hello"})).unwrap()["id"].clone();
-    s.execute("selection.set", &json!({"ids": [id]})).unwrap();
+    let id = s.execute("frame.add", &json!({"rect": [72, 72, 200, 200], "content": "text", "text": "Hello"})).unwrap()["id"].clone();
+    s.execute("select.set", &json!({"ids": [id]})).unwrap();
     let refused: Vec<(&str, Value)> = vec![
         ("file.saveACopy", json!({"path": at("a.klayout")})),
         ("file.save", json!({"path": at("b.klayout")})),
@@ -83,8 +83,8 @@ fn a_hosted_session_writes_reads_and_lists_nothing_by_path() {
         ("file.recovery.list", json!({"dir": dir.to_string_lossy()})),
         ("file.recovery.open", json!({"dir": dir.to_string_lossy()})),
         ("file.package", json!({"dir": at("pkg")})),
-        ("links.copyTo", json!({"dir": at("copies")})),
-        ("links.relinkFolder", json!({"dir": dir.to_string_lossy()})),
+        ("linkedFile.copyTo", json!({"dir": at("copies")})),
+        ("linkedFile.relinkFolder", json!({"dir": dir.to_string_lossy()})),
         ("file.open", json!({"path": at("secret.txt")})),
         ("file.openIdml", json!({"path": at("secret.txt")})),
         ("book.open", json!({"path": at("secret.txt")})),
@@ -115,7 +115,7 @@ fn a_hosted_session_writes_reads_and_lists_nothing_by_path() {
     // What the host lends is placed, by its path in the workspace.
     let placed = s.execute("file.place", &json!({"path": "inside.png", "x": 300, "y": 300})).unwrap();
     assert!(placed["asset"].is_u64(), "{placed}");
-    let links = s.execute("links.list", &json!({})).unwrap();
+    let links = s.execute("linkedFile.list", &json!({})).unwrap();
     assert_eq!(links[0]["status"], "ok", "{links}");
     std::fs::remove_dir_all(&dir).unwrap();
 }
@@ -140,16 +140,16 @@ fn a_hosted_session_reports_links_outside_the_workspace_missing() {
         })
         .unwrap();
     }
-    let listed = s.execute("links.list", &json!({})).unwrap();
+    let listed = s.execute("linkedFile.list", &json!({})).unwrap();
     let status: Vec<&str> = listed.as_array().unwrap().iter().map(|l| l["status"].as_str().unwrap()).collect();
     let mut sorted = status.clone();
     sorted.sort();
     assert_eq!(sorted, ["missing", "ok"], "the link outside is missing, never read: {listed}");
     // Updating, relinking by extension and relinking to the file outside read nothing by path.
-    s.execute("links.update", &json!({})).unwrap();
-    let _ = s.execute("links.relinkFolder", &json!({"extension": "png"}));
+    s.execute("linkedFile.update", &json!({})).unwrap();
+    let _ = s.execute("linkedFile.relinkFolder", &json!({"extension": "png"}));
     let asset = listed.as_array().unwrap().iter().find(|l| l["status"] == "missing").unwrap()["asset"].clone();
-    assert!(s.execute("links.relink", &json!({"asset": asset, "path": dir.join("secret.png").to_string_lossy()})).is_err());
+    assert!(s.execute("linkedFile.relink", &json!({"asset": asset, "path": dir.join("secret.png").to_string_lossy()})).is_err());
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
@@ -220,7 +220,7 @@ fn every_step_an_agent_runs_passes_the_gate() {
         assert!(s.execute_as("file.saveACopy", &json!({"path": copy}), &origin).is_err());
         assert!(s.execute_as("script.run", &json!({"text": step}), &origin).is_err(), "a script's step");
         assert!(s.execute_as("script.run", &nested, &origin).is_err(), "a nested script's step");
-        assert!(s.execute_as("frame.create", &json!({"rect": [72, 72, 100, 100]}), &origin).is_ok(), "what the gate allows runs");
+        assert!(s.execute_as("frame.add", &json!({"rect": [72, 72, 100, 100]}), &origin).is_ok(), "what the gate allows runs");
     }
     assert_eq!(files(&dir), ["secret.png", "secret.txt"]);
     // A person runs what the gate keeps from agents (here, with no host, on the file system).

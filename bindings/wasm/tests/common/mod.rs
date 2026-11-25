@@ -71,7 +71,7 @@ fn attempt(doc: &mut LayoutDocument, command: &str, params: Value) -> Result<boo
     Ok(doc.execute(command, params).is_ok())
 }
 
-/// Every object of every spread as `document.inspect` reports it, depth first, back to front.
+/// Every object of every spread as `file.inspect` reports it, depth first, back to front.
 pub fn objects(doc: &LayoutDocument) -> Vec<Value> {
     fn walk(item: &Value, out: &mut Vec<Value>) {
         out.push(item.clone());
@@ -179,15 +179,15 @@ fn base64(bytes: &[u8]) -> String {
 /// A rectangle frame at (`x`, `y`) on the first spread; answers its id.
 pub fn frame(doc: &mut LayoutDocument, x: u64, y: u64) -> Result<u64> {
     let (x, y) = (20 + x % 520, 300 + y % 400);
-    let made = exec(doc, "frame.create", json!({ "rect": [x, y, x + 40, y + 30], "content": "unassigned" }))?;
-    made["id"].as_u64().ok_or_else(|| format!("frame.create answered {made}"))
+    let made = exec(doc, "frame.add", json!({ "rect": [x, y, x + 40, y + 30], "content": "unassigned" }))?;
+    made["id"].as_u64().ok_or_else(|| format!("frame.add answered {made}"))
 }
 
 /// The layout every scenario starts from: three pages; on the first, a headline text frame of
 /// two paragraphs, two pairs of grouped rectangles, and a loose one with a fill.
 pub fn starting_layout() -> Result<LayoutDocument> {
     let mut doc = LayoutDocument::create(NAME, WIDTH, HEIGHT)?;
-    exec(&mut doc, "frame.create", json!({ "rect": [72, 72, 540, 200], "content": "text", "text": "Spring concert" }))?;
+    exec(&mut doc, "frame.add", json!({ "rect": [72, 72, 540, 200], "content": "text", "text": "Spring concert" }))?;
     let id = story(&doc).ok_or("no story")?;
     exec(&mut doc, "story.setText", json!({ "story": id, "text": "Spring concert\rIn the park at noon" }))?;
     let loose = frame(&mut doc, 0, 0)?;
@@ -195,10 +195,10 @@ pub fn starting_layout() -> Result<LayoutDocument> {
     let a = [frame(&mut doc, 60, 0)?, frame(&mut doc, 120, 0)?];
     let b = [frame(&mut doc, 60, 60)?, frame(&mut doc, 120, 60)?];
     for pair in [a, b] {
-        exec(&mut doc, "object.group", json!({ "ids": pair }))?;
+        exec(&mut doc, "arrange.group", json!({ "ids": pair }))?;
     }
     exec(&mut doc, "layout.pages.insert", json!({ "count": 2 }))?;
-    exec(&mut doc, "selection.set", json!({ "ids": [] }))?;
+    exec(&mut doc, "select.set", json!({ "ids": [] }))?;
     Ok(doc)
 }
 
@@ -258,19 +258,19 @@ impl KitAdapter for LayoutKit {
         let (label, done) = match (rng.below(16), target) {
             (0 | 1, _) => ("frame", frame(doc, value, value / 7).is_ok()),
             (2, Some(id)) => ("fill", attempt(doc, "object.fill", json!({ "ids": [id], "swatch": SWATCHES[value as usize % SWATCHES.len()] }))?),
-            (3, Some(id)) if leaves.len() > 3 => ("delete", attempt(doc, "edit.clear", json!({ "ids": [id] }))?),
+            (3, Some(id)) if leaves.len() > 3 => ("delete", attempt(doc, "edit.delete", json!({ "ids": [id] }))?),
             (4 | 5, Some(id)) => {
                 ("move", attempt(doc, "transform.move", json!({ "ids": [id], "dx": (value % 21) as f64 - 10.0, "dy": (value % 13) as f64 - 6.0 }))?)
             }
             (6, Some(id)) => {
-                exec(doc, "selection.set", json!({ "ids": [id] }))?;
+                exec(doc, "select.set", json!({ "ids": [id] }))?;
                 ("duplicate", attempt(doc, "edit.duplicate", json!({}))?)
             }
             (7, _) => {
                 let tops = tops(doc);
                 let Some(&id) = rng.pick(&tops) else { return Ok(None) };
-                exec(doc, "selection.set", json!({ "ids": [id] }))?;
-                let order = ["object.bringToFront", "object.sendToBack", "object.bringForward", "object.sendBackward"];
+                exec(doc, "select.set", json!({ "ids": [id] }))?;
+                let order = ["arrange.bringToFront", "arrange.sendToBack", "arrange.bringForward", "arrange.sendBackward"];
                 ("arrange", attempt(doc, order[rng.below(order.len())], json!({}))?)
             }
             (8, _) => {
@@ -279,12 +279,12 @@ impl KitAdapter for LayoutKit {
                 if a == b {
                     return Ok(None);
                 }
-                ("group", attempt(doc, "object.group", json!({ "ids": [a, b] }))?)
+                ("group", attempt(doc, "arrange.group", json!({ "ids": [a, b] }))?)
             }
             (9, _) => {
                 let groups = groups(doc);
                 let Some(&group) = rng.pick(&groups) else { return Ok(None) };
-                ("ungroup", attempt(doc, "object.ungroup", json!({ "ids": [group] }))?)
+                ("ungroup", attempt(doc, "arrange.ungroup", json!({ "ids": [group] }))?)
             }
             (10, _) => {
                 let length = story_text(doc)?.map_or(0, |text| text.chars().count());
@@ -331,11 +331,11 @@ impl KitAdapter for LayoutKit {
             }
             Script::Delete => {
                 let id = probe(doc)?;
-                exec(doc, "edit.clear", json!({ "ids": [id] }))?;
+                exec(doc, "edit.delete", json!({ "ids": [id] }))?;
             }
             Script::Duplicate => {
                 let id = probe(doc)?;
-                exec(doc, "selection.set", json!({ "ids": [id] }))?;
+                exec(doc, "select.set", json!({ "ids": [id] }))?;
                 exec(doc, "edit.duplicate", json!({}))?;
             }
             Script::Reorder { which } => {
@@ -356,7 +356,7 @@ impl KitAdapter for LayoutKit {
             }
             _ => return Ok(false),
         }
-        exec(doc, "selection.set", json!({ "ids": [] }))?;
+        exec(doc, "select.set", json!({ "ids": [] }))?;
         Ok(true)
     }
 

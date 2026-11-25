@@ -60,6 +60,27 @@ fn only_after(before: &str, now: &str, end: usize) -> Option<bool> {
     Some(earliest >= end)
 }
 
+/// The `text.` commands that format text (with every `format.` command): they rest on the stories
+/// of the format targets, where the other `text.` commands edit the story of the text selection.
+const FORMATS_TEXT: [&str; 16] = [
+    "text.convertToOutlines",
+    "text.onPath",
+    "text.pathOptions",
+    "text.fillWithPlaceholder",
+    "text.char",
+    "text.para",
+    "text.align",
+    "text.allCaps",
+    "text.tateChuYoko",
+    "text.ruby",
+    "text.kenten",
+    "text.warichu",
+    "text.storyDirection",
+    "text.changeCase",
+    "text.openType",
+    "text.selectionAttrs",
+];
+
 impl LayoutDocument {
     pub(super) fn text_premises(&self, command: &str, params: &Value, under: &mut Under) -> Result<(), String> {
         let state = self.active()?;
@@ -76,18 +97,20 @@ impl LayoutDocument {
             under.covers = Some(Covers { fields: vec!["text".to_owned()] });
             return Ok(());
         }
-        let formatting = command.starts_with("type.")
+        let formats = FORMATS_TEXT.contains(&command);
+        let formatting = command.starts_with("format.")
+            || formats
             || matches!(command, "style.paragraph.apply" | "style.character.apply" | "style.breakLink" | "condition.apply");
-        let editing = command.starts_with("text.")
+        let editing = (command.starts_with("text.") && !formats)
             || matches!(
                 command,
                 "footnote.insert"
                     | "endnote.insert"
                     | "note.new"
-                    | "anchor.create"
+                    | "anchor.add"
                     | "xref.insert"
                     | "anchored.insert"
-                    | "variables.insert"
+                    | "variable.insert"
                     | "xml.tagText"
                     | "index.addReference"
             );
@@ -109,7 +132,7 @@ impl LayoutDocument {
         if editing {
             stories.extend(state.selection.text.map(|text| text.story));
         }
-        if matches!(command, "story.setText" | "story.replaceRange" | "story.setDirection" | "type.fillWithPlaceholder") || editing {
+        if matches!(command, "story.setText" | "story.replaceRange" | "story.setDirection" | "text.fillWithPlaceholder") || editing {
             stories.extend(kition_layout_engine::cmd::text::story_of(&self.session, params));
         }
         stories.sort();

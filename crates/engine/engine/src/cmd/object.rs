@@ -17,7 +17,7 @@ use crate::{Result, Session};
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!(
-            "frame.create",
+            "frame.add",
             "Create Frame",
             [],
             None,
@@ -25,7 +25,7 @@ pub fn specs() -> Vec<CommandSpec> {
             has_doc,
             frame_create
         ),
-        cmd!("line.create", "Create Line", [], None, "{spread?, a: [x,y], b: [x,y]}", has_doc, line_create),
+        cmd!("line.add", "Create Line", [], None, "{spread?, a: [x,y], b: [x,y]}", has_doc, line_create),
         cmd!("transform.move", "Move", ["Object", "Transform"], None, "{dx, dy, copy?: bool, ids?, toSpread?}", has_selection, transform_move),
         cmd!(
             "transform.resize",
@@ -121,16 +121,16 @@ pub fn specs() -> Vec<CommandSpec> {
         ),
         cmd!(query "transform.info", "Transform Values", [], None, "{ids?} → {scaleX, scaleY (%), rotation, shear (°), content?: the same for a placed graphic} of the first target; {x, y, width, height}: the box transform.set measures (top-left, page-relative)", has_selection, transform_info),
         cmd!("object.arrange", "Arrange", ["Object", "Arrange"], None, "{to: front|forward|backward|back, ids?}", has_selection, arrange),
-        cmd!("object.bringToFront", "Bring to Front", ["Object", "Arrange"], Some("Cmd+Shift+]"), "{}", has_selection, |s, _| s
+        cmd!("arrange.bringToFront", "Bring to Front", ["Object", "Arrange"], Some("Cmd+Shift+]"), "{}", has_selection, |s, _| s
             .execute("object.arrange", &json!({"to": "front"}))),
-        cmd!("object.bringForward", "Bring Forward", ["Object", "Arrange"], Some("Cmd+]"), "{}", has_selection, |s, _| s
+        cmd!("arrange.bringForward", "Bring Forward", ["Object", "Arrange"], Some("Cmd+]"), "{}", has_selection, |s, _| s
             .execute("object.arrange", &json!({"to": "forward"}))),
-        cmd!("object.sendBackward", "Send Backward", ["Object", "Arrange"], Some("Cmd+["), "{}", has_selection, |s, _| s
+        cmd!("arrange.sendBackward", "Send Backward", ["Object", "Arrange"], Some("Cmd+["), "{}", has_selection, |s, _| s
             .execute("object.arrange", &json!({"to": "backward"}))),
-        cmd!("object.sendToBack", "Send to Back", ["Object", "Arrange"], Some("Cmd+Shift+["), "{}", has_selection, |s, _| s
+        cmd!("arrange.sendToBack", "Send to Back", ["Object", "Arrange"], Some("Cmd+Shift+["), "{}", has_selection, |s, _| s
             .execute("object.arrange", &json!({"to": "back"}))),
-        cmd!("object.group", "Group", ["Object"], Some("Cmd+G"), "{ids?}", has_selection, group),
-        cmd!("object.ungroup", "Ungroup", ["Object"], Some("Cmd+Shift+G"), "{ids?}", has_selection, ungroup),
+        cmd!("arrange.group", "Group", ["Object"], Some("Cmd+G"), "{ids?}", has_selection, group),
+        cmd!("arrange.ungroup", "Ungroup", ["Object"], Some("Cmd+Shift+G"), "{ids?}", has_selection, ungroup),
         cmd!("object.lock", "Lock", ["Object"], Some("Cmd+L"), "{ids?}", has_selection, |s, p| set_flag(s, p, |i| i.locked = true, true)),
         cmd!("object.unlockAll", "Unlock All on Spread", ["Object"], Some("Cmd+Alt+L"), "{}", has_doc, |s, _| all_flag(s, |i| i.locked = false)),
         cmd!("object.hide", "Hide", ["Object"], Some("Cmd+3"), "{ids?}", has_selection, |s, p| set_flag(s, p, |i| i.hidden = true, true)),
@@ -569,7 +569,7 @@ pub fn specs() -> Vec<CommandSpec> {
             has_selection,
             step_and_repeat
         ),
-        cmd!("path.create", "Create Path", [], None, "{spread?, anchors: [{p:[x,y], in?:[x,y], out?:[x,y]}], closed?: bool}", has_doc, path_create),
+        cmd!("path.add", "Create Path", [], None, "{spread?, anchors: [{p:[x,y], in?:[x,y], out?:[x,y]}], closed?: bool}", has_doc, path_create),
         cmd!("path.appendAnchor", "Add Anchor", [], None, "{id, anchor: {p, in?, out?}} (spread coords)", has_doc, path_append),
         cmd!("path.close", "Close Path", ["Object", "Paths"], None, "{id}", has_doc, path_close),
         cmd!("path.moveAnchors", "Move Anchors", [], None, "{id, anchors: [[subpath, index]], dx, dy, handle?: in|out}", has_doc, path_move_anchors),
@@ -800,7 +800,7 @@ pub fn specs() -> Vec<CommandSpec> {
 }
 
 fn frame_create(s: &mut Session, p: &Value) -> Result<Value> {
-    let rect = rect_param(p, "rect").ok_or_else(|| bad("frame.create", "missing rect"))?;
+    let rect = rect_param(p, "rect").ok_or_else(|| bad("frame.add", "missing rect"))?;
     let shape = str_param(p, "shape").unwrap_or("rectangle");
     // Text given without a content type makes a text frame holding it.
     let content = str_param(p, "content").unwrap_or(if p.get("text").is_some() { "text" } else { "graphic" });
@@ -814,7 +814,7 @@ fn frame_create(s: &mut Session, p: &Value) -> Result<Value> {
     let rect = Rect::new(rect.x0, rect.y0, rect.x1.max(rect.x0 + 0.5), rect.y1.max(rect.y0 + 0.5));
     s.edit(|d, sel| {
         if d.spread(sr).is_none() {
-            return Err(bad("frame.create", "no such spread"));
+            return Err(bad("frame.add", "no such spread"));
         }
         let (path, sh) = match shape {
             "ellipse" | "oval" => (shapes::ellipse(rect), Shape::Oval),
@@ -865,8 +865,8 @@ pub(crate) fn polygon_in(r: Rect, sides: u32, inset: f64) -> kition_layout_geom:
 }
 
 fn line_create(s: &mut Session, p: &Value) -> Result<Value> {
-    let a = point_param(p, "a").ok_or_else(|| bad("line.create", "missing a"))?;
-    let b = point_param(p, "b").ok_or_else(|| bad("line.create", "missing b"))?;
+    let a = point_param(p, "a").ok_or_else(|| bad("line.add", "missing a"))?;
+    let b = point_param(p, "b").ok_or_else(|| bad("line.add", "missing b"))?;
     let sr = spread_param(s, p, "spread")?;
     let lid = s.doc()?.active_layer;
     s.edit(|d, sel| {
@@ -1346,21 +1346,21 @@ fn arrange(s: &mut Session, p: &Value) -> Result<Value> {
 fn group(s: &mut Session, p: &Value) -> Result<Value> {
     let ids = targets(s, p)?;
     if ids.len() < 2 {
-        return Err(bad("object.group", "select at least two objects"));
+        return Err(bad("arrange.group", "select at least two objects"));
     }
     s.edit(|d, sel| {
-        let first = ids.first().copied().ok_or_else(|| bad("object.group", "select at least two objects"))?;
+        let first = ids.first().copied().ok_or_else(|| bad("arrange.group", "select at least two objects"))?;
         let sr = d.find(first).map(|l| l.spread).ok_or(kition_layout_doc::DocError::NoItem(first))?;
         if ids.iter().any(|id| d.find(*id).is_none_or(|loc| loc.spread != sr || loc.path.len() != 1)) {
-            return Err(bad("object.group", "group top-level objects on one spread"));
+            return Err(bad("arrange.group", "group top-level objects on one spread"));
         }
         // Keep stacking order: collect in z-order.
         let order: Vec<ItemId> = d.spread(sr).map(|sp| sp.items.iter().map(|i| i.id).filter(|i| ids.contains(i)).collect()).unwrap_or_default();
         let front = d.spread(sr).and_then(|sp| sp.items.iter().position(|i| Some(&i.id) == order.last())).unwrap_or(0);
-        let first = order.first().copied().ok_or_else(|| bad("object.group", "group top-level objects on one spread"))?;
+        let first = order.first().copied().ok_or_else(|| bad("arrange.group", "group top-level objects on one spread"))?;
         let layer = d.item(first).ok_or(kition_layout_doc::DocError::NoItem(first))?.layer;
         let at =
-            front.checked_add(1).and_then(|front| front.checked_sub(order.len())).ok_or_else(|| bad("object.group", "invalid stacking order"))?;
+            front.checked_add(1).and_then(|front| front.checked_sub(order.len())).ok_or_else(|| bad("arrange.group", "invalid stacking order"))?;
         let mut kids = Vec::new();
         for id in &order {
             kids.push(d.remove_item_keep_story(*id)?);
@@ -1931,7 +1931,7 @@ fn path_create(s: &mut Session, p: &Value) -> Result<Value> {
     let anchors: Vec<kition_layout_geom::Anchor> =
         p.get("anchors").and_then(Value::as_array).map(|a| a.iter().filter_map(anchor_from).collect()).unwrap_or_default();
     if anchors.len() < 2 {
-        return Err(bad("path.create", "a path needs at least two anchors"));
+        return Err(bad("path.add", "a path needs at least two anchors"));
     }
     let closed = bool_or(p, "closed", false);
     let sr = spread_param(s, p, "spread")?;
@@ -2155,15 +2155,15 @@ mod step_repeat_tests {
     fn step_repeat_counts_unique_items_and_group_contents() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = ItemId(s.execute("frame.create", &json!({"rect": [0, 0, 10, 10]})).unwrap()["id"].as_u64().unwrap());
-        let b = ItemId(s.execute("frame.create", &json!({"rect": [20, 0, 30, 10]})).unwrap()["id"].as_u64().unwrap());
-        let c = ItemId(s.execute("frame.create", &json!({"rect": [40, 0, 50, 10]})).unwrap()["id"].as_u64().unwrap());
+        let a = ItemId(s.execute("frame.add", &json!({"rect": [0, 0, 10, 10]})).unwrap()["id"].as_u64().unwrap());
+        let b = ItemId(s.execute("frame.add", &json!({"rect": [20, 0, 30, 10]})).unwrap()["id"].as_u64().unwrap());
+        let c = ItemId(s.execute("frame.add", &json!({"rect": [40, 0, 50, 10]})).unwrap()["id"].as_u64().unwrap());
         let d = &s.doc().unwrap().doc;
         assert_eq!(checked_step_repeat_targets(d, &[a, a], 2, 2).unwrap(), vec![a]);
         assert!(checked_step_repeat_targets(d, &[a, b, c], 1, 2).is_err());
         assert_eq!(s.execute("edit.stepAndRepeat", &json!({"ids": [a.0, a.0], "count": 1})).unwrap()["created"], 1);
 
-        let group = ItemId(s.execute("object.group", &json!({"ids": [a.0, b.0]})).unwrap()["id"].as_u64().unwrap());
+        let group = ItemId(s.execute("arrange.group", &json!({"ids": [a.0, b.0]})).unwrap()["id"].as_u64().unwrap());
         let d = &s.doc().unwrap().doc;
         assert_eq!(checked_step_repeat_targets(d, &[group, group, a], 1, 3).unwrap(), vec![group]);
         assert!(checked_step_repeat_targets(d, &[group, a], 1, 2).is_err());
@@ -2180,7 +2180,7 @@ mod polygon_tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         s.execute("tool.polygonSettings", &json!({"sides": 5, "starInset": 50})).unwrap();
-        let id = s.execute("frame.create", &json!({"rect": [100, 100, 200, 200], "shape": "polygon"})).unwrap()["id"].as_u64().unwrap();
+        let id = s.execute("frame.add", &json!({"rect": [100, 100, 200, 200], "shape": "polygon"})).unwrap()["id"].as_u64().unwrap();
         let d = &s.doc().unwrap().doc;
         let it = d.item(ItemId(id)).unwrap();
         // A 5-point star has 10 vertices, fitted to the rect.
@@ -2188,9 +2188,8 @@ mod polygon_tests {
         let b = it.bounds();
         assert!((b.x0 - 100.0).abs() < 1e-6 && (b.y1 - 200.0).abs() < 1e-6, "{b:?}");
         // Explicit parameters win over the settings.
-        let id = s.execute("frame.create", &json!({"rect": [0, 0, 50, 50], "shape": "polygon", "sides": 3, "starInset": 0})).unwrap()["id"]
-            .as_u64()
-            .unwrap();
+        let id =
+            s.execute("frame.add", &json!({"rect": [0, 0, 50, 50], "shape": "polygon", "sides": 3, "starInset": 0})).unwrap()["id"].as_u64().unwrap();
         assert_eq!(s.doc().unwrap().doc.item(ItemId(id)).unwrap().path.subpaths[0].anchors.len(), 3);
     }
 }
@@ -2203,7 +2202,7 @@ mod scale_tests {
     fn scale_strokes_and_dimensions_with_stroke() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [100, 100, 200, 150]})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [100, 100, 200, 150]})).unwrap();
         let id = ItemId(r["id"].as_u64().unwrap());
         s.execute("object.stroke", &json!({"weight": 4, "swatch": "Black"})).unwrap();
         let weight = |s: &Session| s.doc().unwrap().doc.item(id).unwrap().stroke.weight;
@@ -2232,7 +2231,7 @@ mod gradient_tests {
     fn gradient_tool_vector_and_unnamed_gradients() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [100, 100, 300, 200]})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [100, 100, 300, 200]})).unwrap();
         let id = ItemId(r["id"].as_u64().unwrap());
         let swatches = |s: &Session| s.doc().unwrap().doc.swatches.len();
         let n = swatches(&s);
@@ -2276,7 +2275,7 @@ mod again_tests {
     fn transform_again_sequence_and_clear() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let id = ItemId(s.execute("frame.create", &json!({"rect": [100, 100, 200, 150]})).unwrap()["id"].as_u64().unwrap());
+        let id = ItemId(s.execute("frame.add", &json!({"rect": [100, 100, 200, 150]})).unwrap()["id"].as_u64().unwrap());
         let b = |s: &Session| s.doc().unwrap().doc.item(id).unwrap().bounds();
         assert!(s.execute("transform.again", &json!({})).is_err());
         s.execute("transform.move", &json!({"dx": 10, "dy": 0})).unwrap();
@@ -2313,8 +2312,8 @@ mod label_tests {
     fn script_label_alt_text_and_group_transparency() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [10, 10, 50, 50]})).unwrap()["id"].as_u64().unwrap();
-        let b = s.execute("frame.create", &json!({"rect": [60, 10, 90, 50]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [10, 10, 50, 50]})).unwrap()["id"].as_u64().unwrap();
+        let b = s.execute("frame.add", &json!({"rect": [60, 10, 90, 50]})).unwrap()["id"].as_u64().unwrap();
         s.execute("object.label", &json!({"label": "price", "ids": [a, b]})).unwrap();
         s.execute("object.altText", &json!({"text": "A red square", "ids": [a]})).unwrap();
         assert_eq!(s.execute("object.findByLabel", &json!({"label": "price"})).unwrap()["ids"], json!([a, b]));
@@ -2336,7 +2335,7 @@ mod light_tests {
     fn global_light_moves_shadows_that_use_it() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [10, 10, 50, 50]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [10, 10, 50, 50]})).unwrap()["id"].as_u64().unwrap();
         s.execute("object.dropShadow", &json!({"on": true, "angle": 45, "ids": [a]})).unwrap();
         let angle = |s: &Session| {
             let d = &s.doc().unwrap().doc;
@@ -2360,7 +2359,7 @@ mod transform_values_tests {
     fn absolute_rotation_shear_and_totals() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [100, 100, 200, 150]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [100, 100, 200, 150]})).unwrap()["id"].as_u64().unwrap();
         let info = |s: &mut Session, id: u64| s.execute("transform.info", &json!({"ids": [id]})).unwrap();
         let centre = |s: &Session| s.doc().unwrap().doc.item(ItemId(a)).unwrap().bounds().center();
         let c0 = centre(&s);
@@ -2373,8 +2372,8 @@ mod transform_values_tests {
         assert_eq!((i["rotation"].as_f64(), i["shear"].as_f64()), (Some(30.0), Some(20.0)));
         assert_eq!(i["scaleX"], 100.0);
         // Nested: a group rotated 10° around the rotated frame.
-        let b = s.execute("frame.create", &json!({"rect": [300, 100, 350, 150]})).unwrap()["id"].as_u64().unwrap();
-        let g = s.execute("object.group", &json!({"ids": [a, b]})).unwrap()["id"].as_u64().unwrap();
+        let b = s.execute("frame.add", &json!({"rect": [300, 100, 350, 150]})).unwrap()["id"].as_u64().unwrap();
+        let g = s.execute("arrange.group", &json!({"ids": [a, b]})).unwrap()["id"].as_u64().unwrap();
         s.execute("transform.rotate", &json!({"angle": 10, "ids": [g]})).unwrap();
         assert_eq!(info(&mut s, a)["rotation"], 40.0, "totals");
         s.execute("prefs.set", &json!({"transformationsAreTotals": false})).unwrap();
@@ -2396,7 +2395,7 @@ mod attributes_tests {
     fn attributes_panel_flags() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [10, 10, 50, 50]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [10, 10, 50, 50]})).unwrap()["id"].as_u64().unwrap();
         s.execute("object.attributes", &json!({"overprintFill": true, "overprintGap": true, "nonprinting": true})).unwrap();
         let it = s.doc().unwrap().doc.item(ItemId(a)).unwrap().clone();
         assert!(it.fill.overprint && it.stroke.gap_overprint && it.nonprinting && !it.stroke.overprint);
@@ -2416,9 +2415,9 @@ mod fitting_tests {
     fn separations_come_from_source_colours() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let c = s.execute("frame.create", &json!({"rect": [100, 100, 200, 200]})).unwrap()["id"].clone();
+        let c = s.execute("frame.add", &json!({"rect": [100, 100, 200, 200]})).unwrap()["id"].clone();
         s.execute("object.fill", &json!({"swatch": "C=100 M=0 Y=0 K=0", "ids": [c]})).unwrap();
-        let k = s.execute("frame.create", &json!({"rect": [300, 100, 400, 200]})).unwrap()["id"].clone();
+        let k = s.execute("frame.add", &json!({"rect": [300, 100, 400, 200]})).unwrap()["id"].clone();
         s.execute("object.fill", &json!({"swatch": "[Black]", "ids": [k]})).unwrap();
         let d = s.doc().unwrap().doc.clone();
         let plate = |p: u8| {
@@ -2437,7 +2436,7 @@ mod fitting_tests {
     fn inner_glow_bevel_and_satin_change_the_inside() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let id = s.execute("frame.create", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].clone();
+        let id = s.execute("frame.add", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].clone();
         s.execute("object.fill", &json!({"swatch": "C=100 M=0 Y=0 K=0", "ids": [id]})).unwrap();
         let shot = |s: &Session| {
             let d = s.doc().unwrap().doc.clone();
@@ -2473,9 +2472,9 @@ mod fitting_tests {
         assert!(df.pixel(102, 200)[0] > 200, "left edge faded to paper: {:?}", df.pixel(102, 200));
         assert_eq!(df.pixel(298, 200), plain.pixel(298, 200), "right edge untouched");
         // A knockout group exports as an image too.
-        let other = s.execute("frame.create", &json!({"rect": [400, 100, 450, 150]})).unwrap()["id"].clone();
-        let other2 = s.execute("frame.create", &json!({"rect": [420, 120, 470, 170]})).unwrap()["id"].clone();
-        let g = s.execute("object.group", &json!({"ids": [other, other2]})).unwrap()["id"].clone();
+        let other = s.execute("frame.add", &json!({"rect": [400, 100, 450, 150]})).unwrap()["id"].clone();
+        let other2 = s.execute("frame.add", &json!({"rect": [420, 120, 470, 170]})).unwrap()["id"].clone();
+        let g = s.execute("arrange.group", &json!({"ids": [other, other2]})).unwrap()["id"].clone();
         s.execute("object.transparencyGroup", &json!({"ids": [g], "knockout": true})).unwrap();
         let r = s.execute("file.exportPdf", &json!({})).unwrap();
         assert!(r["warnings"].as_array().unwrap().iter().any(|w| w.as_str().unwrap().contains("2 object(s)")), "{r}");
@@ -2490,8 +2489,8 @@ mod fitting_tests {
     fn live_distribute_spreads_objects_without_resizing() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [100, 100, 120, 120]})).unwrap()["id"].as_u64().unwrap();
-        let b = s.execute("frame.create", &json!({"rect": [180, 100, 200, 120]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [100, 100, 120, 120]})).unwrap()["id"].as_u64().unwrap();
+        let b = s.execute("frame.add", &json!({"rect": [180, 100, 200, 120]})).unwrap()["id"].as_u64().unwrap();
         s.execute("transform.resize", &json!({"ids": [a, b], "from": [100, 100, 200, 120], "to": [100, 100, 300, 120], "distribute": true})).unwrap();
         let d = &s.doc().unwrap().doc;
         let (ra, rb) = (d.item(ItemId(a)).unwrap().bounds(), d.item(ItemId(b)).unwrap().bounds());
@@ -2506,7 +2505,7 @@ mod fitting_tests {
         s.execute("file.new", &json!({})).unwrap();
         // A 40×20 pt image placed into a 200×200 frame.
         let png = kition_layout_render::Rendered { width: 40, height: 20, pixels: vec![200; 40 * 20 * 4] }.to_png();
-        let f = s.execute("frame.create", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].as_u64().unwrap();
+        let f = s.execute("frame.add", &json!({"rect": [100, 100, 300, 300]})).unwrap()["id"].as_u64().unwrap();
         s.execute("file.place", &json!({"base64": super::super::file::base64_encode(&png), "name": "a.png", "frame": f})).unwrap();
         let content = |s: &Session| {
             let it = s.doc().unwrap().doc.item(ItemId(f)).unwrap().clone();
@@ -2541,13 +2540,13 @@ mod primary_frame_tests {
     fn toggle_primary_text_frame() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 300, 300], "content": "text", "text": "x", "caret": false})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 300, 300], "content": "text", "text": "x", "caret": false})).unwrap();
         let sid = r["story"].as_u64().unwrap();
         s.execute("object.primaryTextFrame", &json!({})).unwrap();
         assert_eq!(s.doc().unwrap().doc.settings.primary_story.map(|x| x.0), Some(sid));
         s.execute("object.primaryTextFrame", &json!({})).unwrap();
         assert_eq!(s.doc().unwrap().doc.settings.primary_story, None, "toggles off");
-        let g = s.execute("frame.create", &json!({"rect": [0, 0, 10, 10]})).unwrap()["id"].clone();
+        let g = s.execute("frame.add", &json!({"rect": [0, 0, 10, 10]})).unwrap()["id"].clone();
         assert!(s.execute("object.primaryTextFrame", &json!({"ids": [g]})).is_err());
     }
 }
@@ -2571,7 +2570,7 @@ mod clipping_tests {
             }
         }
         let png = kition_layout_render::Rendered { width: 40, height: 40, pixels: px }.to_png();
-        let f = s.execute("frame.create", &json!({"rect": [100, 100, 140, 140]})).unwrap()["id"].as_u64().unwrap();
+        let f = s.execute("frame.add", &json!({"rect": [100, 100, 140, 140]})).unwrap()["id"].as_u64().unwrap();
         s.execute("file.place", &json!({"base64": super::super::file::base64_encode(&png), "name": "disc.png", "frame": f})).unwrap();
         s.execute("object.clippingPath", &json!({"ids": [f], "tolerance": 0.5})).unwrap();
         let it = s.doc().unwrap().doc.item(ItemId(f)).unwrap().clone();
@@ -2591,8 +2590,8 @@ mod gap_tests {
     fn moving_a_gap_resizes_both_sides() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [100, 100, 200, 300]})).unwrap()["id"].as_u64().unwrap();
-        let b = s.execute("frame.create", &json!({"rect": [220, 100, 320, 300]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [100, 100, 200, 300]})).unwrap()["id"].as_u64().unwrap();
+        let b = s.execute("frame.add", &json!({"rect": [220, 100, 320, 300]})).unwrap()["id"].as_u64().unwrap();
         let r = s.execute("gap.move", &json!({"at": [210, 200], "delta": 30})).unwrap();
         assert_eq!((r["axis"].as_str(), r["changed"].as_u64()), (Some("x"), Some(2)));
         let bb = |s: &Session, id: u64| s.doc().unwrap().doc.item(ItemId(id)).unwrap().bounds();
@@ -2611,7 +2610,7 @@ mod line_end_tests {
     fn carriage_returns_separate_paragraphs() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [36, 36, 300, 300], "content": "text", "text": "One\rTwo\r\nThree"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [36, 36, 300, 300], "content": "text", "text": "One\rTwo\r\nThree"})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let story = |s: &Session| s.doc().unwrap().doc.story(sid).unwrap().clone();
         assert_eq!(story(&s).text, "One\nTwo\nThree");
@@ -2633,8 +2632,8 @@ mod named_target_tests {
     fn ids_act_without_a_selection() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [36, 36, 300, 300], "content": "text", "text": "Hello"})).unwrap();
-        assert!(s.doc().unwrap().selection.items.is_empty(), "frame.create leaves a text caret");
+        let r = s.execute("frame.add", &json!({"rect": [36, 36, 300, 300], "content": "text", "text": "Hello"})).unwrap();
+        assert!(s.doc().unwrap().selection.items.is_empty(), "frame.add leaves a text caret");
         let e = s.execute("object.textFrameOptions", &json!({"columns": 2})).unwrap_err().to_string();
         assert!(e.contains("nothing selected"), "{e}");
         s.execute("object.textFrameOptions", &json!({"ids": [r["id"]], "columns": 2})).unwrap();
@@ -2662,7 +2661,7 @@ mod column_rule_tests {
     fn column_rules_set_validate_undo_and_inspect() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [36, 36, 300, 300], "content": "text", "text": "Hello"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [36, 36, 300, 300], "content": "text", "text": "Hello"})).unwrap();
         let id = ItemId(r["id"].as_u64().unwrap());
         let opts = |s: &Session| s.doc().unwrap().doc.item(id).unwrap().text_frame().unwrap().options.clone();
         s.execute("object.textFrameOptions", &json!({"ids": [id.0], "columns": 3, "inset": [1, 2, 3, 4]})).unwrap();
@@ -2684,7 +2683,7 @@ mod column_rule_tests {
         assert!(o.column_rule && o.column_rule_weight == 0.5 && o.column_rule_color == "C=100 M=0 Y=0 K=0");
         assert_eq!(o.inset, [1.0, 2.0, 3.0, 4.0], "untouched options stay");
         assert_eq!((o.column_rule_tint, o.column_rule_offset, o.column_rule_top_inset, o.column_rule_bottom_inset), (0.5, -2.0, 4.0, 6.0));
-        let item = s.execute("document.inspect", &json!({})).unwrap()["spreads"][0]["items"]
+        let item = s.execute("file.inspect", &json!({})).unwrap()["spreads"][0]["items"]
             .as_array()
             .unwrap()
             .iter()
@@ -2719,7 +2718,7 @@ mod blend_mode_tests {
     fn lowercase_documented_blend_modes_apply() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [36, 36, 300, 300], "content": "unassigned"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [36, 36, 300, 300], "content": "unassigned"})).unwrap();
         let id = ItemId(r["id"].as_u64().unwrap());
         let blend = |s: &Session| s.doc().unwrap().doc.item(id).map(|i| i.blend);
 
@@ -2744,7 +2743,7 @@ mod blend_mode_tests {
     fn pascal_case_blend_modes_still_apply() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [36, 36, 300, 300], "content": "unassigned"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [36, 36, 300, 300], "content": "unassigned"})).unwrap();
         let id = ItemId(r["id"].as_u64().unwrap());
         s.execute("object.opacity", &json!({"opacity": 0.5, "blend": "Multiply"})).unwrap();
         let it = s.doc().unwrap().doc.item(id).cloned().unwrap();
@@ -2758,7 +2757,7 @@ mod blend_mode_tests {
     fn an_unknown_blend_mode_is_an_error() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [36, 36, 300, 300], "content": "unassigned"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [36, 36, 300, 300], "content": "unassigned"})).unwrap();
         let id = ItemId(r["id"].as_u64().unwrap());
         s.execute("object.opacity", &json!({"opacity": 1, "blend": "Multiply"})).unwrap();
         let e = s.execute("object.opacity", &json!({"opacity": 1, "blend": "sparkle"})).unwrap_err().to_string();
@@ -2773,18 +2772,18 @@ mod blend_mode_tests {
 mod frame_text_tests {
     use super::*;
 
-    /// `frame.create` given `text` and no `content` makes a text frame holding it, rather than an
+    /// `frame.add` given `text` and no `content` makes a text frame holding it, rather than an
     /// empty graphic frame that drops the text (issue-frame-create-text: Kition One's co-editing
     /// cases make this edit).
     #[test]
     fn frame_create_with_text_makes_a_text_frame_holding_it() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let made = s.execute("frame.create", &json!({"rect": [20, 20, 120, 80], "text": "ann"})).unwrap();
+        let made = s.execute("frame.add", &json!({"rect": [20, 20, 120, 80], "text": "ann"})).unwrap();
         let story = made["story"].as_u64().expect("a text frame, with its story");
         assert_eq!(s.execute("story.get", &json!({"story": story})).unwrap()["text"], "ann");
         // Without text, the frame is a graphic frame as before.
-        let plain = s.execute("frame.create", &json!({"rect": [20, 100, 120, 160]})).unwrap();
+        let plain = s.execute("frame.add", &json!({"rect": [20, 100, 120, 160]})).unwrap();
         assert!(plain.get("story").is_none());
     }
 }

@@ -8,8 +8,8 @@ use kition_kit::kdm::{ObjectId, Replica, tool_ids::ToolIds};
 use serde_json::Value;
 
 const ITEMS: &[&str] = &[
-    "selection.set",
-    "edit.clear",
+    "select.set",
+    "edit.delete",
     "transform.move",
     "transform.resize",
     "transform.rotate",
@@ -22,8 +22,8 @@ const ITEMS: &[&str] = &[
     "transform.set",
     "transform.info",
     "object.arrange",
-    "object.group",
-    "object.ungroup",
+    "arrange.group",
+    "arrange.ungroup",
     "object.lock",
     "object.hide",
     "object.setFlags",
@@ -61,7 +61,7 @@ const ITEMS: &[&str] = &[
     "article.remove",
     "object.makeCompoundPath",
     "object.releaseCompoundPath",
-    "type.createOutlines",
+    "text.convertToOutlines",
     "object.pathfinder",
     "object.gradientFeather",
     "button.set",
@@ -74,18 +74,18 @@ const ITEMS: &[&str] = &[
     "object.layerOptions",
     "liquid.object",
     "xml.tag",
-    "states.create",
+    "state.add",
     "object.convertShape",
     "style.object.apply",
     "object.gradient",
     "object.color",
     "layout.overrideParentItems",
     "anchored.insert",
-    "hyperlink.create",
+    "link.add",
 ];
 
 const ITEM: &[&str] = &[
-    "selection.toggle",
+    "select.toggle",
     "edit.pasteInto",
     "object.rename",
     "path.appendAnchor",
@@ -100,13 +100,13 @@ const ITEM: &[&str] = &[
     "math.insert",
     "media.get",
     "object.pdfLayers",
-    "states.create",
-    "states.list",
-    "states.show",
-    "states.rename",
-    "states.release",
-    "type.onPath",
-    "type.pathOptions",
+    "state.add",
+    "state.list",
+    "state.show",
+    "state.rename",
+    "state.release",
+    "text.onPath",
+    "text.pathOptions",
 ];
 
 const STORIES: &[&str] = &[
@@ -116,10 +116,10 @@ const STORIES: &[&str] = &[
     "note.edit",
     "note.delete",
     "note.convertToText",
-    "changes.accept",
-    "changes.reject",
-    "changes.acceptAll",
-    "changes.rejectAll",
+    "change.accept",
+    "change.reject",
+    "change.acceptAll",
+    "change.rejectAll",
     "condition.apply",
     "story.placeAndLink",
     "story.updateLink",
@@ -129,7 +129,7 @@ const STORIES: &[&str] = &[
     "story.setText",
     "story.replaceRange",
     "story.get",
-    "type.fillWithPlaceholder",
+    "text.fillWithPlaceholder",
     "style.cell.apply",
     "style.table.apply",
     "table.convertToText",
@@ -153,9 +153,9 @@ const STORIES: &[&str] = &[
     "table.distributeRows",
     "table.select",
     "table.get",
-    "find.find",
-    "find.change",
-    "find.next",
+    "edit.find",
+    "edit.replace",
+    "edit.findNext",
     "footnote.list",
     "footnote.setText",
     "footnote.delete",
@@ -178,16 +178,16 @@ const STORIES: &[&str] = &[
     "liquid.pageRule",
     "strokeStyle.new",
     "page.transition",
-    "links.copyTo",
+    "linkedFile.copyTo",
     "style.compositeFont.set",
     "swatch.save",
     "ink.options",
     "layout.marginsAndColumns",
     "layout.overrideParentItems",
     "prefs.set",
-    "layout.createGuides",
-    "links.update",
-    "find.next",
+    "layout.addGuides",
+    "linkedFile.update",
+    "edit.findNext",
     "xref.setFormat",
 ];
 
@@ -197,9 +197,9 @@ pub(crate) const SPREAD_PLACES: &[&str] = &[
     "snippet.place",
     "place.drop",
     "file.place",
-    "frame.create",
-    "line.create",
-    "path.create",
+    "frame.add",
+    "line.add",
+    "path.add",
     "frame.grid",
     "gap.move",
     "frame.thread",
@@ -211,7 +211,7 @@ pub(crate) const SPREAD_PLACES: &[&str] = &[
     "guide.add",
     "guide.deleteAll",
     "guide.list",
-    "layout.createGuides",
+    "layout.addGuides",
     "page.transition",
 ];
 
@@ -227,7 +227,7 @@ const FRAMES: &[&str] = &[
     "text.selectWord",
     "story.setDirection",
     "story.get",
-    "type.fillWithPlaceholder",
+    "text.fillWithPlaceholder",
     "table.dropCells",
 ];
 
@@ -267,7 +267,7 @@ fn declaration(command: &KitCommand) -> Declaration {
         "frame.thread" => parameters.extend([("from", &["Item"][..], false), ("to", &["Item"][..], false)]),
         "object.matchAttributes" => parameters.push(("from", &["Item"], false)),
         "object.setLayer" => parameters.push(("layer", &["Layer"], false)),
-        "find.objects" | "find.changeObjects" => parameters.push(("layer", &["Layer"], true)),
+        "edit.findObjects" | "edit.replaceObjects" => parameters.push(("layer", &["Layer"], true)),
         "layout.pages.applyParent" | "layout.pages.insert" => parameters.push(("parent", &["Spread"], true)),
         "layer.move" | "layer.selectItems" | "layer.set" | "layer.delete" | "layer.others" | "layer.activate" => {
             targets = Some("id");
@@ -279,10 +279,10 @@ fn declaration(command: &KitCommand) -> Declaration {
             parameters.push(("into", &["Layer"], false));
         }
         "article.options" => parameters.push(("order", &["Item"], false)),
-        "links.copyTo" => parameters.extend([("asset", &["Asset"][..], false), ("assets", &["Asset"][..], false)]),
-        "links.relinkFolder" => parameters.push(("assets", &["Asset"], false)),
+        "linkedFile.copyTo" => parameters.extend([("asset", &["Asset"][..], false), ("assets", &["Asset"][..], false)]),
+        "linkedFile.relinkFolder" => parameters.push(("assets", &["Asset"], false)),
         "data.placeholder.add" => parameters.push(("item", &["Item"], false)),
-        "links.relink" | "links.update" | "links.embed" | "links.goTo" | "toc.update" | "index.update" | "data.source.update" => {
+        "linkedFile.relink" | "linkedFile.update" | "linkedFile.embed" | "linkedFile.goTo" | "toc.update" | "index.update" | "data.source.update" => {
             parameters.push(("asset", &["Asset"], false))
         }
         _ => {}
@@ -297,13 +297,13 @@ fn declaration(command: &KitCommand) -> Declaration {
         | "note.edit"
         | "note.delete"
         | "note.convertToText"
-        | "hyperlink.edit"
-        | "hyperlink.delete"
-        | "hyperlink.goToSource"
+        | "link.edit"
+        | "link.delete"
+        | "link.goToSource"
         | "data.placeholder.remove" => places.push("id"),
         _ => {}
     }
-    if (id.starts_with("table.") || matches!(id, "style.cell.create" | "style.cell.apply" | "style.table.apply"))
+    if (id.starts_with("table.") || matches!(id, "style.cell.add" | "style.cell.apply" | "style.table.apply"))
         && command.schema.as_ref().and_then(|schema| schema.get("table")).is_some()
     {
         places.extend(["table", "row", "col", "rows", "cols"]);
@@ -318,13 +318,13 @@ fn declaration(command: &KitCommand) -> Declaration {
         "layer.move" => places.push("to"),
         // Positions inside an object a premise holds whole (an item's path or states, a
         // story's anchored objects or cross-references, a table's rows) or a page/spread number.
-        "states.show" | "states.rename" | "anchored.options" | "anchored.release" | "xref.setFormat" => places.push("index"),
+        "state.show" | "state.rename" | "anchored.options" | "anchored.release" | "xref.setFormat" => places.push("index"),
         "path.deleteAnchor" | "path.convertAnchor" => places.extend(["anchor", "subpath"]),
         "table.moveRow" | "table.moveColumn" => places.extend(["from", "to"]),
         "table.sortRows" => places.push("column"),
         "text.select" => places.extend(["anchor", "focus"]),
         "frame.thread" => places.extend(["page", "at"]),
-        "button.set" | "toc.generate" | "index.generate" | "guide.add" | "layout.createGuides" | "file.place" => places.push("page"),
+        "button.set" | "toc.generate" | "index.generate" | "guide.add" | "layout.addGuides" | "file.place" => places.push("page"),
         "page.transition" | "file.exportPdf" | "file.exportImage" | "file.exportBytes" | "liquid.pageRule" | "page.background" => {
             places.push("pages")
         }
@@ -340,7 +340,7 @@ fn declaration(command: &KitCommand) -> Declaration {
         "layout.deleteAlternate" => places.push("name"),
         // The layer is also the place of the items its deletion deletes, told by `covers`.
         "layer.delete" => places.push("id"),
-        "find.changeObjects" => places.push("change"),
+        "edit.replaceObjects" => places.push("change"),
         "bookmark.rename" | "bookmark.delete" => places.push("index"),
         "xref.insert" => places.extend(["anchor", "para", "paragraph"]),
         "layout.pages.insert" => places.push("after"),
@@ -355,8 +355,8 @@ fn declaration(command: &KitCommand) -> Declaration {
         | "layout.removeOverrides"
         | "layout.detachAll"
         | "bookmark.add"
-        | "hyperlink.create"
-        | "hyperlink.edit" => places.push("page"),
+        | "link.add"
+        | "link.edit" => places.push("page"),
         _ => {}
     }
     // Swatches are one namespace. Styles have five; UUID execution validates the family below,
@@ -407,8 +407,8 @@ fn declaration(command: &KitCommand) -> Declaration {
     // CharAttrs and ParaAttrs are accepted both directly and under `attrs` by the text
     // handlers, and under `chars` / `para` by the style handlers.
     let chars: &[&str] = match id {
-        "type.char" => &["", "attrs."],
-        "style.paragraph.create" | "style.paragraph.edit" | "style.character.create" | "style.character.edit" => &["chars."],
+        "text.char" => &["", "attrs."],
+        "style.paragraph.add" | "style.paragraph.edit" | "style.character.add" | "style.character.edit" => &["chars."],
         _ => &[],
     };
     for prefix in chars {
@@ -417,8 +417,8 @@ fn declaration(command: &KitCommand) -> Declaration {
         }
     }
     let paras: &[&str] = match id {
-        "type.para" => &["", "attrs."],
-        "style.paragraph.create" | "style.paragraph.edit" => &["para."],
+        "text.para" => &["", "attrs."],
+        "style.paragraph.add" | "style.paragraph.edit" => &["para."],
         _ => &[],
     };
     for prefix in paras {
@@ -430,19 +430,19 @@ fn declaration(command: &KitCommand) -> Declaration {
         }
     }
     match id {
-        "style.paragraph.create" | "style.paragraph.edit" => {
+        "style.paragraph.add" | "style.paragraph.edit" => {
             name("basedOn", &["Style"]);
             name("nextStyle", &["Style"]);
         }
-        "style.character.create" | "style.character.edit" | "style.table.create" => name("basedOn", &["Style"]),
+        "style.character.add" | "style.character.edit" | "style.table.add" => name("basedOn", &["Style"]),
         "style.paragraph.delete" | "style.character.delete" => name("replaceWith", &["Style"]),
-        "style.object.create" | "style.cell.create" | "style.cell.edit" => {
+        "style.object.add" | "style.cell.add" | "style.cell.edit" => {
             name("fill", &["Swatch"]);
             name("paragraphStyle", &["Style"]);
         }
         _ => {}
     }
-    if matches!(id, "style.table.create" | "style.table.edit") {
+    if matches!(id, "style.table.add" | "style.table.edit") {
         for field in ["header", "body", "footer", "leftColumn", "rightColumn"] {
             name(field, &["Style"]);
         }
@@ -454,10 +454,10 @@ fn declaration(command: &KitCommand) -> Declaration {
         }
     }
     match id {
-        "find.objects" | "find.changeObjects" => {
+        "edit.findObjects" | "edit.replaceObjects" => {
             name("fill", &["Swatch"]);
             name("stroke", &["Swatch"]);
-            if id == "find.changeObjects" {
+            if id == "edit.replaceObjects" {
                 name("change.fill", &["Swatch"]);
                 name("change.stroke", &["Swatch"]);
             }
@@ -480,7 +480,7 @@ fn declaration(command: &KitCommand) -> Declaration {
                 name(path, &["Swatch"]);
             }
         }
-        "style.cell.create" | "style.cell.edit" => name("stroke.color", &["Swatch"]),
+        "style.cell.add" | "style.cell.edit" => name("stroke.color", &["Swatch"]),
         _ => {}
     }
     let names = parameters
@@ -538,26 +538,29 @@ fn declare_reads(command: &mut KitCommand) {
     let id = command.id.as_str();
     // C8-layout-read-3: these set a selection, or a document setting, without reading one: the
     // path text's target is its `id` (cmd/path_type.rs), the blend space a parameter (cmd/prefs.rs).
-    let writes_selection_only = matches!(id, "edit.transparencyBlendSpace" | "type.onPath");
+    let writes_selection_only = matches!(id, "edit.transparencyBlendSpace" | "text.onPath");
+    // Find and the two object searches declare no selection read; `edit.` below does not take them.
+    let search = matches!(id, "edit.find" | "edit.findObjects" | "edit.replaceObjects");
     let selection = !writes_selection_only
+        && !search
         && (ITEMS.contains(&id)
             || [
                 "text.",
-                "type.",
+                "format.",
                 "select.",
                 "table.",
                 "style.paragraph.apply",
                 "style.character.apply",
                 "edit.",
-                "anchor.create",
+                "anchor.add",
                 "xref.insert",
                 "object.qrCode",
                 "footnote.insert",
                 "footnote.goToReference",
                 "endnote.insert",
                 "note.new",
-                "style.paragraph.create",
-                "style.object.create",
+                "style.paragraph.add",
+                "style.object.add",
                 "object.rename",
             ]
             .iter()
@@ -567,9 +570,9 @@ fn declare_reads(command: &mut KitCommand) {
                 "data.placeholder.add"
                     | "math.insert"
                     | "script.run"
-                    | "states.show"
-                    | "states.rename"
-                    | "states.release"
+                    | "state.show"
+                    | "state.rename"
+                    | "state.release"
                     | "xml.tagText"
                     | "layout.pages.delete"
                     | "layout.removeOverrides"
@@ -577,40 +580,40 @@ fn declare_reads(command: &mut KitCommand) {
                     | "layout.deleteAlternate"
                     | "file.place"
                     | "file.exportText"
-                    | "object.bringToFront"
-                    | "object.bringForward"
-                    | "object.sendBackward"
-                    | "object.sendToBack"
-                    | "selection.toggle"
+                    | "arrange.bringToFront"
+                    | "arrange.bringForward"
+                    | "arrange.sendBackward"
+                    | "arrange.sendToBack"
+                    | "select.toggle"
                     | "anchored.options"
                     | "anchored.release"
                     | "library.add"
-                    | "changes.accept"
-                    | "changes.reject"
-                    | "changes.acceptAll"
-                    | "changes.rejectAll"
+                    | "change.accept"
+                    | "change.reject"
+                    | "change.acceptAll"
+                    | "change.rejectAll"
                     | "condition.apply"
-                    | "variables.insert"
+                    | "variable.insert"
                     | "footnote.delete"
                     | "index.addReference"
-                    | "find.change"
-                    | "find.next"
+                    | "edit.replace"
+                    | "edit.findNext"
                     | "swatch.addToSwatches"
                     | "story.setDirection"
                     | "story.setText"
                     | "story.replaceRange"
                     | "style.breakLink"
-                    | "style.cell.create"
+                    | "style.cell.add"
                     | "style.cell.apply"
                     | "style.table.apply"
             ));
     let active = matches!(
         id,
-        "frame.create"
-            | "line.create"
+        "frame.add"
+            | "line.add"
             | "script.run"
             | "frame.grid"
-            | "path.create"
+            | "path.add"
             | "graphic.place"
             | "file.place"
             | "place.drop"
@@ -621,7 +624,7 @@ fn declare_reads(command: &mut KitCommand) {
             | "story.placeAndLink"
             | "frame.thread"
             | "guide.add"
-            | "layout.createGuides"
+            | "layout.addGuides"
     ); // C8-layout-read-3: paste keeps each object's own layer (cmd/object.rs duplicate_from), not the active one.
     // Session::execute runs smart reflow for every undoable command. Transform commands also
     // read scale/measurement preferences; paste/repeat use the session clipboard/history.

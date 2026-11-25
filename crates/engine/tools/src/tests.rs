@@ -23,7 +23,7 @@ fn frame_tool_drag_emits_begin_preview_commit() {
     assert!(matches!(&a[0], Action::Begin(_)));
     match &a[1] {
         Action::Preview(cmd, p) => {
-            assert_eq!(cmd, "frame.create");
+            assert_eq!(cmd, "frame.add");
             assert_eq!(p["rect"], serde_json::json!([10.0, 10.0, 110.0, 60.0]));
             assert_eq!(p["content"], "graphic");
         }
@@ -41,13 +41,13 @@ fn selection_click_and_marquee() {
     let cx = ctx(&d, &s, &c, &l);
     let mut t = create("selection");
     let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 150.0, 150.0));
-    assert_eq!(a, vec![Action::Exec("selection.set".into(), serde_json::json!({"ids": [fid.0], "content": false}))]);
+    assert_eq!(a, vec![Action::Exec("select.set".into(), serde_json::json!({"ids": [fid.0], "content": false}))]);
     t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 150.0, 150.0));
     // Marquee from empty space.
     t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 20.0, 20.0));
     t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 300.0, 300.0));
     let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 300.0, 300.0));
-    assert_eq!(a, vec![Action::Exec("selection.set".into(), serde_json::json!({"ids": [fid.0], "add": false}))]);
+    assert_eq!(a, vec![Action::Exec("select.set".into(), serde_json::json!({"ids": [fid.0], "add": false}))]);
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn cmd_shift_click_overrides_parent_item() {
     let mut t = create("selection");
     // A plain click doesn't reach parent items.
     let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Down, x, 150.0 + off.y));
-    assert_eq!(a, vec![Action::Exec("selection.set".into(), serde_json::json!({"ids": []}))]);
+    assert_eq!(a, vec![Action::Exec("select.set".into(), serde_json::json!({"ids": []}))]);
     t.pointer(&cx, &PointerEvent::new(PointerKind::Up, x, 150.0 + off.y));
     let mut ev = PointerEvent::new(PointerKind::Down, x, 150.0 + off.y);
     ev.mods = Mods { cmd: true, shift: true, ..Default::default() };
@@ -175,7 +175,7 @@ fn pencil_draws_a_smooth_path() {
     let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 150.0 + off.x, 150.0 + off.y));
     match &a[..] {
         [Action::Exec(cmd, p)] => {
-            assert_eq!(cmd, "path.create");
+            assert_eq!(cmd, "path.add");
             let n = p["anchors"].as_array().unwrap().len();
             assert!((3..30).contains(&n), "{n} anchors");
             assert_eq!(p["anchors"][0]["p"], serde_json::json!([100.0, 100.0]));
@@ -255,7 +255,7 @@ fn type_on_path_tool_targets_paths() {
     let off = l.xf(SpreadRef::Doc(0)).translation();
     let mut t = create("typeOnPath");
     let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 200.0 + off.x, 100.0 + off.y));
-    assert_eq!(a, vec![Action::Exec("type.onPath".into(), serde_json::json!({"id": id.0})), Action::SwitchTool("type".into())]);
+    assert_eq!(a, vec![Action::Exec("text.onPath".into(), serde_json::json!({"id": id.0})), Action::SwitchTool("type".into())]);
 }
 
 #[test]
@@ -268,7 +268,7 @@ fn vertical_type_tool_draws_vertical_frames() {
     t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 100.0, 100.0));
     let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 200.0, 300.0));
     let p = a.iter().find_map(|x| match x {
-        Action::Preview(id, p) if id == "frame.create" => Some(p.clone()),
+        Action::Preview(id, p) if id == "frame.add" => Some(p.clone()),
         _ => None,
     });
     assert_eq!(p.unwrap()["vertical"], true);
@@ -392,7 +392,7 @@ fn line_length_keeps_the_crossed_guide() {
     let params = actions
         .iter()
         .find_map(|act| match act {
-            Action::Preview(cmd, p) if cmd == "line.create" => Some(p),
+            Action::Preview(cmd, p) if cmd == "line.add" => Some(p),
             _ => None,
         })
         .unwrap();
@@ -463,7 +463,7 @@ fn vertical_line_length_matches_along_the_segment() {
     let params = actions
         .iter()
         .find_map(|act| match act {
-            Action::Preview(cmd, p) if cmd == "line.create" => Some(p),
+            Action::Preview(cmd, p) if cmd == "line.add" => Some(p),
             _ => None,
         })
         .unwrap();
@@ -507,7 +507,7 @@ fn shift_frame_stays_square_on_the_driving_guide() {
     let rect = actions
         .iter()
         .find_map(|act| match act {
-            Action::Preview(cmd, p) if cmd == "frame.create" => p["rect"].as_array(),
+            Action::Preview(cmd, p) if cmd == "frame.add" => p["rect"].as_array(),
             _ => None,
         })
         .unwrap();
@@ -699,9 +699,9 @@ fn pen_click_snaps_to_a_guide() {
     assert!(click(&mut t, &cx, 102.0, 80.0).is_empty());
     let up = click(&mut t, &cx, 180.0, 80.0);
     let Action::Exec(cmd, p) = &up[0] else {
-        panic!("expected path.create, got {up:?}");
+        panic!("expected path.add, got {up:?}");
     };
-    assert_eq!(cmd, "path.create");
+    assert_eq!(cmd, "path.add");
     let x = p["anchors"][0]["p"][0].as_f64().unwrap();
     assert!((x - 100.0).abs() < 1e-6, "anchor x {x}");
 }

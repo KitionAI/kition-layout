@@ -56,7 +56,7 @@ fn resolve(st: &mut Story, accept: bool) -> usize {
 
 /// Accept or reject the one change at `start` in story `story`.
 fn one(s: &mut Session, p: &Value, accept: bool) -> Result<Value> {
-    let id = if accept { "changes.accept" } else { "changes.reject" };
+    let id = if accept { "change.accept" } else { "change.reject" };
     let sid = p.get("story").and_then(Value::as_u64).map(StoryId).ok_or_else(|| super::bad(id, "`story` required"))?;
     let start = p.get("start").and_then(Value::as_u64).ok_or_else(|| super::bad(id, "`start` required"))? as usize;
     s.edit(|d, sel| {
@@ -85,7 +85,7 @@ fn one(s: &mut Session, p: &Value, accept: bool) -> Result<Value> {
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!("changes.track", "Track Changes", ["Type", "Track Changes"], None, "{on?: bool (default: toggle)}", has_doc, |s, p| {
+        cmd!("change.track", "Track Changes", ["Type", "Track Changes"], None, "{on?: bool (default: toggle)}", has_doc, |s, p| {
             let cur = s.doc()?.doc.settings.track_changes;
             let on = p.get("on").and_then(Value::as_bool).unwrap_or(!cur);
             s.edit(|d, _| {
@@ -93,7 +93,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 Ok(json!({"on": on}))
             })
         }),
-        cmd!(query "changes.list", "Changes", [], None, "{} → [{story, start, end, kind: inserted|deleted, text}]", has_doc, |s, _| {
+        cmd!(query "change.list", "Changes", [], None, "{} → [{story, start, end, kind: inserted|deleted, text}]", has_doc, |s, _| {
             let d = &s.doc()?.doc;
             let mut out = Vec::new();
             for st in d.stories.values() {
@@ -108,10 +108,10 @@ pub fn specs() -> Vec<CommandSpec> {
             }
             Ok(Value::Array(out))
         }),
-        cmd!("changes.accept", "Accept Change", [], None, "{story, start} — the change at that position", has_doc, |s, p| one(s, p, true)),
-        cmd!("changes.reject", "Reject Change", [], None, "{story, start} — the change at that position", has_doc, |s, p| one(s, p, false)),
+        cmd!("change.accept", "Accept Change", [], None, "{story, start} — the change at that position", has_doc, |s, p| one(s, p, true)),
+        cmd!("change.reject", "Reject Change", [], None, "{story, start} — the change at that position", has_doc, |s, p| one(s, p, false)),
         cmd!(
-            "changes.acceptAll",
+            "change.acceptAll",
             "Accept All Changes",
             ["Type", "Track Changes"],
             None,
@@ -120,7 +120,7 @@ pub fn specs() -> Vec<CommandSpec> {
             |s, p| all(s, p, true)
         ),
         cmd!(
-            "changes.rejectAll",
+            "change.rejectAll",
             "Reject All Changes",
             ["Type", "Track Changes"],
             None,
@@ -162,9 +162,9 @@ mod tests {
     fn tracked_edits_accept_and_reject() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "The cat sat"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "The cat sat"})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
-        s.execute("changes.track", &json!({"on": true})).unwrap();
+        s.execute("change.track", &json!({"on": true})).unwrap();
         // Replace "cat" with "dog", then type and erase a typo (gone without a trace).
         s.execute("text.select", &json!({"story": sid.0, "anchor": 4, "focus": 7})).unwrap();
         s.execute("text.insert", &json!({"text": "dog"})).unwrap();
@@ -172,28 +172,28 @@ mod tests {
         s.execute("text.delete", &json!({})).unwrap();
         let text = |s: &Session| s.doc().unwrap().doc.stories[&sid].text.clone();
         assert_eq!(text(&s), "The catdog sat", "deleted text stays (marked)");
-        let l = s.execute("changes.list", &json!({})).unwrap();
+        let l = s.execute("change.list", &json!({})).unwrap();
         assert_eq!(l.as_array().unwrap().len(), 2, "{l}");
         // Deleted text takes no room in the layout.
         let d = s.doc().unwrap().doc.clone();
         let cs = s.cache.get(&d, sid, None);
         assert!(cs.frames[0].lines[0].glyphs.iter().any(|g| !g.visible && g.byte >= 4 && g.byte < 7));
         // One at a time: accept the deletion of "cat", then reject the insertion of "dog".
-        s.execute("changes.accept", &json!({"story": sid.0, "start": 4})).unwrap();
+        s.execute("change.accept", &json!({"story": sid.0, "start": 4})).unwrap();
         assert_eq!(text(&s), "The dog sat");
-        s.execute("changes.reject", &json!({"story": sid.0, "start": 4})).unwrap();
+        s.execute("change.reject", &json!({"story": sid.0, "start": 4})).unwrap();
         assert_eq!(text(&s), "The  sat");
-        assert!(s.execute("changes.accept", &json!({"story": sid.0, "start": 0})).is_err());
+        assert!(s.execute("change.accept", &json!({"story": sid.0, "start": 0})).is_err());
         s.execute("edit.undo", &json!({})).unwrap();
         s.execute("edit.undo", &json!({})).unwrap();
         assert_eq!(text(&s), "The catdog sat");
-        s.execute("changes.rejectAll", &json!({})).unwrap();
+        s.execute("change.rejectAll", &json!({})).unwrap();
         assert_eq!(text(&s), "The cat sat");
         s.execute("edit.undo", &json!({})).unwrap();
         let exported = s.execute("file.exportText", &json!({"story": sid.0})).unwrap()["text"].as_str().unwrap().to_string();
         assert_eq!(exported, "The dog sat", "deleted text isn't exported");
-        s.execute("changes.acceptAll", &json!({})).unwrap();
+        s.execute("change.acceptAll", &json!({})).unwrap();
         assert_eq!(text(&s), "The dog sat");
-        assert!(s.execute("changes.list", &json!({})).unwrap().as_array().unwrap().is_empty());
+        assert!(s.execute("change.list", &json!({})).unwrap().as_array().unwrap().is_empty());
     }
 }

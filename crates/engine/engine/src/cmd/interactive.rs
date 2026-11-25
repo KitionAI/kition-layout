@@ -9,7 +9,7 @@ use crate::{Result, Session};
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!(
-            "hyperlink.create",
+            "link.add",
             "New Hyperlink…",
             ["Type", "Hyperlinks & Cross-References"],
             None,
@@ -17,20 +17,20 @@ pub fn specs() -> Vec<CommandSpec> {
             has_doc,
             create
         ),
-        cmd!("hyperlink.delete", "Delete Hyperlink", [], None, "{id}", has_doc, |s, p| {
-            let id = p.get("id").and_then(Value::as_u64).ok_or_else(|| bad("hyperlink.delete", "missing id"))?;
+        cmd!("link.delete", "Delete Hyperlink", [], None, "{id}", has_doc, |s, p| {
+            let id = p.get("id").and_then(Value::as_u64).ok_or_else(|| bad("link.delete", "missing id"))?;
             s.edit(|d, _| {
                 d.hyperlinks.retain(|h| h.id != id);
                 Ok(Value::Null)
             })
         }),
-        cmd!(query "hyperlink.list", "Hyperlinks", [], None, "{}", has_doc, |s, _| Ok(serde_json::to_value(&s.doc()?.doc.hyperlinks).unwrap_or_default())),
-        cmd!("hyperlink.edit", "Hyperlink Options…", [], None, "{id, name?, url? | email? | page? (1-based)}", has_doc, |s, p| {
-            let id = p.get("id").and_then(Value::as_u64).ok_or_else(|| bad("hyperlink.edit", "missing id"))?;
+        cmd!(query "link.list", "Hyperlinks", [], None, "{}", has_doc, |s, _| Ok(serde_json::to_value(&s.doc()?.doc.hyperlinks).unwrap_or_default())),
+        cmd!("link.edit", "Hyperlink Options…", [], None, "{id, name?, url? | email? | page? (1-based)}", has_doc, |s, p| {
+            let id = p.get("id").and_then(Value::as_u64).ok_or_else(|| bad("link.edit", "missing id"))?;
             let dest = dest_param(p);
             let name = str_param(p, "name").map(str::to_string);
             s.edit(|d, _| {
-                let h = d.hyperlinks.iter_mut().find(|h| h.id == id).ok_or_else(|| bad("hyperlink.edit", format!("no hyperlink {id}")))?;
+                let h = d.hyperlinks.iter_mut().find(|h| h.id == id).ok_or_else(|| bad("link.edit", format!("no hyperlink {id}")))?;
                 if let Some(n) = name {
                     h.name = n;
                 }
@@ -40,10 +40,10 @@ pub fn specs() -> Vec<CommandSpec> {
                 Ok(Value::Null)
             })
         }),
-        cmd!(noundo "hyperlink.goToSource", "Go To Source", [], None, "{id} — selects the hyperlink's text or frame", has_doc, |s, p| {
-            let id = p.get("id").and_then(Value::as_u64).ok_or_else(|| bad("hyperlink.goToSource", "missing id"))?;
+        cmd!(noundo "link.goToSource", "Go To Source", [], None, "{id} — selects the hyperlink's text or frame", has_doc, |s, p| {
+            let id = p.get("id").and_then(Value::as_u64).ok_or_else(|| bad("link.goToSource", "missing id"))?;
             let st = s.doc_mut()?;
-            let h = st.doc.hyperlinks.iter().find(|h| h.id == id).cloned().ok_or_else(|| bad("hyperlink.goToSource", format!("no hyperlink {id}")))?;
+            let h = st.doc.hyperlinks.iter().find(|h| h.id == id).cloned().ok_or_else(|| bad("link.goToSource", format!("no hyperlink {id}")))?;
             st.selection = match h.source {
                 HyperlinkSource::Item { id } => kition_layout_doc::Selection::items(vec![id]),
                 HyperlinkSource::Text { story, start, end } => {
@@ -101,7 +101,7 @@ fn dest_param(p: &Value) -> Option<HyperlinkDest> {
 }
 
 fn create(s: &mut Session, p: &Value) -> Result<Value> {
-    let dest = dest_param(p).ok_or_else(|| bad("hyperlink.create", "give `url`, `email` or `page`"))?;
+    let dest = dest_param(p).ok_or_else(|| bad("link.add", "give `url`, `email` or `page`"))?;
     let st = s.doc()?;
     let sources: Vec<HyperlinkSource> = if let Some(ids) = super::ids_param(p, "ids") {
         ids.into_iter().map(|id| HyperlinkSource::Item { id }).collect()
@@ -111,7 +111,7 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
         st.selection.items.iter().map(|id| HyperlinkSource::Item { id: *id }).collect()
     };
     if sources.is_empty() {
-        return Err(bad("hyperlink.create", "select text or frames first"));
+        return Err(bad("link.add", "select text or frames first"));
     }
     // The document keeps a hyperlink's source text as a mark on it: one hyperlink per character.
     let taken = |story: kition_layout_doc::StoryId, start: usize, end: usize| {
@@ -121,7 +121,7 @@ fn create(s: &mut Session, p: &Value) -> Result<Value> {
             .any(|h| matches!(h.source, HyperlinkSource::Text { story: s, start: a, end: b } if s == story && a < end && start < b))
     };
     if sources.iter().any(|src| matches!(*src, HyperlinkSource::Text { story, start, end } if taken(story, start, end))) {
-        return Err(bad("hyperlink.create", "the selected text already starts a hyperlink"));
+        return Err(bad("link.add", "the selected text already starts a hyperlink"));
     }
     let name = str_param(p, "name").map(str::to_string);
     s.edit(|d, _| {
@@ -150,15 +150,15 @@ mod panel_tests {
     fn hyperlinks_edit_and_go_to_source_bookmarks_rename() {
         let mut s = Session::new();
         s.execute("file.new", &json!({"pages": 2})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Visit us"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Visit us"})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 6, "focus": 8})).unwrap();
-        let h = s.execute("hyperlink.create", &json!({"url": "https://a.example"})).unwrap()["ids"][0].clone();
-        s.execute("hyperlink.edit", &json!({"id": h, "url": "https://b.example", "name": "Site"})).unwrap();
-        let l = s.execute("hyperlink.list", &json!({})).unwrap();
+        let h = s.execute("link.add", &json!({"url": "https://a.example"})).unwrap()["ids"][0].clone();
+        s.execute("link.edit", &json!({"id": h, "url": "https://b.example", "name": "Site"})).unwrap();
+        let l = s.execute("link.list", &json!({})).unwrap();
         assert_eq!(l[0]["name"], "Site");
         assert!(l[0].to_string().contains("b.example"));
         s.execute("edit.deselectAll", &json!({})).unwrap();
-        s.execute("hyperlink.goToSource", &json!({"id": h})).unwrap();
+        s.execute("link.goToSource", &json!({"id": h})).unwrap();
         let t = s.doc().unwrap().selection.text.unwrap();
         assert_eq!((t.anchor, t.focus), (6, 8));
         s.execute("bookmark.add", &json!({"page": 2})).unwrap();

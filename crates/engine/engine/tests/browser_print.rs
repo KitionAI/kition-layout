@@ -13,7 +13,7 @@ fn print_is_safe(dry_run: bool) {
     let error = session.execute("file.print", &json!({"dryRun": dry_run})).unwrap_err().to_string();
     assert!(error.contains("printing isn't available on the web"), "{error}");
     assert!(error.contains("export a PDF"), "{error}");
-    session.execute("frame.create", &json!({"rect": [36, 36, 100, 100], "content": "text"})).unwrap();
+    session.execute("frame.add", &json!({"rect": [36, 36, 100, 100], "content": "text"})).unwrap();
     let exported = session.execute("file.exportPdf", &json!({})).unwrap();
     assert!(exported["bytes"].as_u64().unwrap() > 500);
     assert_eq!(exported["pages"], 1);

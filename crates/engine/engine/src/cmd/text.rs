@@ -31,7 +31,7 @@ pub fn specs() -> Vec<CommandSpec> {
             st.selection.text = Some(TextSel { anchor: a, focus: b, ..t });
             ok()
         }),
-        cmd!(noundo "text.select", "Select Text", [], None, "{story, anchor, focus} (UTF-8 byte offsets into the story text, as find.find reports them: á or — counts 2 or 3)", has_doc, |s, p| {
+        cmd!(noundo "text.select", "Select Text", [], None, "{story, anchor, focus} (UTF-8 byte offsets into the story text, as edit.find reports them: á or — counts 2 or 3)", has_doc, |s, p| {
             let sid = StoryId(p.get("story").and_then(Value::as_u64).unwrap_or(0));
             let st = s.doc_mut()?;
             let text = &st.doc.story(sid).ok_or_else(|| bad("text.select", "no such story"))?.text;
@@ -129,9 +129,9 @@ pub fn specs() -> Vec<CommandSpec> {
             v["lines"] = json!(cs.line_count());
             Ok(v)
         }),
-        cmd!("type.fillWithPlaceholder", "Fill with Placeholder Text", ["Type"], None, "{frame?}", has_text_or_frames, fill_placeholder),
+        cmd!("text.fillWithPlaceholder", "Fill with Placeholder Text", ["Type"], None, "{frame?}", has_text_or_frames, fill_placeholder),
         cmd!(
-            "type.char",
+            "text.char",
             "Character Formatting",
             [],
             None,
@@ -140,7 +140,7 @@ pub fn specs() -> Vec<CommandSpec> {
             |s, p| format_chars(s, p.get("attrs").unwrap_or(p))
         ),
         cmd!(
-            "type.para",
+            "text.para",
             "Paragraph Formatting",
             [],
             None,
@@ -148,28 +148,31 @@ pub fn specs() -> Vec<CommandSpec> {
             has_text_or_frames,
             |s, p| format_paras(s, p.get("attrs").unwrap_or(p))
         ),
-        cmd!("type.align", "Align", [], None, "{align: left|center|right|leftJustified|…}", has_text_or_frames, |s, p| {
+        cmd!("text.align", "Align", [], None, "{align: left|center|right|leftJustified|…}", has_text_or_frames, |s, p| {
             format_paras(s, &json!({"align": p.get("align").cloned().unwrap_or(json!("left"))}))
         }),
-        cmd!("type.alignLeft", "Align Left", [], Some("Cmd+Shift+L"), "{}", has_text_or_frames, |s, _| format_paras(s, &json!({"align": "left"}))),
-        cmd!("type.alignCenter", "Align Center", [], Some("Cmd+Shift+C"), "{}", has_text_or_frames, |s, _| format_paras(
+        cmd!("format.alignLeft", "Align Left", [], Some("Cmd+Shift+L"), "{}", has_text_or_frames, |s, _| format_paras(s, &json!({"align": "left"}))),
+        cmd!("format.alignCenter", "Align Center", [], Some("Cmd+Shift+C"), "{}", has_text_or_frames, |s, _| format_paras(
             s,
             &json!({"align": "center"})
         )),
-        cmd!("type.alignRight", "Align Right", [], Some("Cmd+Shift+R"), "{}", has_text_or_frames, |s, _| format_paras(s, &json!({"align": "right"}))),
-        cmd!("type.justify", "Justify Left", [], Some("Cmd+Shift+J"), "{}", has_text_or_frames, |s, _| format_paras(
+        cmd!("format.alignRight", "Align Right", [], Some("Cmd+Shift+R"), "{}", has_text_or_frames, |s, _| format_paras(
+            s,
+            &json!({"align": "right"})
+        )),
+        cmd!("format.justify", "Justify Left", [], Some("Cmd+Shift+J"), "{}", has_text_or_frames, |s, _| format_paras(
             s,
             &json!({"align": "leftJustified"})
         )),
-        cmd!("type.bold", "Bold", [], Some("Cmd+Shift+B"), "{}", has_text_or_frames, |s, _| format_chars(s, &json!({"fontStyle": "Bold"}))),
-        cmd!("type.italic", "Italic", [], Some("Cmd+Shift+I"), "{}", has_text_or_frames, |s, _| format_chars(s, &json!({"fontStyle": "Italic"}))),
-        cmd!("type.underline", "Underline", [], Some("Cmd+Shift+U"), "{}", has_text_or_frames, |s, _| format_chars(s, &json!({"underline": true}))),
-        cmd!("type.allCaps", "All Caps", [], Some("Cmd+Shift+K"), "{}", has_text_or_frames, |s, _| format_chars(
+        cmd!("format.bold", "Bold", [], Some("Cmd+Shift+B"), "{}", has_text_or_frames, |s, _| format_chars(s, &json!({"fontStyle": "Bold"}))),
+        cmd!("format.italic", "Italic", [], Some("Cmd+Shift+I"), "{}", has_text_or_frames, |s, _| format_chars(s, &json!({"fontStyle": "Italic"}))),
+        cmd!("format.underline", "Underline", [], Some("Cmd+Shift+U"), "{}", has_text_or_frames, |s, _| format_chars(s, &json!({"underline": true}))),
+        cmd!("text.allCaps", "All Caps", [], Some("Cmd+Shift+K"), "{}", has_text_or_frames, |s, _| format_chars(
             s,
             &json!({"capitalization": "allCaps"})
         )),
         cmd!(
-            "type.tateChuYoko",
+            "text.tateChuYoko",
             "Tate-Chu-Yoko",
             [],
             None,
@@ -188,7 +191,7 @@ pub fn specs() -> Vec<CommandSpec> {
             }
         ),
         cmd!(
-            "type.ruby",
+            "text.ruby",
             "Ruby",
             [],
             None,
@@ -197,7 +200,7 @@ pub fn specs() -> Vec<CommandSpec> {
             |s, p| { format_chars(s, &json!({"ruby": str_param(p, "text").unwrap_or("")})) }
         ),
         cmd!(
-            "type.kenten",
+            "text.kenten",
             "Kenten",
             [],
             None,
@@ -216,7 +219,7 @@ pub fn specs() -> Vec<CommandSpec> {
             }
         ),
         cmd!(
-            "type.warichu",
+            "text.warichu",
             "Warichu",
             [],
             None,
@@ -225,7 +228,7 @@ pub fn specs() -> Vec<CommandSpec> {
             warichu_cmd
         ),
         cmd!(
-            "type.storyDirection",
+            "text.storyDirection",
             "Story Direction",
             [],
             None,
@@ -233,10 +236,10 @@ pub fn specs() -> Vec<CommandSpec> {
             has_text_or_frames,
             story_direction
         ),
-        cmd!("type.sizeUp", "Increase Point Size", [], Some("Cmd+Shift+."), "{}", has_text_or_frames, |s, _| step_size(s, 2.0)),
-        cmd!("type.sizeDown", "Decrease Point Size", [], Some("Cmd+Shift+,"), "{}", has_text_or_frames, |s, _| step_size(s, -2.0)),
+        cmd!("format.increaseFontSize", "Increase Point Size", [], Some("Cmd+Shift+."), "{}", has_text_or_frames, |s, _| step_size(s, 2.0)),
+        cmd!("format.decreaseFontSize", "Decrease Point Size", [], Some("Cmd+Shift+,"), "{}", has_text_or_frames, |s, _| step_size(s, -2.0)),
         cmd!(
-            "type.changeCase",
+            "text.changeCase",
             "Change Case",
             ["Type"],
             None,
@@ -245,7 +248,7 @@ pub fn specs() -> Vec<CommandSpec> {
             change_case
         ),
         cmd!(
-            "type.openType",
+            "text.openType",
             "OpenType",
             [],
             None,
@@ -262,7 +265,7 @@ pub fn specs() -> Vec<CommandSpec> {
             has_text_or_frames,
             break_link
         ),
-        cmd!(query "type.selectionAttrs", "Selection Attributes", [], None, "{} → resolved character/paragraph attributes at the text selection", has_doc, selection_attrs),
+        cmd!(query "text.selectionAttrs", "Selection Attributes", [], None, "{} → resolved character/paragraph attributes at the text selection", has_doc, selection_attrs),
     ]
 }
 
@@ -660,7 +663,7 @@ fn word_bounds(s: &str, i: usize) -> (usize, usize) {
 
 /// Type ▸ Story Direction.
 fn story_direction(s: &mut Session, p: &Value) -> Result<Value> {
-    let vertical = p.get("vertical").and_then(Value::as_bool).ok_or_else(|| bad("type.storyDirection", "missing vertical"))?;
+    let vertical = p.get("vertical").and_then(Value::as_bool).ok_or_else(|| bad("text.storyDirection", "missing vertical"))?;
     let st = s.doc()?;
     let mut stories: Vec<StoryId> = st.selection.text.map(|t| t.story).into_iter().chain(st.selection.cells.map(|c| c.story)).collect();
     for id in &st.selection.items {
@@ -854,7 +857,7 @@ pub(crate) fn format_chars(s: &mut Session, attrs: &Value) -> Result<Value> {
     let mut a = CharAttrs::default();
     if let Some(o) = attrs.as_object() {
         for (k, v) in o {
-            a.set_json(k, v).map_err(|e| bad("type.char", e))?;
+            a.set_json(k, v).map_err(|e| bad("text.char", e))?;
         }
     }
     let cleared: Vec<String> = attrs.as_object().map(|o| o.iter().filter(|(_, v)| v.is_null()).map(|(k, _)| k.clone()).collect()).unwrap_or_default();
@@ -892,7 +895,7 @@ pub(crate) fn format_paras(s: &mut Session, attrs: &Value) -> Result<Value> {
     // over its resolved rule; this pass validates them.
     let mut a = ParaAttrs::default();
     for (k, v) in obj {
-        a.set_json_over(k, v, &kition_layout_doc::ParaProps::default()).map_err(|e| bad("type.para", e))?;
+        a.set_json_over(k, v, &kition_layout_doc::ParaProps::default()).map_err(|e| bad("text.para", e))?;
     }
     // `null` removes the override (back to the style's value).
     let cleared: Vec<String> = obj.iter().filter(|(_, v)| v.is_null()).map(|(k, _)| k.clone()).collect();
@@ -970,7 +973,7 @@ fn open_type(s: &mut Session, p: &Value) -> Result<Value> {
         cur["chars"]["otfFeatures"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default();
     if let Some(tag) = p.get("feature").and_then(Value::as_str) {
         if tag.is_empty() || tag.len() > 4 || !tag.chars().all(|c| c.is_ascii_alphanumeric()) {
-            return Err(bad("type.openType", format!("bad feature tag `{tag}`")));
+            return Err(bad("text.openType", format!("bad feature tag `{tag}`")));
         }
         let on = p.get("on").and_then(Value::as_bool).unwrap_or(!otf::is_on(&list, tag));
         otf::set(&mut list, tag, on);
@@ -978,7 +981,7 @@ fn open_type(s: &mut Session, p: &Value) -> Result<Value> {
     if let Some(f) = p.get("figures").and_then(Value::as_str)
         && !otf::set_figures(&mut list, f)
     {
-        return Err(bad("type.openType", format!("unknown figure style `{f}`")));
+        return Err(bad("text.openType", format!("unknown figure style `{f}`")));
     }
     if let Some(sets) = p.get("stylisticSets").and_then(Value::as_array) {
         let mask = sets.iter().filter_map(Value::as_u64).filter(|n| (1..=20).contains(n)).fold(0u32, |m, n| m | 1 << (n - 1));
@@ -1018,7 +1021,7 @@ fn fill_placeholder(s: &mut Session, p: &Value) -> Result<Value> {
             if let Some(f) = frame {
                 s.execute("object.content", &json!({"ids": [f.0], "type": "text"}))?;
             }
-            story_of(s, p).ok_or_else(|| bad("type.fillWithPlaceholder", "select a text frame"))?
+            story_of(s, p).ok_or_else(|| bad("text.fillWithPlaceholder", "select a text frame"))?
         }
     };
     // Fill until overset: repeat the filler sentences.
@@ -1091,7 +1094,7 @@ pub(crate) fn case_map(src: &str, case: &str) -> Vec<String> {
 fn change_case(s: &mut Session, p: &Value) -> Result<Value> {
     let case = str_param(p, "case").unwrap_or("upper").to_string();
     if !matches!(case.as_str(), "upper" | "lower" | "title" | "sentence") {
-        return Err(bad("type.changeCase", format!("unknown case `{case}`")));
+        return Err(bad("text.changeCase", format!("unknown case `{case}`")));
     }
     let targets = format_targets(s);
     s.edit(|d, sel| {
@@ -1135,7 +1138,7 @@ mod open_type_tests {
     fn text_selection_stays_on_utf8_boundaries() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [0, 0, 200, 100], "content": "text", "text": "é漢🙂x"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [0, 0, 200, 100], "content": "text", "text": "é漢🙂x"})).unwrap();
         let sid = r["story"].clone();
         s.execute("text.select", &json!({"story": sid, "anchor": 1, "focus": 4})).unwrap();
         let t = s.doc().unwrap().selection.text.unwrap();
@@ -1155,7 +1158,7 @@ mod open_type_tests {
     fn replacing_a_range_stays_on_utf8_boundaries() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [0, 0, 200, 100], "content": "text", "text": "é漢🙂x"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [0, 0, 200, 100], "content": "text", "text": "é漢🙂x"})).unwrap();
         let sid = r["story"].clone();
         // Offsets inside 漢 (2..5) and 🙂 (5..9) snap back to the character starts: 漢 is replaced.
         s.execute("story.replaceRange", &json!({"story": sid, "start": 3, "end": 6, "text": "字"})).unwrap();
@@ -1176,38 +1179,38 @@ mod open_type_tests {
     fn open_type_toggles_reach_the_text() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "Office 1/2 0"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "Office 1/2 0"})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 12})).unwrap();
-        let r = s.execute("type.openType", &json!({"feature": "dlig"})).unwrap();
+        let r = s.execute("text.openType", &json!({"feature": "dlig"})).unwrap();
         assert_eq!(r["features"], json!(["dlig"]));
-        let r = s.execute("type.openType", &json!({"feature": "dlig"})).unwrap();
+        let r = s.execute("text.openType", &json!({"feature": "dlig"})).unwrap();
         assert_eq!(r["features"], json!([]), "toggles off");
-        let r = s.execute("type.openType", &json!({"figures": "proportionalOldstyle", "stylisticSets": [1, 2]})).unwrap();
+        let r = s.execute("text.openType", &json!({"figures": "proportionalOldstyle", "stylisticSets": [1, 2]})).unwrap();
         assert_eq!(r["figures"], "proportionalOldstyle");
-        let a = s.execute("type.selectionAttrs", &json!({})).unwrap();
+        let a = s.execute("text.selectionAttrs", &json!({})).unwrap();
         let f: Vec<&str> = a["chars"]["otfFeatures"].as_array().unwrap().iter().filter_map(|v| v.as_str()).collect();
         assert!(f.contains(&"onum") && f.contains(&"ss02"), "{f:?}");
-        assert!(s.execute("type.openType", &json!({"feature": "bad tag!"})).is_err());
+        assert!(s.execute("text.openType", &json!({"feature": "bad tag!"})).is_err());
     }
 
     #[test]
     fn break_link_to_paragraph_and_character_styles() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("style.paragraph.create", &json!({"name": "Head", "para": {"spaceBefore": 6}, "chars": {"size": 24}})).unwrap();
-        s.execute("style.character.create", &json!({"name": "Em", "chars": {"fontStyle": "Italic"}})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "Title here"})).unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Head", "para": {"spaceBefore": 6}, "chars": {"size": 24}})).unwrap();
+        s.execute("style.character.add", &json!({"name": "Em", "chars": {"fontStyle": "Italic"}})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "Title here"})).unwrap();
         let sid = r["story"].as_u64().unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 10})).unwrap();
         s.execute("style.paragraph.apply", &json!({"name": "Head"})).unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 5})).unwrap();
         s.execute("style.character.apply", &json!({"name": "Em"})).unwrap();
-        let before = s.execute("type.selectionAttrs", &json!({})).unwrap();
+        let before = s.execute("text.selectionAttrs", &json!({})).unwrap();
         s.execute("style.breakLink", &json!({"kind": "character"})).unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 10})).unwrap();
         s.execute("style.breakLink", &json!({"kind": "paragraph"})).unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 5})).unwrap();
-        let after = s.execute("type.selectionAttrs", &json!({})).unwrap();
+        let after = s.execute("text.selectionAttrs", &json!({})).unwrap();
         assert_eq!(after["paragraphStyle"], "[No Paragraph Style]");
         assert_eq!(after["characterStyle"], "[None]");
         assert_eq!(after["chars"], before["chars"], "same look");
@@ -1219,7 +1222,7 @@ mod open_type_tests {
     fn oldstyle_figures_change_the_glyphs() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "2024"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "2024"})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let gids = |s: &Session| {
             let d = &s.doc().unwrap().doc;
@@ -1228,7 +1231,7 @@ mod open_type_tests {
         };
         let lining = gids(&s);
         s.execute("text.select", &json!({"story": sid.0, "anchor": 0, "focus": 4})).unwrap();
-        s.execute("type.openType", &json!({"figures": "proportionalOldstyle"})).unwrap();
+        s.execute("text.openType", &json!({"figures": "proportionalOldstyle"})).unwrap();
         assert_ne!(gids(&s), lining);
     }
 }
@@ -1243,13 +1246,13 @@ mod nested_style_tests {
     fn nested_and_grep_styles_colour_the_text() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("style.character.create", &json!({"name": "Lead", "chars": {"fill": "C=100 M=0 Y=0 K=0"}})).unwrap();
-        s.execute("style.character.create", &json!({"name": "Num", "chars": {"fill": "C=0 M=100 Y=0 K=0"}})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "Opening words then 2026 here"})).unwrap();
+        s.execute("style.character.add", &json!({"name": "Lead", "chars": {"fill": "C=100 M=0 Y=0 K=0"}})).unwrap();
+        s.execute("style.character.add", &json!({"name": "Num", "chars": {"fill": "C=0 M=100 Y=0 K=0"}})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "Opening words then 2026 here"})).unwrap();
         let sid = r["story"].as_u64().unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 3})).unwrap();
         s.execute(
-            "type.para",
+            "text.para",
             &json!({"attrs": {
                 "nestedStyles": [{"style": "Lead", "through": true, "count": 2, "until": {"kind": "words"}}],
                 "grepStyles": [{"style": "Num", "pattern": "\\d+"}]
@@ -1280,7 +1283,7 @@ mod drag_text_tests {
     fn drag_selected_text_to_move_or_copy_it() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 500, 200], "content": "text", "text": "Hello brave world"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 500, 200], "content": "text", "text": "Hello brave world"})).unwrap();
         let (fid, sid) = (r["id"].as_u64().unwrap(), r["story"].as_u64().unwrap());
         // Spread point of the glyph at byte `b`.
         let at = |s: &Session, b: usize| {
@@ -1325,11 +1328,11 @@ mod nested_line_style_tests {
     fn first_line_takes_the_nested_line_style() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        s.execute("style.character.create", &json!({"name": "Lead", "chars": {"size": 18}})).unwrap();
+        s.execute("style.character.add", &json!({"name": "Lead", "chars": {"size": 18}})).unwrap();
         let text = "The opening line of this paragraph reads larger, and the lines after it return to the body size again.";
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 300, 400], "content": "text", "text": text})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 300, 400], "content": "text", "text": text})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 0})).unwrap();
-        s.execute("type.para", &json!({"nestedLineStyles": [{"style": "Lead", "lines": 1}]})).unwrap();
+        s.execute("text.para", &json!({"nestedLineStyles": [{"style": "Lead", "lines": 1}]})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let cs = s.cache.get(&s.doc().unwrap().doc, sid, None);
         let lines = &cs.frames[0].lines;
@@ -1360,13 +1363,13 @@ mod rule_tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         let rule = json!({"on": true, "weight": 3.0, "color": "[Black]", "tint": 0.5, "columnWidth": false, "offset": 4.0, "leftIndent": 6.0, "rightIndent": 2.0});
-        s.execute("style.paragraph.create", &json!({"name": "Ruled", "para": {"ruleBelow": rule}})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 300, 400], "content": "text", "text": "One\nTwo"})).unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Ruled", "para": {"ruleBelow": rule}})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 300, 400], "content": "text", "text": "One\nTwo"})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 0})).unwrap();
         s.execute("style.paragraph.apply", &json!({"name": "Ruled"})).unwrap();
         // Local: only the colour changes; the rest is inherited from the style.
-        s.execute("type.para", &json!({"attrs": {"ruleBelow": {"color": "[Registration]"}}})).unwrap();
-        let attrs = s.execute("type.selectionAttrs", &json!({})).unwrap();
+        s.execute("text.para", &json!({"attrs": {"ruleBelow": {"color": "[Registration]"}}})).unwrap();
+        let attrs = s.execute("text.selectionAttrs", &json!({})).unwrap();
         let mut want = rule.clone();
         want["color"] = json!("[Registration]");
         assert_eq!(attrs["para"]["ruleBelow"], want);
@@ -1378,19 +1381,19 @@ mod rule_tests {
         let mut want = rule.clone();
         want["weight"] = json!(1.5);
         assert_eq!(below, want);
-        assert!(s.execute("type.para", &json!({"attrs": {"ruleBelow": {"thickness": 2}}})).is_err(), "unknown rule field");
+        assert!(s.execute("text.para", &json!({"attrs": {"ruleBelow": {"thickness": 2}}})).is_err(), "unknown rule field");
     }
 
     #[test]
     fn rule_above_width_follows_column_or_text() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 400], "content": "text", "text": "Short"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 400], "content": "text", "text": "Short"})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 0})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let mut widths = vec![];
         for column in [true, false] {
-            s.execute("type.para", &json!({"ruleAbove": {"on": true, "columnWidth": column}})).unwrap();
+            s.execute("text.para", &json!({"ruleAbove": {"on": true, "columnWidth": column}})).unwrap();
             let cs = s.cache.get(&s.doc().unwrap().doc, sid, None);
             widths.push(cs.frames[0].decos[0].rect.width());
         }
@@ -1410,10 +1413,10 @@ mod border_tests {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
         let text = "word ".repeat(80);
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 160], "content": "text", "text": text, "caret": false})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 160], "content": "text", "text": text, "caret": false})).unwrap();
         s.execute("object.textFrameOptions", &json!({"ids": [r["id"]], "columns": 2})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 0})).unwrap();
-        s.execute("type.para", &json!({"borderOn": true, "borderWeights": [2, 1, 2, 1], "borderOffsets": [4, 4, 4, 4], "borderColor": "[Black]", "shadingOn": true, "shadingOffsets": [4, 4, 4, 4]})).unwrap();
+        s.execute("text.para", &json!({"borderOn": true, "borderWeights": [2, 1, 2, 1], "borderOffsets": [4, 4, 4, 4], "borderColor": "[Black]", "shadingOn": true, "shadingOffsets": [4, 4, 4, 4]})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let cs = s.cache.get(&s.doc().unwrap().doc, sid, None);
         let decos = &cs.frames[0].decos;
@@ -1444,7 +1447,7 @@ mod autocorrect_tests {
     fn autocorrect_fixes_the_word_before_a_space() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": ""})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": ""})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         s.execute("text.select", &json!({"story": sid.0, "anchor": 0, "focus": 0})).unwrap();
         let text = |s: &Session| s.doc().unwrap().doc.stories[&sid].text.clone();
@@ -1474,7 +1477,7 @@ mod break_tests {
     fn inserted_break_ends_its_paragraph() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "OneTwo\nThree"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "OneTwo\nThree"})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let story = |s: &Session| s.doc().unwrap().doc.stories[&sid].clone();
         s.execute("text.select", &json!({"story": sid.0, "anchor": 3, "focus": 3})).unwrap();
@@ -1514,9 +1517,9 @@ mod language_tests {
     fn language_sets_quotes_spelling_and_hyphenation() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": ""})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": ""})).unwrap();
         let sid = r["story"].as_u64().unwrap();
-        s.execute("type.char", &json!({"attrs": {"language": "German: 2006 Reform"}})).unwrap();
+        s.execute("text.char", &json!({"attrs": {"language": "German: 2006 Reform"}})).unwrap();
         s.execute("text.insert", &json!({"text": "\"Wort\" ist's"})).unwrap();
         let text = s.doc().unwrap().doc.stories[&kition_layout_doc::StoryId(sid)].text.clone();
         assert_eq!(text, "\u{201E}Wort\u{201C} ist\u{2019}s");
@@ -1582,9 +1585,9 @@ mod language_tests {
         kition_layout_fonts::FontDb::global().add_font(kition_layout_fonts::testing::font_with("Songti SC", &['直']).unwrap());
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "直"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 300, 200], "content": "text", "text": "直"})).unwrap();
         s.execute("text.select", &json!({"story": r["story"], "anchor": 0, "focus": 3})).unwrap();
-        s.execute("type.char", &json!({"attrs": {"language": "Simplified Chinese"}})).unwrap();
+        s.execute("text.char", &json!({"attrs": {"language": "Simplified Chinese"}})).unwrap();
         let idml = kition_layout_idml::export_idml(&s.doc().unwrap().doc);
         let mut z = zip::ZipArchive::new(std::io::Cursor::new(idml.clone())).unwrap();
         let stories: String = (0..z.len())
@@ -1620,16 +1623,16 @@ mod tcy_tests {
     fn tate_chu_yoko_toggles_on_the_selection() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 200, 400], "content": "text", "text": "令和12年", "vertical": true})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 200, 400], "content": "text", "text": "令和12年", "vertical": true})).unwrap();
         let sid = r["story"].as_u64().unwrap();
         let at = "令和".len();
         s.execute("text.select", &json!({"story": sid, "anchor": at, "focus": at + 2})).unwrap();
         let get = |s: &Session| s.doc().unwrap().doc.stories[&kition_layout_doc::StoryId(sid)].char_format_at(at + 1).over.tate_chu_yoko;
-        s.execute("type.tateChuYoko", &json!({})).unwrap();
+        s.execute("text.tateChuYoko", &json!({})).unwrap();
         assert_eq!(get(&s), Some(true));
-        s.execute("type.tateChuYoko", &json!({})).unwrap();
+        s.execute("text.tateChuYoko", &json!({})).unwrap();
         assert_eq!(get(&s), Some(false));
-        s.execute("type.tateChuYoko", &json!({"on": true})).unwrap();
+        s.execute("text.tateChuYoko", &json!({"on": true})).unwrap();
         assert_eq!(get(&s), Some(true));
     }
 
@@ -1637,16 +1640,16 @@ mod tcy_tests {
     fn ruby_and_kenten_on_the_selection() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "漢字です"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "漢字です"})).unwrap();
         let sid = r["story"].as_u64().unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": "漢字".len()})).unwrap();
-        s.execute("type.ruby", &json!({"text": "かんじ"})).unwrap();
-        s.execute("type.kenten", &json!({})).unwrap();
+        s.execute("text.ruby", &json!({"text": "かんじ"})).unwrap();
+        s.execute("text.kenten", &json!({})).unwrap();
         let f = |s: &Session| s.doc().unwrap().doc.stories[&kition_layout_doc::StoryId(sid)].char_format_at(1).over.clone();
         assert_eq!(f(&s).ruby.as_deref(), Some("かんじ"));
         assert_eq!(f(&s).kenten, Some(true));
-        s.execute("type.kenten", &json!({})).unwrap();
-        s.execute("type.ruby", &json!({"text": ""})).unwrap();
+        s.execute("text.kenten", &json!({})).unwrap();
+        s.execute("text.ruby", &json!({"text": ""})).unwrap();
         assert_eq!(f(&s).kenten, Some(false));
         assert_eq!(f(&s).ruby.as_deref(), Some(""));
     }
@@ -1655,11 +1658,11 @@ mod tcy_tests {
     fn warichu_toggles_on_the_selection_and_undoes() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "注釈です"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "注釈です"})).unwrap();
         let sid = r["story"].as_u64().unwrap();
         let n = "注釈".len();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": n})).unwrap();
-        s.execute("type.warichu", &json!({"lines": 2, "size": 40, "align": "left", "lineSpacing": 1, "charsBeforeBreak": 2, "charsAfterBreak": 2}))
+        s.execute("text.warichu", &json!({"lines": 2, "size": 40, "align": "left", "lineSpacing": 1, "charsBeforeBreak": 2, "charsAfterBreak": 2}))
             .unwrap();
         let f = |s: &Session| s.doc().unwrap().doc.stories[&kition_layout_doc::StoryId(sid)].char_format_at(1).over.clone();
         let a = f(&s);
@@ -1676,7 +1679,7 @@ mod tcy_tests {
         assert_eq!(f(&s).warichu, None);
         s.execute("edit.redo", &json!({})).unwrap();
         assert_eq!(f(&s).warichu, Some(true));
-        s.execute("type.warichu", &json!({})).unwrap();
+        s.execute("text.warichu", &json!({})).unwrap();
         assert_eq!(f(&s).warichu, Some(false));
     }
 
@@ -1684,10 +1687,10 @@ mod tcy_tests {
     fn warichu_up_and_down_move_between_the_rows() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 500, 200], "content": "text", "text": "ABCDEFGHZ"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 500, 200], "content": "text", "text": "ABCDEFGHZ"})).unwrap();
         let sid = r["story"].as_u64().unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 8})).unwrap();
-        s.execute("type.warichu", &json!({"lines": 2, "align": "left"})).unwrap();
+        s.execute("text.warichu", &json!({"lines": 2, "align": "left"})).unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 0})).unwrap();
         let down = s.execute("text.move", &json!({"dir": "down"})).unwrap()["pos"].as_u64().unwrap() as usize;
         assert!((4..8).contains(&down), "down enters the second row: {down}");
@@ -1709,9 +1712,9 @@ mod bidi_caret_tests {
     fn arrow_keys_in_a_right_to_left_paragraph() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "سلام عليكم"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "سلام عليكم"})).unwrap();
         let sid = r["story"].as_u64().unwrap();
-        s.execute("type.para", &json!({"attrs": {"direction": "rightToLeft"}})).unwrap();
+        s.execute("text.para", &json!({"attrs": {"direction": "rightToLeft"}})).unwrap();
         s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 0})).unwrap();
         // Left moves forward through right-to-left text, Right back.
         let p = s.execute("text.move", &json!({"dir": "left"})).unwrap()["pos"].as_u64().unwrap();
@@ -1731,7 +1734,7 @@ mod arabic_tests {
     fn arabic_story_direction_command_validates_and_supports_undo() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [0, 0, 300, 200], "content": "text", "text": "abc"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [0, 0, 300, 200], "content": "text", "text": "abc"})).unwrap();
         let sid = StoryId(r["story"].as_u64().unwrap());
         let before = s.cache.get(&s.doc().unwrap().doc, sid, None);
         s.execute("story.setDirection", &json!({"story": sid.0, "direction": "rightToLeft"})).unwrap();
@@ -1754,11 +1757,11 @@ mod korean_breaks_tests {
     fn korean_character_breaks_are_a_paragraph_attribute() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "한국어 문장"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 200], "content": "text", "text": "한국어 문장"})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
-        s.execute("type.para", &json!({"attrs": {"koreanCharBreaks": true}})).unwrap();
+        s.execute("text.para", &json!({"attrs": {"koreanCharBreaks": true}})).unwrap();
         assert_eq!(s.doc().unwrap().doc.story(sid).unwrap().paras[0].para.korean_char_breaks, Some(true));
-        s.execute("style.paragraph.create", &json!({"name": "Korean", "para": {"koreanCharBreaks": true}})).unwrap();
+        s.execute("style.paragraph.add", &json!({"name": "Korean", "para": {"koreanCharBreaks": true}})).unwrap();
         assert_eq!(s.doc().unwrap().doc.styles.para("Korean").unwrap().para.korean_char_breaks, Some(true));
     }
 }
@@ -1771,7 +1774,7 @@ mod story_direction_tests {
     use crate::Session;
 
     fn frame(s: &mut Session, rect: [f64; 4], text: &str, vertical: bool) -> (ItemId, StoryId) {
-        let r = s.execute("frame.create", &json!({"rect": rect, "content": "text", "text": text, "caret": false, "vertical": vertical})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": rect, "content": "text", "text": text, "caret": false, "vertical": vertical})).unwrap();
         (ItemId(r["id"].as_u64().unwrap()), StoryId(r["story"].as_u64().unwrap()))
     }
 
@@ -1789,12 +1792,12 @@ mod story_direction_tests {
         s.edit(|d, _| Ok(d.thread(a, b)?)).unwrap();
         assert_eq!(composed(&s, sid), [false, false]);
         // From the second frame selected, through Type ▸ Story Direction.
-        s.execute("selection.set", &json!({"ids": [b.0]})).unwrap();
-        s.execute("type.storyDirection", &json!({"vertical": true})).unwrap();
+        s.execute("select.set", &json!({"ids": [b.0]})).unwrap();
+        s.execute("text.storyDirection", &json!({"vertical": true})).unwrap();
         assert_eq!(composed(&s, sid), [true, true]);
         // From a caret in the text.
         s.execute("text.select", &json!({"story": sid.0, "anchor": 0, "focus": 0})).unwrap();
-        s.execute("type.storyDirection", &json!({"vertical": false})).unwrap();
+        s.execute("text.storyDirection", &json!({"vertical": false})).unwrap();
         assert_eq!(composed(&s, sid), [false, false]);
         // The frame option sets the frame's story.
         s.execute("object.textFrameOptions", &json!({"ids": [a.0], "vertical": true})).unwrap();
@@ -1810,7 +1813,7 @@ mod story_direction_tests {
         s.execute("file.new", &json!({})).unwrap();
         let (a, sid) = frame(&mut s, [72.0, 72.0, 200.0, 400.0], "縦書きの文章です。", true);
         let (b, _) = frame(&mut s, [300.0, 72.0, 428.0, 400.0], "", false);
-        let c = s.execute("frame.create", &json!({"rect": [450, 72, 550, 400]})).unwrap();
+        let c = s.execute("frame.add", &json!({"rect": [450, 72, 550, 400]})).unwrap();
         let c = ItemId(c["id"].as_u64().unwrap());
         s.edit(|d, _| {
             d.thread(a, b)?;
@@ -1833,7 +1836,7 @@ mod vertical_caret_tests {
         s.execute("file.new", &json!({})).unwrap();
         let text = "一二三四五六七八九十".repeat(8);
         let rect = if vertical { [72, 72, 200, 400] } else { [72, 72, 400, 200] };
-        let r = s.execute("frame.create", &json!({"rect": rect, "content": "text", "text": text, "vertical": vertical})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": rect, "content": "text", "text": text, "vertical": vertical})).unwrap();
         StoryId(r["story"].as_u64().unwrap())
     }
 
@@ -1907,7 +1910,7 @@ mod story_query_contract_tests {
         let mut s = crate::Session::new();
         s.execute("file.new", &json!({})).unwrap();
         assert!(s.execute("story.get", &json!({"story":999})).unwrap_err().to_string().contains("no such story"));
-        let f = s.execute("frame.create", &json!({"rect":[36,36,300,200],"content":"text"})).unwrap();
+        let f = s.execute("frame.add", &json!({"rect":[36,36,300,200],"content":"text"})).unwrap();
         assert_eq!(s.execute("story.get", &json!({"story":f["story"]})).unwrap()["text"], "");
         assert_eq!(s.execute("story.get", &json!({"frame":f["id"]})).unwrap()["text"], "");
         s.execute("text.select", &json!({"story":f["story"],"anchor":0})).unwrap();

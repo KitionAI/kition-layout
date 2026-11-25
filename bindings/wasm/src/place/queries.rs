@@ -20,7 +20,7 @@ impl LayoutDocument {
 
     pub(super) fn query_covered(&self, params: &Value, asks: &[CoveredAsk]) -> Result<CoveredAt, String> {
         let doc = &self.active()?.doc;
-        let params = crate::addresses::resolve("find.changeObjects", params, self.session.kdm().map(|kdm| kdm.replica()))?;
+        let params = crate::addresses::resolve("edit.replaceObjects", params, self.session.kdm().map(|kdm| kdm.replica()))?;
         let mut facts = doc
             .all_items()
             .into_iter()

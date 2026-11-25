@@ -235,9 +235,9 @@ mod tests {
     fn inline_object_flows_with_text_and_releases() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 400], "content": "text", "text": "Before after and more words."})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 400], "content": "text", "text": "Before after and more words."})).unwrap();
         let sid = s.doc().unwrap().doc.item(ItemId(r["id"].as_u64().unwrap())).unwrap().text_frame().unwrap().story;
-        let r = s.execute("frame.create", &json!({"rect": [450, 450, 474, 490]})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [450, 450, 474, 490]})).unwrap();
         let box_id = r["id"].as_u64().unwrap();
         s.execute("anchored.insert", &json!({"ids": [box_id], "story": sid.0, "pos": 7})).unwrap();
         let d = s.doc().unwrap().doc.clone();
@@ -291,10 +291,10 @@ mod custom_tests {
     fn custom_anchored_object_sits_in_the_page_margin_and_takes_no_space() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Side note here"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Side note here"})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         let end_before = s.cache.get(&s.doc().unwrap().doc, sid, None).frames[0].lines[0].end_x;
-        let box_id = s.execute("frame.create", &json!({"rect": [0, 0, 30, 20], "content": "unassigned"})).unwrap()["id"].clone();
+        let box_id = s.execute("frame.add", &json!({"rect": [0, 0, 30, 20], "content": "unassigned"})).unwrap()["id"].clone();
         // To the left of the page margin, top of the box on the anchor's baseline.
         s.execute(
             "anchored.insert",

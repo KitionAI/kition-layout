@@ -161,7 +161,7 @@ mod tests {
     fn hidden_condition_removes_text_from_the_layout() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let r = s.execute("frame.create", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Price: $10 / €9"})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 400, 300], "content": "text", "text": "Price: $10 / €9"})).unwrap();
         let sid = kition_layout_doc::StoryId(r["story"].as_u64().unwrap());
         s.execute("condition.new", &json!({"name": "EU"})).unwrap();
         let eu = "Price: $10 / ".len();

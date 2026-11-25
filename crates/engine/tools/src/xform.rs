@@ -260,7 +260,7 @@ impl Tool for EyedropperTool {
         }
         let Some((_, id)) = cx.hit(ev.pos) else { return vec![] };
         if cx.selection.items.is_empty() && cx.selection.text.is_none() {
-            return vec![Action::Exec("selection.set".into(), json!({"ids": [id.0]}))];
+            return vec![Action::Exec("select.set".into(), json!({"ids": [id.0]}))];
         }
         vec![Action::Exec("object.matchAttributes".into(), json!({"from": id.0}))]
     }

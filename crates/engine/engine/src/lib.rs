@@ -1,6 +1,6 @@
 //! The Kition Layout engine façade.
 //!
-//! Every user-visible action is a command with a stable id (`frame.create`, `text.insert`,
+//! Every user-visible action is a command with a stable id (`frame.add`, `text.insert`,
 //! `layout.pages.insert`…) and JSON parameters. The kit's own editor and the headless kit app
 //! both go through [`Session::execute`]. Tools (pointer gestures) are hosted here and reduce to
 //! commands, so every gesture is journaled and replayable.

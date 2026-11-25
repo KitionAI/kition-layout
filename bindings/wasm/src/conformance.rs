@@ -35,7 +35,7 @@ fn doc_mut(document: &mut LayoutDocument) -> &mut Document {
 /// Writes a direct edit of the document into its replica (what a file holds): the engine writes the
 /// document's changes after each top-level command.
 fn commit(document: &mut LayoutDocument) {
-    run(document, "document.inspect", json!({}));
+    run(document, "file.inspect", json!({}));
 }
 
 /// A small PNG of `side` × `side` pixels, as base64.
@@ -47,7 +47,7 @@ fn picture(side: u32) -> String {
 }
 
 fn frame(document: &mut LayoutDocument, rect: [f64; 4], text: &str) -> u64 {
-    let made = run(document, "frame.create", json!({ "rect": rect, "content": "text", "text": text }));
+    let made = run(document, "frame.add", json!({ "rect": rect, "content": "text", "text": text }));
     made["id"].as_u64().or_else(|| made["ids"][0].as_u64()).unwrap_or_else(|| panic!("frame id in {made}"))
 }
 
@@ -55,7 +55,7 @@ fn frame(document: &mut LayoutDocument, rect: [f64; 4], text: &str) -> u64 {
 fn basic() -> LayoutDocument {
     let mut document = LayoutDocument::create("Flyer.klayout", 612, 792).expect("document");
     frame(&mut document, [72.0, 72.0, 540.0, 160.0], "Spring concert");
-    run(&mut document, "frame.create", json!({ "rect": [72.0, 200.0, 540.0, 260.0], "content": "unassigned" }));
+    run(&mut document, "frame.add", json!({ "rect": [72.0, 200.0, 540.0, 260.0], "content": "unassigned" }));
     document
 }
 
@@ -105,7 +105,7 @@ fn fixture(code: &str) -> LayoutDocument {
             frame(&mut document, [72.0, 300.0, 540.0, 360.0], "");
         }
         "layout.rgb-in-print" => {
-            run(&mut document, "swatch.create", json!({ "name": "Screen Blue", "color": "#0066ff" }));
+            run(&mut document, "swatch.add", json!({ "name": "Screen Blue", "color": "#0066ff" }));
         }
         other => panic!("no fixture for {other}"),
     }
@@ -114,7 +114,7 @@ fn fixture(code: &str) -> LayoutDocument {
 
 fn edit() -> Value {
     json!({ "steps": [
-        { "command": "frame.create", "params": { "rect": [72, 300, 540, 360], "content": "text", "text": "Saturday 8 pm" } },
+        { "command": "frame.add", "params": { "rect": [72, 300, 540, 360], "content": "text", "text": "Saturday 8 pm" } },
     ] })
 }
 

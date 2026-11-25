@@ -81,10 +81,10 @@ export function FrameSizeDialog({ request, onClose }: { request: FrameSizeReques
   const valid = width > 0 && height > 0
   return (
     <DialogFrame
-      command="frame.create"
+      command="frame.add"
       title={t(`dialog.frameSize.${request.shape === 'ellipse' ? 'ellipse' : request.shape === 'polygon' ? 'polygon' : 'rectangle'}`)}
       okDisabled={!valid}
-      onOk={() => run('frame.create', { spread: request.spread, rect: [request.x, request.y, request.x + width, request.y + height], ...(request.shape ? { shape: request.shape } : {}), ...(request.content ? { content: request.content } : {}) })}
+      onOk={() => run('frame.add', { spread: request.spread, rect: [request.x, request.y, request.x + width, request.y + height], ...(request.shape ? { shape: request.shape } : {}), ...(request.content ? { content: request.content } : {}) })}
       onClose={onClose}
     >
       <div className="layout-dialog-fields">

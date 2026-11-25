@@ -48,14 +48,14 @@ impl LayoutDocument {
             "button.set" => add("page", false),
             "toc.generate" | "index.generate" | "file.place" => add("page", true),
             "page.transition" | "liquid.pageRule" | "page.background" => add("pages", true),
-            "layout.pages.toSpread" | "layout.section" | "frame.thread" | "bookmark.add" | "hyperlink.create" | "hyperlink.edit" => add("page", true),
+            "layout.pages.toSpread" | "layout.section" | "frame.thread" | "bookmark.add" | "link.add" | "link.edit" => add("page", true),
             "layout.overrideParentItems" | "layout.removeOverrides" | "layout.detachAll" => {
                 add("page", false);
                 if pages.is_empty() {
                     pages.push(state.selection.items.first().and_then(|id| doc.page_of_item(*id)).unwrap_or(0));
                 }
             }
-            "layout.deleteAlternate" | "layout.createAlternate" => pages.extend(alternate_pages(doc, command, params)),
+            "layout.deleteAlternate" | "layout.addAlternate" => pages.extend(alternate_pages(doc, command, params)),
             _ => {}
         }
         // Without `pages` (`all` for transitions) these write every page there is when they run:
@@ -65,7 +65,7 @@ impl LayoutDocument {
             "page.transition" => params.get("all").and_then(Value::as_bool) == Some(true),
             _ => false,
         };
-        let alternate = matches!(command, "layout.deleteAlternate" | "layout.createAlternate");
+        let alternate = matches!(command, "layout.deleteAlternate" | "layout.addAlternate");
         if every {
             pages.extend(0..doc.page_count());
         }
@@ -98,7 +98,7 @@ impl LayoutDocument {
                 // there since the observation (created, or moved onto the page) refuses, also
                 // when that writer is another agent on this server, whose change set names the
                 // item and not the page whose `~pageItems` it changes.
-                let consumed = matches!(command, "layout.pages.delete" | "layout.deleteAlternate" | "layout.createAlternate");
+                let consumed = matches!(command, "layout.pages.delete" | "layout.deleteAlternate" | "layout.addAlternate");
                 if consumed {
                     under.objects.extend(doc.page_items(si, pi).into_iter().map(|id| json!(id.0)));
                     if let Some(parent) = doc.page(abs).and_then(|page| page.parent) {
@@ -236,17 +236,17 @@ impl LayoutDocument {
 }
 
 /// The absolute pages an alternate layout command consumes: the layout `layout.deleteAlternate`
-/// deletes, or the source layout `layout.createAlternate` copies, as each handler resolves it.
+/// deletes, or the source layout `layout.addAlternate` copies, as each handler resolves it.
 pub(super) fn alternate_pages(doc: &kition_layout_engine::doc::Document, command: &str, params: &Value) -> Vec<usize> {
     let wanted = match command {
         "layout.deleteAlternate" => params.get("name").and_then(Value::as_str),
-        "layout.createAlternate" => params.get("source").and_then(Value::as_str),
+        "layout.addAlternate" => params.get("source").and_then(Value::as_str),
         _ => return vec![],
     };
     let all = kition_layout_engine::cmd::layouts(doc);
     let range = match wanted {
         Some(name) => all.into_iter().find(|(layout, _)| layout.as_deref() == Some(name)).map(|(_, range)| range),
-        None if command == "layout.createAlternate" => all.into_iter().next().map(|(_, range)| range),
+        None if command == "layout.addAlternate" => all.into_iter().next().map(|(_, range)| range),
         None => None,
     };
     range.map(Iterator::collect).unwrap_or_default()

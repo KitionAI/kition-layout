@@ -145,7 +145,7 @@ mod tests {
     fn static_caption_from_metadata() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [72, 72, 272, 172]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [72, 72, 272, 172]})).unwrap()["id"].as_u64().unwrap();
         s.execute("object.altText", &json!({"text": "Harbour at dawn", "ids": [a]})).unwrap();
         s.execute("object.label", &json!({"label": "fig-1", "ids": [a]})).unwrap();
         let r = s.execute("object.caption", &json!({"ids": [a], "text": "Figure {label}: {altText}", "offset": 6})).unwrap();
@@ -163,7 +163,7 @@ mod tests {
     fn live_caption_follows_its_source() {
         let mut s = Session::new();
         s.execute("file.new", &json!({})).unwrap();
-        let a = s.execute("frame.create", &json!({"rect": [72, 72, 272, 172]})).unwrap()["id"].as_u64().unwrap();
+        let a = s.execute("frame.add", &json!({"rect": [72, 72, 272, 172]})).unwrap()["id"].as_u64().unwrap();
         s.execute("object.altText", &json!({"text": "First", "ids": [a]})).unwrap();
         let r = s.execute("object.caption", &json!({"ids": [a], "text": "Photo: {altText}", "live": true})).unwrap();
         let cid = kition_layout_doc::ItemId(r["ids"][0].as_u64().unwrap());
