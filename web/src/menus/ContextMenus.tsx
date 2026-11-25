@@ -6,6 +6,7 @@ import type { Dialogs } from '../dialogs/DialogHost'
 import { asks } from '../dialogs/routes'
 import { VARIANT_LABELS, engineCommandOf } from './catalog'
 import { contextRows, type Spot } from './contextRows'
+import { viewChecked, viewRowLabel, type ViewState } from '../viewOptions'
 
 /** An open right-click menu: where it was opened and what is there. */
 export type OpenMenu = { spot: Spot; x: number; y: number }
@@ -90,14 +91,15 @@ type MenuProps = {
   onClose: () => void
   dialogs: RefObject<Dialogs | null>
   onView: (action: ViewAction) => void
-  rulers: boolean
-  onRulers: () => void
+  /** The view options, for their rows' checks, and a view option's row run (`kit:view.guides`). */
+  view: ViewState
+  onViewOption: (command: string) => void
 }
 
 const VIEW_ROW = new Map(VIEW_ACTIONS.map(([action, label, shortcut]) => [`kit:view.${action}`, { action, label, shortcut }]))
 
 /** The open right-click menu's rows, each run as its menu bar row is (through the dialog host). */
-export function LayoutContextMenu({ menu, info, onClose, dialogs, onView, rulers, onRulers }: MenuProps) {
+export function LayoutContextMenu({ menu, info, onClose, dialogs, onView, view: options, onViewOption }: MenuProps) {
   const { byId, enabled, phrase: p, t } = useKitEditor()
   if (!menu) return <ContextMenu at={null} onClose={onClose}>{null}</ContextMenu>
   // A Pages panel menu acts on its page (and that page's spread), not the page in view.
@@ -108,7 +110,9 @@ export function LayoutContextMenu({ menu, info, onClose, dialogs, onView, rulers
       {rows.map((row, index) => {
         if (row === '-') return <MenuSeparator key={`separator-${index}`} />
         const { id, params } = row
-        if (id === 'kit:view.rulers') return <MenuItem key={id} label={t(rulers ? 'hideRulers' : 'showRulers')} onSelect={onRulers} testId={`layout-context-row-${id}`} />
+        if (id.startsWith('kit:view.unit.')) return <MenuItem key={id} label={t(`unit.${id.slice('kit:view.unit.'.length)}`)} checked={viewChecked(id, options)} onSelect={() => onViewOption(id)} testId={`layout-context-row-${id}`} />
+        const option = viewRowLabel(id)
+        if (option) return <MenuItem key={id} label={p(option)} checked={viewChecked(id, options)} onSelect={() => onViewOption(id)} testId={`layout-context-row-${id}`} />
         const view = VIEW_ROW.get(id)
         if (view) return <MenuItem key={id} label={p(view.label)} shortcut={view.shortcut} onSelect={() => onView(view.action)} testId={`layout-context-row-${id}`} />
         const command = engineCommandOf(id) ?? id

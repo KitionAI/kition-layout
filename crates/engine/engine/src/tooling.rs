@@ -100,6 +100,8 @@ impl Session {
         // A press (moving the caret, choosing something else) ends the typing; hovering does not.
         if matches!(ev.kind, kition_layout_tools::PointerKind::Down | kition_layout_tools::PointerKind::DoubleClick) {
             self.end_typing();
+            // A gesture works on the document, not on a dialog's preview of it.
+            self.cancel_preview();
         }
         let actions = self.with_ctx(view, |t, cx| t.pointer(cx, ev)).unwrap_or_default();
         self.run_actions(actions)
@@ -107,6 +109,7 @@ impl Session {
 
     pub fn tool_key(&mut self, key: ToolKey, mods: Mods, view: ViewInfo) -> Result<bool> {
         self.end_typing();
+        self.cancel_preview();
         let actions = self.with_ctx(view, |t, cx| t.key(cx, key, mods)).unwrap_or_default();
         let handled = !actions.is_empty();
         self.run_actions(actions)?;
@@ -180,7 +183,60 @@ impl Session {
         r.map(|_| ())
     }
 
+    /// A dialog's live preview (an editor's Preview check box): shows `cmd` with `params` on the
+    /// document as it was when the preview began, replacing the previous preview. The command runs
+    /// through [`Session::execute`] inside an interaction, so nothing reaches the undo history
+    /// until [`Session::commit_preview`]; [`Session::cancel_preview`] leaves neither an undo nor a
+    /// redo step. Only an undoable command previews, and not during a tool's gesture.
+    pub fn preview_command(&mut self, cmd: &str, params: &Value) -> Result<()> {
+        let spec = crate::find_command(cmd).ok_or_else(|| EngineError::UnknownCommand(cmd.into()))?;
+        if !spec.undoable {
+            return Err(EngineError::Other(format!("`{cmd}` changes nothing a preview could show")));
+        }
+        if !self.dialog_preview {
+            if self.tool_busy() || self.doc()?.interaction.is_some() {
+                return Err(EngineError::Other("finish the gesture in progress before a preview".into()));
+            }
+            self.begin_interaction(spec.label.trim_end_matches('…'))?;
+            self.dialog_preview = true;
+        }
+        // Run as a nested command: the top-level bookkeeping (writing the replica, ending the
+        // typing, taking a preview back) is the preview's own.
+        self.depth += 1;
+        let result = self.preview(cmd, params.clone());
+        self.depth = self.depth.saturating_sub(1);
+        result
+    }
+
+    /// Keeps a dialog's preview as one undo step, labelled with its command. False when no preview
+    /// was showing.
+    pub fn commit_preview(&mut self) -> Result<bool> {
+        if !self.dialog_preview {
+            return Ok(false);
+        }
+        // Typing in progress is a step of its own, not part of the dialog's.
+        self.end_typing();
+        self.commit_interaction()?;
+        Ok(true)
+    }
+
+    /// Takes a dialog's preview back: the document and the selection are as they were, with no
+    /// undo or redo step. False when no preview was showing.
+    pub fn cancel_preview(&mut self) -> bool {
+        if !self.dialog_preview {
+            return false;
+        }
+        self.cancel_interaction();
+        true
+    }
+
+    /// Whether a dialog's preview is showing.
+    pub fn previewing(&self) -> bool {
+        self.dialog_preview
+    }
+
     pub fn commit_interaction(&mut self) -> Result<()> {
+        self.dialog_preview = false;
         let st = self.doc_mut()?;
         let Some(it) = st.interaction.take() else { return Ok(()) };
         if let Some((c, p)) = it.preview {
@@ -200,6 +256,7 @@ impl Session {
     }
 
     pub fn cancel_interaction(&mut self) {
+        self.dialog_preview = false;
         if let Some(st) = self.active_mut()
             && let Some(it) = st.interaction.take()
         {

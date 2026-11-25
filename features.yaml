@@ -497,7 +497,7 @@ features:
     priority: P0
     status: has
     paths: [web/src/dialogs/**, web/src/menus/**, web/src/App.tsx, web/src/HomeTab.tsx, web/src/strings.ts, web/src/main.tsx, web/tests/dialogs.mjs]
-    gap: "Dialogs do not preview live: the engine keeps an undone step for Redo, so a preview taken back on Cancel would come back with Redo (the engine's interaction preview is not a command yet). Text Frame Options cannot show a frame's gutter, insets or justification (the engine reports only its columns). The View and Window menus wait for stages 2 and 3; 58 engine menu commands are left out with their reasons (web/src/menus/hidden.ts)."
+    gap: "Text Frame Options cannot show a frame's gutter, insets or justification (the engine reports only its columns). The View and Window menus wait for stages 2 and 3; 58 engine menu commands are left out with their reasons (web/src/menus/hidden.ts)."
     cases: [layout.ui.dialogs/menu-dialogs, layout.ui.dialogs/menu-rows]
     since: "2026-11-25"
   - id: layout.ui.keys-and-view
@@ -506,7 +506,7 @@ features:
     priority: P0
     status: has
     paths: [web/src/canvasInput.tsx, web/src/cursors.ts, web/src/view.ts, web/src/ZoomEntry.tsx, web/src/App.tsx, web/src/menus/catalog.ts, web/tests/keys.mjs, web/src/view.test.mjs, crates/engine/engine/src/replica.rs, crates/engine/tools/src/text.rs, bindings/wasm/src/lib.rs]
-    gap: "Kit-editor gives the engine's tools no idle keys, no Space or Ctrl, no modifier change mid-drag, a fast wheel zoom and no typed zoom: the editor shims them with its own listeners until kition-sdk does (plan 2026-11-25 section 9). The cursor does not follow a held modifier (Alt for a copy), the Zoom tool's drag is a marquee (no scrubby zoom), Power Zoom and Cmd+Space are not done, the units and the guides' keys wait for stage 3."
+    gap: "Kit-editor gives the engine's tools no idle keys, no Space or Ctrl, no modifier change mid-drag, a fast wheel zoom and no typed zoom: the editor shims them with its own listeners until kition-sdk does (plan 2026-11-25 section 9). The Zoom tool's drag is a marquee (no scrubby zoom), Power Zoom and Cmd+Space are not done."
     cases: [layout.ui.keys-and-view/keys, layout.ui.keys-and-view/view-geometry, layout.ui.keys-and-view/engine-keys]
     since: "2026-11-25"
   - id: layout.ui.context-clipboard
@@ -517,6 +517,24 @@ features:
     paths: [web/src/menus/ContextMenus.tsx, web/src/menus/contextRows.ts, web/src/clipboard.tsx, web/src/HomeTab.tsx, web/src/dialogs/DialogHost.tsx, web/src/panels/Pages.tsx, web/src/panels/Layers.tsx, web/tests/context.mjs, web/src/view.test.mjs]
     gap: "A right-click in text keeps the caret or selection where it is (it does not move the caret to the click). Out of text, Paste takes the engine's own copied objects before text copied elsewhere; objects copied here are not on the system clipboard. Placing several files at once, the place cursor's thumbnail and a dropped text file loading the text cursor are not done. Playwright's WebKit grants no clipboard access, so the clipboard steps run in Chromium only."
     cases: [layout.ui.context-clipboard/context]
+    since: "2026-11-25"
+  - id: layout.ui.view-options
+    title: "The view by hand: View › Screen Mode (Normal, Preview with W, Bleed: no guides, frame edges or grids, the pasteboard and non-printing objects hidden), Rulers (Cmd+R), Extras › Frame Edges and Text Threads, Grids & Guides › Guides (Cmd+;), Lock Guides, Margins and Columns, Bleed and Slug, Snap to Guides, Smart Guides (Cmd+U), Baseline Grid, Document Grid, Snap to Document Grid, Type › Hidden Characters (¶ » · ¬ # °), each a checked row kept for the person and never in the document; the engine draws ruler guides, bleed and slug, the grids, every overset frame's red plus, the caret and selection in a table cell and the selected cells, and on a path only the direction lines a selected anchor shapes; drags snap only to what shows (the hidden baseline grid no longer catches a drawn shape) and the drawing readout is the shape as drawn; a guide dragged from a ruler shows its line and place and snaps (Shift to the ticks, Cmd not at all), a guide pressed is selected and drags, moves with the arrows, goes with Delete or a drop on the ruler; the ruler unit (points, picas, inches, millimetres, centimetres, pixels) from the ruler's menu or Preferences sets the rulers, the readouts, the panel's position and size and the dialogs' lengths, which take a length with its own unit (10mm, 3p6, 0.5in); Edit › Preferences… (Cmd+K) sets the ruler unit, the arrow key step, whether sizes include the stroke, the baseline and document grids, typographer's quotes and hidden characters; the cursor follows a held Space or Alt"
+    dimension: [function]
+    priority: P0
+    status: has
+    paths: [bindings/wasm/src/view.rs, bindings/wasm/src/chrome.rs, bindings/wasm/src/lib.rs, crates/engine/tools/src/snap.rs, crates/engine/tools/src/frame.rs, web/src/viewOptions.ts, web/src/units.ts, web/src/guides.ts, web/src/GuideLayer.tsx, web/src/Rulers.tsx, web/src/viewContext.tsx, web/src/dialogs/Preferences.tsx, web/src/dialogs/controls.tsx, web/src/panels/Properties.tsx, web/src/menus/catalog.ts, web/src/menus/contextRows.ts, web/src/App.tsx, web/tests/view.mjs, web/src/units.test.mjs, web/src/viewOptions.test.mjs]
+    gap: "Guide selection is the editor's (one guide at a time; no guide.select commands for agents), a guide takes no hover cursor and the arrows move it by a point (not the keyboard increment); Bleed mode hides what lies past the bleed but draws no slug; the property panel's fields show the ruler unit but take bare numbers (typed units come with stage 4's fields); the Preferences dialog has three pages; zero point, guides in back and the column guides' drag are not done."
+    cases: [layout.ui.view-options/view, layout.ui.view-options/units, layout.ui.view-options/engine-view, regressions/issue-hidden-baseline-snap]
+    since: "2026-11-25"
+  - id: layout.ui.dialog-preview
+    title: "Dialogs preview live: Text Frame Options, Margins and Columns, Move, Scale, Rotate, Shear, Step and Repeat and Corner Options show their values on the document while their Preview box is checked (the engine's own interaction preview, editor methods previewCommand, commitPreview and cancelPreview); Cancel leaves neither an undo nor a redo step, OK exactly one, named for the command; a gesture or a command from elsewhere takes the preview back first"
+    dimension: [function]
+    priority: P0
+    status: has
+    paths: [crates/engine/engine/src/tooling.rs, crates/engine/engine/src/lib.rs, bindings/wasm/src/lib.rs, web/src/dialogs/preview.ts, web/src/dialogs/DialogFrame.tsx, web/src/dialogs/FrameDialogs.tsx, web/src/dialogs/PageDialogs.tsx, web/src/dialogs/ParamsDialog.tsx, web/tests/preview.mjs]
+    gap: "The preview is the editor's (agents run a command and undo it); the other generic dialogs and the purpose-built page dialogs run once, on OK."
+    cases: [layout.ui.dialog-preview/preview, layout.ui.dialog-preview/engine-preview]
     since: "2026-11-25"
   - id: layout.file.new-document
     title: "File › New… makes a new layout beside the open one: a size preset or a size in millimetres, centimetres, inches, points or pixels, orientation, pages, facing pages, columns and gutter, four margins (linked or each its own) and bleed, written through the host"

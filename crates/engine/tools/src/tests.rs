@@ -32,6 +32,50 @@ fn frame_tool_drag_emits_begin_preview_commit() {
     assert_eq!(t.pointer(&cx, &PointerEvent::new(PointerKind::Up, 110.0, 60.0)), vec![Action::Commit]);
 }
 
+/// layout-usable-by-hand phase 3: the size readout while drawing is the drawn (snapped) shape's,
+/// in the editor's unit, not the pointer's box in points.
+#[test]
+fn the_drawing_readout_is_the_drawn_shape_in_the_ruler_unit() {
+    let mut d = Document::new(&NewDocument::default());
+    Arc::make_mut(&mut d.spreads[0]).pages[0].guides.push(Guide {
+        orientation: Orientation::Horizontal,
+        position: 160.0,
+        spread: false,
+        locked: false,
+        layer: None,
+        liquid: false,
+    });
+    let (s, c, l) = (Selection::default(), Cache::new(), CanvasLayout::new(&d, false));
+    let mut cx = ctx(&d, &s, &c, &l);
+    // The walkthrough's "dragged to 160, got 156": the hidden baseline grid (lines every 12 pt
+    // from 36) caught both the press (100 → 96) and the drag before the guide at 160 could.
+    cx.snap = SnapView { smart_guides: false, ..SnapView::FACTORY };
+    let mut t = create("rectangle");
+    t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 100.0, 100.0));
+    let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 172.0, 158.0));
+    assert!(a.iter().any(|action| matches!(action, Action::Preview(_, p) if p["rect"] == serde_json::json!([100.0, 96.0, 172.0, 156.0]))), "{a:?}");
+    // With the grid hidden the editor leaves it out of snapping.
+    cx.snap.snap_to_baseline_grid = false;
+    let mut t = create("rectangle");
+    t.pointer(&cx, &PointerEvent::new(PointerKind::Down, 100.0, 100.0));
+    // The pointer stops 2 pt short of the guide at 160: the bottom edge snaps to it.
+    let a = t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, 172.0, 158.0));
+    let drawn = a.iter().find_map(|action| match action {
+        Action::Preview(_, p) => Some(p["rect"].clone()),
+        _ => None,
+    });
+    assert_eq!(drawn, Some(serde_json::json!([100.0, 100.0, 172.0, 160.0])));
+    let readout = |t: &dyn Tool, cx: &ToolContext| {
+        t.overlays(cx).into_iter().find_map(|o| match o {
+            Overlay::Measure { text, .. } => Some(text),
+            _ => None,
+        })
+    };
+    assert_eq!(readout(t.as_ref(), &cx).as_deref(), Some("W: 72 pt  H: 60 pt"));
+    cx.unit = Unit::Millimeters;
+    assert_eq!(readout(t.as_ref(), &cx).as_deref(), Some("W: 25.4 mm  H: 21.17 mm"));
+}
+
 #[test]
 fn selection_click_and_marquee() {
     let mut d = Document::new(&NewDocument::default());

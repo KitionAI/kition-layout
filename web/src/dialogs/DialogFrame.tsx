@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { PreviewDialog, useKitEditor } from '@kition/sdk/editor'
+import { PreviewDialog, useKitEditor, type PreviewDialogPreview } from '@kition/sdk/editor'
 import { refusalReason } from '../menus/context'
 
 /** The test id every command dialog has (its buttons: `-ok`, `-cancel`). */
@@ -40,11 +40,12 @@ export function useRunInDialog() {
 }
 
 /**
- * A command's dialog: kit-editor's `PreviewDialog` without a live preview. The engine keeps an
- * undone step for Redo, so a preview taken back on Cancel would come back with Redo (plan
- * 2026-11-25, stage 1, section 9); the dialog runs once, on OK, as one history step. `onOk` does
- * the work (it throws to keep the dialog open with the reason); Alt turns Cancel into Reset when
- * the dialog has `onReset`. Its title bar moves it, and the next dialog opens where it was left.
+ * A command's dialog: kit-editor's `PreviewDialog`. With `preview` (`useCommandPreview`) it shows
+ * its values on the document live while its Preview box is checked, through the engine's own
+ * preview, which Cancel takes back with no undo or redo step (plan 2026-11-25, stage 3); the
+ * command runs once, on OK, as one history step. `onOk` does the work (it throws to keep the
+ * dialog open with the reason); Alt turns Cancel into Reset when the dialog has `onReset`. Its
+ * title bar moves it, and the next dialog opens where it was left.
  */
 export function DialogFrame({
   command,
@@ -57,6 +58,7 @@ export function DialogFrame({
   cancelLabel,
   keepOpen,
   modal,
+  preview,
   children,
 }: {
   command: string
@@ -69,6 +71,7 @@ export function DialogFrame({
   cancelLabel?: string
   keepOpen?: boolean
   modal?: boolean
+  preview?: PreviewDialogPreview
   children: ReactNode
 }) {
   const place = useDialogPlace()
@@ -82,6 +85,7 @@ export function DialogFrame({
       cancelLabel={cancelLabel}
       keepOpen={keepOpen}
       modal={modal}
+      preview={preview}
       onOk={async () => {
         await onOk()
         if (!keepOpen) onClose(true)

@@ -282,6 +282,9 @@ pub struct Session {
     pub(crate) typing: Option<replica::Typing>,
     /// Whether the running command is [`Session::type_text`]'s insert (which keeps the typing open).
     pub(crate) typing_now: bool,
+    /// A dialog's live preview is showing ([`Session::preview_command`]): the interaction is the
+    /// dialog's, not a tool's.
+    pub(crate) dialog_preview: bool,
 }
 
 impl Default for Session {
@@ -317,6 +320,7 @@ impl Session {
             agent_gate: None,
             typing: None,
             typing_now: false,
+            dialog_preview: false,
         }
     }
 
@@ -419,6 +423,11 @@ impl Session {
     pub fn execute(&mut self, id: &str, params: &Value) -> Result<Value> {
         let _files = disk::enter(self.host_files);
         let acting = (self.depth == 0).then(|| self.active().map(|d| d.uid)).flatten();
+        // A command from anywhere else (an agent, a panel) runs on the document, not on a dialog's
+        // preview of it: the preview is taken back first. A query reads the preview as it shows.
+        if self.depth == 0 && self.dialog_preview && find_command(id).is_some_and(|spec| spec.undoable || spec.journal) {
+            self.cancel_preview();
+        }
         if self.depth == 0 {
             // A direct write since the last command (`Session::edit` from outside one) is no part
             // of this command's step: it goes first, as a `system` change.

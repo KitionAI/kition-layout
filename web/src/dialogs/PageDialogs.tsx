@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { KitEngine, toast, useKitEditor } from '@kition/sdk/editor'
 import type { DocumentInfo } from '../layout'
 import { engineManifest } from '../engine'
-import { UNIT_NAMES, fromPoints, toPoints, unitDecimals, type Unit } from '../units'
+import { UNIT_NAMES, toPoints, type Unit } from '../units'
+import { useEditorView } from '../viewContext'
+import { useCommandPreview } from './preview'
 import { DialogFrame, useRunInDialog } from './DialogFrame'
-import { CheckRow, ChoiceRow, NumberRow, SidesRows, TextRow, type Sides } from './controls'
+import { CheckRow, ChoiceRow, LengthRow, NumberRow, SidesRows, TextRow, type Sides } from './controls'
 import { insertPlan, movePlan, pagesFromText, type Where } from './pages'
 
 /**
@@ -40,16 +42,6 @@ export function documentFileName(name: string, fallback: string) {
   return /\.klayout$/i.test(clean) ? clean : `${clean}.klayout`
 }
 
-/** Points shown in `unit` and typed back: the field's value and its setter. */
-function useLength(unit: Unit) {
-  return {
-    shown: (points: number) => fromPoints(points, unit),
-    points: (value: number) => toPoints(value, unit),
-    decimals: unitDecimals(unit),
-    label: unit,
-  }
-}
-
 /**
  * File › New… (New Document): a name, a size preset or a size in a unit, orientation, pages,
  * facing pages, columns and gutter, four margins (linked or each its own) and bleed. The editor
@@ -73,7 +65,6 @@ export function NewDocumentDialog({ onClose }: { onClose: () => void }) {
   })
   const [linked, setLinked] = useState(true)
   const [bleed, setBleed] = useState(toPoints(3, 'mm'))
-  const length = useLength(unit)
   const landscape = width > height
   const valid = width > 0 && height > 0 && width <= 15552 && height <= 15552 && pages >= 1 && pages <= 9999 && columns >= 1
   const choose = (next: PagePreset) => {
@@ -100,17 +91,14 @@ export function NewDocumentDialog({ onClose }: { onClose: () => void }) {
     }
   }
   const size = (label: string, value: number, set: (points: number) => void, testId: string) => (
-    <NumberRow
+    <LengthRow
       label={label}
-      value={length.shown(value)}
-      min={0}
-      max={100000}
-      decimals={length.decimals}
-      unit={length.label}
+      value={value}
+      unit={unit}
       onChange={(next) => {
         if (next === null || !(next > 0)) return
         setPreset('custom')
-        set(length.points(next))
+        set(next)
       }}
       testId={testId}
     />
@@ -137,9 +125,9 @@ export function NewDocumentDialog({ onClose }: { onClose: () => void }) {
         <NumberRow label={t('pages')} value={pages} min={1} max={9999} decimals={0} onChange={(next) => next !== null && next >= 1 && setPages(Math.round(next))} testId="layout-new-pages" />
         <CheckRow label={t('facingPages')} checked={facing} onChange={setFacing} testId="layout-new-facing" />
         <NumberRow label={t('columns')} value={columns} min={1} max={216} decimals={0} onChange={(next) => next !== null && next >= 1 && setColumns(Math.round(next))} testId="layout-new-columns" />
-        <NumberRow label={t('gutter')} value={length.shown(gutter)} min={0} max={100000} decimals={length.decimals} unit={length.label} onChange={(next) => next !== null && next >= 0 && setGutter(length.points(next))} testId="layout-new-gutter" />
-        <SidesRows label={t('margins')} sides={{ top: length.shown(margins.top), bottom: length.shown(margins.bottom), inside: length.shown(margins.inside), outside: length.shown(margins.outside) }} linked={linked} labels={sideLabels(t, facing)} linkLabel={t('dialog.linkSides')} unit={length.label} decimals={length.decimals} onChange={(next) => setMargins({ top: length.points(next.top), bottom: length.points(next.bottom), inside: length.points(next.inside), outside: length.points(next.outside) })} onLink={setLinked} testId="layout-new-margins" />
-        <NumberRow label={t('bleed')} value={length.shown(bleed)} min={0} max={100000} decimals={length.decimals} unit={length.label} onChange={(next) => next !== null && next >= 0 && setBleed(length.points(next))} testId="layout-new-bleed" />
+        <LengthRow label={t('gutter')} value={gutter} unit={unit} onChange={(next) => next !== null && next >= 0 && setGutter(next)} testId="layout-new-gutter" />
+        <SidesRows label={t('margins')} sides={margins} linked={linked} labels={sideLabels(t, facing)} linkLabel={t('dialog.linkSides')} unit={unit} onChange={setMargins} onLink={setLinked} testId="layout-new-margins" />
+        <LengthRow label={t('bleed')} value={bleed} unit={unit} onChange={(next) => next !== null && next >= 0 && setBleed(next)} testId="layout-new-bleed" />
         {valid ? null : <div className="layout-dialog-warning">{t('dialog.badSize')}</div>}
         <p className="kui-muted layout-note">{t('dialog.newDocumentNote')}</p>
       </div>
@@ -165,16 +153,17 @@ export function MarginsColumnsDialog({ info, page, onClose }: { info: DocumentIn
   const [linked, setLinked] = useState(start.top === start.bottom && start.top === start.inside && start.top === start.outside)
   const [columns, setColumns] = useState(shown?.columns ?? 1)
   const [gutter, setGutter] = useState(12)
-  const [unit, setUnit] = useState<Unit>('pt')
+  const [unit, setUnit] = useState<Unit>(useEditorView().view.unit)
   const [scope, setScope] = useState<'page' | 'all'>('all')
-  const length = useLength(unit)
+  const params = { margins, columns, gutter, ...(scope === 'page' ? { pages: [page] } : {}) }
+  const preview = useCommandPreview('layout.marginsAndColumns', params)
   return (
-    <DialogFrame command="layout.marginsAndColumns" title={t('dialog.marginsAndColumns')} onOk={() => run('layout.marginsAndColumns', { margins, columns, gutter, ...(scope === 'page' ? { pages: [page] } : {}) })} onClose={onClose}>
+    <DialogFrame command="layout.marginsAndColumns" title={t('dialog.marginsAndColumns')} preview={preview} onOk={() => run('layout.marginsAndColumns', params)} onClose={onClose}>
       <div className="layout-dialog-fields">
         <ChoiceRow label={t('units')} value={unit} choices={unitChoices(t)} onChange={setUnit} testId="layout-margins-unit" />
-        <SidesRows label={t('margins')} sides={{ top: length.shown(margins.top), bottom: length.shown(margins.bottom), inside: length.shown(margins.inside), outside: length.shown(margins.outside) }} linked={linked} labels={sideLabels(t, info.settings.facingPages)} linkLabel={t('dialog.linkSides')} unit={length.label} decimals={length.decimals} onChange={(next) => setMargins({ top: length.points(next.top), bottom: length.points(next.bottom), inside: length.points(next.inside), outside: length.points(next.outside) })} onLink={setLinked} testId="layout-margins" />
+        <SidesRows label={t('margins')} sides={margins} linked={linked} labels={sideLabels(t, info.settings.facingPages)} linkLabel={t('dialog.linkSides')} unit={unit} onChange={setMargins} onLink={setLinked} testId="layout-margins" />
         <NumberRow label={t('columns')} value={columns} min={1} max={216} decimals={0} onChange={(next) => next !== null && next >= 1 && setColumns(Math.round(next))} testId="layout-margins-columns" />
-        <NumberRow label={t('gutter')} value={length.shown(gutter)} min={0} max={100000} decimals={length.decimals} unit={length.label} onChange={(next) => next !== null && next >= 0 && setGutter(length.points(next))} testId="layout-margins-gutter" />
+        <LengthRow label={t('gutter')} value={gutter} unit={unit} onChange={(next) => next !== null && next >= 0 && setGutter(next)} testId="layout-margins-gutter" />
         <ChoiceRow label={t('dialog.applyTo')} value={scope} choices={[['all', t('dialog.allPages')], ['page', t('currentPage', { page: shown?.name ?? String(page + 1) })]] as const} onChange={setScope} testId="layout-margins-scope" />
       </div>
     </DialogFrame>

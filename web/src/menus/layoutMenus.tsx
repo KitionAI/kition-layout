@@ -5,6 +5,7 @@ import { asks } from '../dialogs/routes'
 import { VARIANT, engineCommandOf, layoutMenus } from './catalog'
 import { contextReason, disabledReason } from './context'
 import { menuContext, type Dialogs } from '../dialogs/DialogHost'
+import { VIEW_TOGGLES } from '../viewOptions'
 
 /** Menus kept in a read-only document. */
 const VIEW_MENUS = ['View', 'Help']
@@ -16,7 +17,7 @@ export const LAYOUT_PRIMARY: Record<string, readonly string[]> = {
   Type: ['footnote.insert', 'text.convertToOutlines', 'text.changeCase|upper', 'list.define', 'text.fillWithPlaceholder'],
   Object: ['arrange.group', 'arrange.ungroup', 'arrange.bringForward', 'arrange.sendBackward', 'object.fit|fitProportionally', 'object.textFrameOptions', 'object.dropShadow', 'object.lock'],
   Table: ['table.insert', 'table.insertRowBelow', 'table.insertColumnRight', 'table.deleteRow', 'table.deleteColumn', 'table.merge', 'table.unmerge', 'table.convertFromText'],
-  View: ['kit:view.fitPage', 'kit:view.fitSpread', 'kit:view.actualSize', 'kit:view.rulers', 'view.showTextThreads', 'guide.deleteAll'],
+  View: ['kit:view.fitPage', 'kit:view.fitSpread', 'kit:view.actualSize', 'kit:view.screenMode.preview', 'kit:view.rulers', 'kit:view.guides', 'view.showTextThreads', 'guide.deleteAll'],
 }
 
 /**
@@ -105,8 +106,10 @@ export function menuKey(event: KeyboardEvent<HTMLDivElement>, { commands, enable
 /** Commands whose key runs as their menu row does (Find Next runs the last search, or opens Find/Change). */
 const INVOKED = ['edit.findNext']
 
-/** The `kit:` rows' keys. */
+/** The `kit:` rows' keys: Place…, Go to Page…, Preferences… and the view options' (Cmd+R the rulers, Cmd+; the guides…). */
 const KIT_KEYS: ReadonlyArray<readonly [string, string]> = [
   ['Cmd+D', 'kit:file.place'],
   ['Cmd+J', 'kit:layout.goToPage'],
+  ['Cmd+K', 'kit:edit.preferences'],
+  ...VIEW_TOGGLES.flatMap(([key, , shortcut]) => (shortcut ? [[shortcut, `kit:view.${key}`] as const] : [])),
 ]

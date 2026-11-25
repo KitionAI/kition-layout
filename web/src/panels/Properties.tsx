@@ -1,6 +1,8 @@
 import { ArrowLeftRightIcon as ArrowLeftRight, ArrowUpDownIcon as ArrowUpDown, TextAlignCenterIcon as TextAlignCenter, TextAlignEndIcon as TextAlignEnd, TextAlignJustifyIcon as TextAlignJustify, TextAlignStartIcon as TextAlignStart } from '@kition/tessera/icons/react'
 import { Button, Choice, NumberField, PanelSection, Segmented, useEngineQuery, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import { findItem, type DocumentInfo, type Item } from '../layout'
+import { useEditorView } from '../viewContext'
+import { UNITS, fromPoints, toPoints } from '../units'
 
 type Measured = { x: number; y: number; width: number; height: number; rotation: number }
 type TextAttrs = {
@@ -81,17 +83,23 @@ function PageBackground({ info }: { info: DocumentInfo }) {
 
 function Geometry({ info, item }: { info: DocumentInfo; item: InspectedItem }) {
   const { run, t } = useKitEditor()
+  // Positions and sizes in the ruler unit (plan stage 3); the engine takes points.
+  const { unit } = useEditorView().view
   const measured = useEngineQuery<Measured>('transform.info', { ids: info.selection }, info.selection.join(','))
   if (!measured) return null
   const set = (key: keyof Measured) => (value: number, final: boolean) => {
-    if (final && Number.isFinite(value)) void run('transform.set', { [key]: value, ids: info.selection, ...(key === 'rotation' ? {} : { ref: 0 }) })
+    const points = key === 'rotation' ? value : toPoints(value, unit)
+    if (final && Number.isFinite(points)) void run('transform.set', { [key]: points, ids: info.selection, ...(key === 'rotation' ? {} : { ref: 0 }) })
   }
+  const length = (points: number) => fromPoints(points, unit)
+  // A step of about a point, a round one in the unit.
+  const step = UNITS[unit] >= 72 ? 0.125 : UNITS[unit] >= 12 ? 0.25 : UNITS[unit] >= 2 ? 0.5 : 1
   return (
     <div className="layout-grid" data-testid="layout-geometry" data-item={item.id}>
-      <NumberField label="X" name={t('positionX')} value={round(measured.x)} min={-100000} max={100000} step={1} unit="pt" onChange={set('x')} testId="layout-x" />
-      <NumberField label="Y" name={t('positionY')} value={round(measured.y)} min={-100000} max={100000} step={1} unit="pt" onChange={set('y')} testId="layout-y" />
-      <NumberField label="W" name={t('width')} value={round(measured.width)} min={0.1} max={100000} step={1} unit="pt" onChange={set('width')} testId="layout-w" />
-      <NumberField label="H" name={t('height')} value={round(measured.height)} min={0.1} max={100000} step={1} unit="pt" onChange={set('height')} testId="layout-h" />
+      <NumberField label="X" name={t('positionX')} value={length(measured.x)} min={-100000} max={100000} step={step} unit={unit} onChange={set('x')} testId="layout-x" />
+      <NumberField label="Y" name={t('positionY')} value={length(measured.y)} min={-100000} max={100000} step={step} unit={unit} onChange={set('y')} testId="layout-y" />
+      <NumberField label="W" name={t('width')} value={length(measured.width)} min={0.001} max={100000} step={step} unit={unit} onChange={set('width')} testId="layout-w" />
+      <NumberField label="H" name={t('height')} value={length(measured.height)} min={0.001} max={100000} step={step} unit={unit} onChange={set('height')} testId="layout-h" />
       <NumberField label="∠" name={t('rotation')} value={round(measured.rotation)} min={-360} max={360} step={1} unit="°" onChange={set('rotation')} testId="layout-rotation" />
       <span className="layout-buttons">
         <button type="button" className="kui-icon-button" aria-label={t('flipHorizontal')} title={t('flipHorizontal')} onClick={() => void run('transform.flip', { axis: 'horizontal', ids: info.selection })} data-testid="layout-flip-h">

@@ -9,12 +9,13 @@ import { ExportDialog } from './Export'
 import { FrameSizeDialog, PolygonSettingsDialog, TextFrameOptionsDialog, type FrameSizeRequest } from './FrameDialogs'
 import { DeletePagesDialog, GoToPageDialog, InsertPagesDialog, MarginsColumnsDialog, MovePagesDialog, NewDocumentDialog } from './PageDialogs'
 import { ParamsDialog } from './ParamsDialog'
+import { PreferencesDialog } from './Preferences'
 import { dialogFor, type DialogKind } from './routes'
 import { TemplatesDialog } from './Templates'
 import { ConfirmDialog, FindChangeDialog, InsertTableDialog, lastFind } from './TextDialogs'
 
 /** The editor's own dialogs, opened by name (menus' `kit:` rows, Home, the Pages panel, the engine's tools). */
-export type OwnDialog = 'newDocument' | 'goToPage' | 'polygon' | 'sample' | 'export' | 'templates' | 'documentSetup'
+export type OwnDialog = 'newDocument' | 'goToPage' | 'polygon' | 'sample' | 'export' | 'templates' | 'documentSetup' | 'preferences'
 
 /**
  * The dialog host (plan 2026-11-25, stage 1): every way a person runs a command (a menu row, a
@@ -197,6 +198,8 @@ export function LayoutDialogs({ api, info, place, onShowPage }: { api: RefObject
         return <TemplatesDialog onClose={close} />
       case 'documentSetup':
         return <DocumentSetupDialog info={info} onClose={close} />
+      case 'preferences':
+        return <PreferencesDialog onClose={close} />
       case 'frameSize':
         return <FrameSizeDialog request={open.request} onClose={close} />
       case 'marginsColumns':

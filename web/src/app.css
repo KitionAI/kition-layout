@@ -536,3 +536,36 @@
   font-size: 12px;
   text-align: right;
 }
+
+/* Stage 3: a ruler guide being dragged, and where it is. */
+.layout-guide-drag {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.layout-guide-drag-line {
+  position: absolute;
+  background: var(--kit-primary);
+}
+
+.layout-guide-drag-label {
+  position: absolute;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--kit-surface);
+  color: var(--kit-text);
+  border: 1px solid var(--kit-border);
+  font-size: 11px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stage 3: the Preferences dialog's pages. */
+.layout-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}

@@ -5,6 +5,9 @@
  * rulers). Pure, so it is tested in Node; `ContextMenus.tsx` draws them.
  */
 
+/** The units a ruler's menu offers, as InDesign's: points, picas, inches, millimetres, centimetres, pixels. */
+export const RULER_UNITS = ['pt', 'pc', 'in', 'mm', 'cm', 'px'] as const
+
 /** Where the person right-clicked. */
 export type Spot =
   | { kind: 'object'; textFrame: boolean; image: boolean; group: boolean; count: number }
@@ -52,9 +55,28 @@ export function contextRows(spot: Spot): ContextRow[] {
           'object.textFrameOptions',
         )
       case 'canvas':
-        return rows('edit.paste', 'edit.pasteInPlace', '-', 'kit:view.fitPage', 'kit:view.fitSpread', 'kit:view.actualSize', 'kit:view.entirePasteboard', '-', 'kit:view.rulers', 'view.showTextThreads', 'guide.deleteAll')
+        return rows(
+          'edit.paste',
+          'edit.pasteInPlace',
+          '-',
+          'kit:view.fitPage',
+          'kit:view.fitSpread',
+          'kit:view.actualSize',
+          'kit:view.entirePasteboard',
+          '-',
+          'kit:view.togglePreview',
+          'kit:view.rulers',
+          'kit:view.guides',
+          'kit:view.frameEdges',
+          'view.showTextThreads',
+          '-',
+          'kit:view.snapToGuides',
+          'kit:view.smartGuides',
+          'guide.deleteAll',
+        )
       case 'ruler':
-        return [row('kit:view.rulers'), row('guide.deleteAll', { spread: spot.spread })]
+        // The ruler unit (plan stage 3), the rulers and the spread's guides.
+        return [...RULER_UNITS.map((unit) => row(`kit:view.unit.${unit}`)), '-', row('kit:view.rulers'), row('guide.deleteAll', { spread: spot.spread })]
       case 'page':
         return rows('layout.pages.insert', 'layout.pages.move', 'layout.pages.duplicateSpread', 'layout.pages.delete', '-', 'layout.pages.applyParent', 'layout.marginsAndColumns', '-', 'kit:view.fitPage', 'kit:view.fitSpread')
       case 'layer':

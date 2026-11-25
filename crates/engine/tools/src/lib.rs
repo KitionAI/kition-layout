@@ -122,7 +122,15 @@ pub struct SnapView {
     pub align_centers: bool,
     pub smart_dimensions: bool,
     pub smart_spacing: bool,
+    /// Objects snap to the baseline grid (with Snap to Guides). An editor turns it on only while
+    /// the grid is shown: a hidden grid catching every drag reads as an invisible 12 pt grid.
+    #[serde(default = "snaps_to_baseline_grid")]
+    pub snap_to_baseline_grid: bool,
     pub zone_px: f64,
+}
+
+const fn snaps_to_baseline_grid() -> bool {
+    true
 }
 
 impl SnapView {
@@ -135,6 +143,7 @@ impl SnapView {
         align_centers: true,
         smart_dimensions: true,
         smart_spacing: true,
+        snap_to_baseline_grid: true,
         zone_px: 4.0,
     };
     pub const OFF: Self = Self {
@@ -146,6 +155,7 @@ impl SnapView {
         align_centers: false,
         smart_dimensions: false,
         smart_spacing: false,
+        snap_to_baseline_grid: false,
         zone_px: 4.0,
     };
 

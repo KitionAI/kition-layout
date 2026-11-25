@@ -36,6 +36,8 @@ export type Spread = {
   items: Item[]
   /** Spread x of the area's left edge (its leftmost page). */
   left: number
+  /** Its ruler guides a person can take (shown, unlocked), as the engine reports them. */
+  guides: unknown[]
 }
 export type Layer = { id: number; name: string; visible: boolean; locked: boolean; color: number[] }
 export type Story = { id: number; frames: number[]; overset: boolean; preview: string; length: number }
@@ -69,7 +71,7 @@ export type DocumentInfo = {
 type Inspected = {
   pageCount?: number
   spreads?: Array<{ index?: number; pages?: Array<Partial<Page>>; items?: Item[] }>
-  canvas?: { spreads?: Array<{ x: number; y: number; width: number; height: number }> }
+  canvas?: { spreads?: Array<{ x: number; y: number; width: number; height: number; guides?: unknown[] }> }
   selection?: { items?: number[]; text?: unknown }
   layers?: Layer[]
   activeLayer?: number
@@ -108,6 +110,7 @@ export function describe(info: KitEngineInfo): DocumentInfo {
         pages,
         items: spread.items ?? [],
         left: pages.length ? Math.min(...pages.map((page) => page.bounds[0])) : 0,
+        guides: placed[index]?.guides ?? [],
       }
     }),
     pageCount: inspected.pageCount ?? 0,

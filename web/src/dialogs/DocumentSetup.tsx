@@ -1,10 +1,8 @@
 import { Fragment, useState } from 'react'
 import { Button, Checkbox, Choice, Dialog, NumberField, useKitEditor } from '@kition/sdk/editor'
 import type { DocumentInfo } from '../layout'
-
-/** Units the dialog measures in; a pixel is a point, as in a web or mobile document. */
-const UNITS = { pt: 1, px: 1, mm: 72 / 25.4, in: 72 } as const
-type Unit = keyof typeof UNITS
+import { UNITS, type Unit } from '../units'
+import { useEditorView } from '../viewContext'
 
 /** Document sizes: print sizes, and the screen sizes Kition's designs start from (in points = px). */
 export const PRESETS = [
@@ -34,7 +32,9 @@ export function DocumentSetupDialog({ info, onClose }: { info: DocumentInfo; onC
   const page = info.spreads[0]?.pages[0]
   const [width, setWidth] = useState(info.settings.pageWidth)
   const [height, setHeight] = useState(info.settings.pageHeight)
-  const [unit, setUnit] = useState<Unit>(() => PRESETS.find((preset) => preset.id === presetOf(info.settings.pageWidth, info.settings.pageHeight))?.unit ?? 'pt')
+  // The ruler unit the person chose (plan stage 3); in points, a preset's own unit.
+  const ruler = useEditorView().view.unit
+  const [unit, setUnit] = useState<Unit>(() => (ruler !== 'pt' ? ruler : (PRESETS.find((preset) => preset.id === presetOf(info.settings.pageWidth, info.settings.pageHeight))?.unit ?? 'pt')))
   const [intent, setIntent] = useState(info.settings.intent || 'print')
   const [facing, setFacing] = useState(info.settings.facingPages)
   const start = page?.margins ?? { top: 36, bottom: 36, inside: 36, outside: 36 }

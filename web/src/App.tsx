@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import {
   EditorFrame,
   EngineToolRail,
@@ -35,6 +35,9 @@ import { VIEW_ACTIONS, VIEW_KEY_ALIASES, viewMove, type ViewAction } from './vie
 import { ZoomEntry } from './ZoomEntry'
 import { drawnCursor } from './cursors'
 import type { DocumentInfo } from './layout'
+import { GuideOverlay, guidesOf, useGuideGestures } from './GuideLayer'
+import { EditorViewProvider, type EditorView } from './viewContext'
+import { browserStorage, engineView, loadView, saveView, viewChange, viewChecked, type GuideRef, type ViewState } from './viewOptions'
 
 /** The view tools are the host's (the Zoom tool's drag zooms into its area); the engine's other tools run in the engine. */
 const HOST_TOOLS = { hand: HAND_TOOL, zoom: LAYOUT_ZOOM_TOOL }
@@ -73,13 +76,48 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   useCanvasWheel(canvas, () => typing.current())
   useFocusOnOpen(doc != null)
   usePanelEnterReturnsFocus(() => typing.current())
-  const [rulers, setRulers] = useState(true)
-  const rulersShown = useRef(rulers)
-  rulersShown.current = rulers
+  // The view options (plan stage 3): the editor's, kept for the person, told to the engine.
+  const [viewOptions, setViewOptions] = useState<ViewState>(() => loadView(browserStorage()))
+  const viewShown = useRef(viewOptions)
+  viewShown.current = viewOptions
+  useEffect(() => saveView(browserStorage(), viewOptions), [viewOptions])
+  const [selectedGuide, setSelectedGuide] = useState<GuideRef | null>(null)
+  const [movingGuide, setMovingGuide] = useState<GuideRef | null>(null)
+  const rulers = viewOptions.rulers
   const workspace = useRef<HTMLDivElement>(null)
   const [menu, setMenu] = useState<OpenMenu | null>(null)
   const openMenu = useMemo<MenuOpener>(() => (spot, x, y) => setMenu({ spot, x, y }), [])
   useEngineBackdrop(doc, canvas)
+  // Draws the page and the engine's overlays again after the engine changed what it draws (a view
+  // option, a dialog's preview) without a change the canvas follows.
+  const refreshTools = tools.refresh
+  const repaint = useCallback(() => {
+    void canvas.current?.retryRender()
+    refreshTools()
+  }, [refreshTools])
+  const shownMode = useRef<ViewState['screenMode'] | null>(null)
+  useEffect(() => {
+    if (!doc) return
+    let live = true
+    const json = JSON.stringify(engineView(viewOptions, { selected: selectedGuide, moving: movingGuide }))
+    void doc
+      .invoke('setView', json)
+      .then(() => {
+        if (!live) return
+        // The page itself changes only with the screen mode; the overlays with every option.
+        if (shownMode.current !== null && shownMode.current !== viewOptions.screenMode) void canvas.current?.retryRender()
+        shownMode.current = viewOptions.screenMode
+        refreshTools()
+      })
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [doc, viewOptions, selectedGuide, movingGuide, refreshTools])
+  const editorView = useMemo<EditorView>(() => ({ view: viewOptions, setView: (change) => setViewOptions(change), repaint }), [viewOptions, repaint])
+  const runQuiet = useCallback((command: string, params: Record<string, unknown>) => editor.session.run(command, params), [editor.session])
+  const guides = useMemo(() => guidesOf(state), [state])
+  const guideGestures = useGuideGestures({ run: runQuiet, info: state, guides, view: viewOptions, canvas, tool: tools.active, readOnly: Boolean(host.readOnly), selected: selectedGuide, onSelect: setSelectedGuide, onMoving: setMovingGuide })
   const viewMemory = useRef<RasterView | null>(null)
   const [view, setView] = useState<KitCanvasView | null>(null)
   const views = useMemo(createViewStore, [])
@@ -118,9 +156,11 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   )
   useViewToolDoubleClicks(() => viewActions.current('fitSpread'), () => viewActions.current('actualSize'))
   const runKit = (command: string) => {
-    if (command === 'kit:file.place') dialogs.current?.place()
+    const option = viewChange(command, viewShown.current)
+    if (option) setViewOptions(option)
+    else if (command === 'kit:file.place') dialogs.current?.place()
     else if (command === 'kit:layout.goToPage') showDialog('goToPage')
-    else if (command === 'kit:view.rulers') setRulers((shown) => !shown)
+    else if (command === 'kit:edit.preferences') showDialog('preferences')
     else if (command.startsWith('kit:view.')) viewActions.current(command.slice('kit:view.'.length) as ViewAction)
   }
   /**
@@ -135,6 +175,13 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
       viewActions.current(view[1])
       return true
     }
+    // W switches between Normal and Preview, as InDesign's (not while typing or in a field).
+    if (event.key.toLowerCase() === 'w' && !command && !event.altKey && !event.shiftKey && !tools.wantsText && !inField(event.target)) {
+      setViewOptions((now) => ({ ...now, screenMode: now.screenMode === 'normal' ? 'preview' : 'normal' }))
+      return true
+    }
+    // A selected ruler guide takes the arrows, Delete and Escape.
+    if (!tools.wantsText && !inField(event.target) && guideGestures.guideKey(event)) return true
     if (ARROWS.has(event.key) && tools.active !== 'hand' && tools.active !== 'zoom') {
       const zoomNow = canvas.current?.view()?.zoom ?? zoom
       const mods = (cmd: boolean) => JSON.stringify({ shift: event.shiftKey, alt: event.altKey, command: cmd, control: false, space: false })
@@ -159,10 +206,6 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
     const at = state?.spreads.find((item) => item.pages.some((page) => page.index === index))
     if (at) canvas.current?.show(at.area)
   }
-  // A guide dragged from a ruler is an edit, which a read-only layout (a viewer) does not make.
-  const addGuide = (orientation: 'horizontal' | 'vertical', position: number, index: number) => {
-    if (!host.readOnly) void editor.run('guide.add', { orientation, position, spread: index })
-  }
   const tabs = useMemo<FrameTab[]>(
     () => [
       // Home first (its own ribbon; a drop-down panel in Menus), then the engine's menus.
@@ -172,7 +215,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
         phrase,
         onCommand: invoke,
         onKitCommand: runKit,
-        checked: (command) => (command === 'kit:view.rulers' ? rulersShown.current : undefined),
+        checked: (command) => viewChecked(command, viewShown.current),
         // The editor's own dialogs stand for these commands, at the top of File.
         before: {
           File: [
@@ -191,6 +234,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
 
   return (
     <KitEditorProvider editor={editor} tools={tools}>
+      <EditorViewProvider value={editorView}>
       <MenuOpenerProvider value={openMenu}>
       <EditorFrame
         tabs={tabs}
@@ -220,8 +264,8 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
           <CanvasFrame showRulers={rulers} rulers={(
             <>
               <span className="layout-ruler-corner" aria-hidden="true" />
-              {state ? <Ruler axis="x" info={state} view={view} onGuide={addGuide} /> : <span />}
-              {state ? <Ruler axis="y" info={state} view={view} onGuide={addGuide} /> : <span />}
+              {state ? <Ruler axis="x" info={state} view={view} unit={viewOptions.unit} onGuide={guideGestures.fromRuler} /> : <span />}
+              {state ? <Ruler axis="y" info={state} view={view} unit={viewOptions.unit} onGuide={guideGestures.fromRuler} /> : <span />}
             </>
           )}>
             <KitDocumentCanvas canvas={canvas} tool={engineTool} viewMemory={viewMemory} initialArea={state?.spreads[0]?.area ?? null} panBounds={panBounds} framed={false} animated={Boolean(state?.editingText)} onView={(next) => {
@@ -230,6 +274,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
             }}>
               {/* The scrollbars: there only while the pasteboard is longer than the view. */}
               <CanvasScrollbars views={views} content={() => panBounds} canvas={canvas} />
+              <GuideOverlay drag={guideGestures.drag} info={state} view={view} unit={viewOptions.unit} />
             </KitDocumentCanvas>
           </CanvasFrame>
         </div>
@@ -237,12 +282,18 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
         <MenuHints info={state} />
         <PolygonDoubleClick onOpen={() => showDialog('polygon')} />
         <CanvasShims info={state} canvas={canvas} workspace={workspace} typing={() => typing.current()} onOpen={openMenu} spread={() => spread?.index ?? 0} />
-        <LayoutContextMenu menu={menu} info={state} onClose={() => setMenu(null)} dialogs={dialogs} onView={(action) => viewActions.current(action)} rulers={rulers} onRulers={() => setRulers((shown) => !shown)} />
+        <LayoutContextMenu menu={menu} info={state} onClose={() => setMenu(null)} dialogs={dialogs} onView={(action) => viewActions.current(action)} view={viewOptions} onViewOption={runKit} />
         <ZoomEntry canvas={canvas} zoom={zoom} />
       </EditorFrame>
       </MenuOpenerProvider>
+      </EditorViewProvider>
     </KitEditorProvider>
   )
+}
+
+/** Whether a key went to a field of its own (a panel's number, a text box). */
+function inField(target: EventTarget | null) {
+  return target instanceof HTMLElement && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable)
 }
 
 /** A double click on a polygon tool's button (in the rail or its flyout) opens the polygon settings. */

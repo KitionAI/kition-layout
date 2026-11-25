@@ -1,0 +1,27 @@
+format: 1
+id: layout.ui.view-options/engine-view
+feature: layout.ui.view-options
+intent: >-
+  In the engine and its binding: the view options show and hide ruler guides, frame edges, margins
+  and the grids, Preview hides the aids and the pasteboard, and the file saves the same bytes however
+  the layout is viewed; an overset frame shows its red plus unselected; hidden characters mark
+  spaces and the story's end; the cursor is the hand with Space held; the drawing readout is the
+  drawn shape in the ruler unit.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/src/lib.rs, bindings/wasm/src/view.rs, crates/engine/tools/src/tests.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, filter: the_view_options_show_and_hide_the_aids_and_never_reach_the_file }
+  - cargo-test: { package: kition-layout-kit, filter: an_overset_frame_shows_its_plus_unselected }
+  - cargo-test: { package: kition-layout-kit, filter: hidden_characters_mark_spaces_and_the_story_end }
+  - cargo-test: { package: kition-layout-kit, filter: the_cursor_follows_the_held_modifiers }
+  - cargo-test: { package: kition-layout-kit, filter: view::tests }
+  - cargo-test: { package: kition-layout-tools, filter: the_drawing_readout_is_the_drawn_shape_in_the_ruler_unit }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

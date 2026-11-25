@@ -1,0 +1,25 @@
+format: 1
+id: layout.ui.dialog-preview/preview
+feature: layout.ui.dialog-preview
+intent: >-
+  A person in a dialog: Text Frame Options shows three columns on the frame while it is open;
+  Cancel puts the frame back and leaves the history as it was with nothing to redo; OK keeps two
+  columns as exactly one history step, which Undo takes back and Redo brings again; Move moves the
+  frame while its values change and Cancel puts it back with no history step.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/preview.mjs (plan 2026-11-25, stage 3)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/preview.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-25"

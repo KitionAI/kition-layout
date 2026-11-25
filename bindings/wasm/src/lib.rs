@@ -27,6 +27,7 @@ pub mod files;
 mod params;
 mod place;
 pub mod render;
+pub mod view;
 
 use kition_kit::raster::{self, Frame};
 use kition_kit::tools::{KitTools, PointerAction, ToolInfo, ToolMods, ToolOverlay, ToolPointer, ToolRequest, ToolResponse};
@@ -38,6 +39,7 @@ use kition_layout_kdm::FileBase;
 use kition_layout_render::{Placed, RenderOptions, Renderer};
 use kition_layout_tools::{Cursor, Mods, PointerEvent, PointerKind, ToolKey};
 use serde_json::{Value, json};
+use view::{ScreenMode, ViewOptions};
 
 /// Pasteboard shown around the spreads, in points.
 const MARGIN: f64 = 72.0;
@@ -65,6 +67,8 @@ pub struct LayoutDocument {
     /// put back as it is, while one of another document (the session a file reread replaces, the
     /// one a premise plan forks) must name only what this document has.
     editor_owner: u64,
+    /// What the editor shows and snaps to (its state, never the document's).
+    view: ViewOptions,
 }
 
 /// The next [`LayoutDocument::editor_owner`].
@@ -86,8 +90,15 @@ impl LayoutDocument {
 
     fn from_session(session: Session) -> Self {
         let editor_owner = NEXT_EDITOR_OWNER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let document =
-            Self { session, renderer: RefCell::new(Renderer::new()), hover: None, pasteboard: PASTEBOARD, saving: Mutex::new(None), editor_owner };
+        let document = Self {
+            session,
+            renderer: RefCell::new(Renderer::new()),
+            hover: None,
+            pasteboard: PASTEBOARD,
+            saving: Mutex::new(None),
+            editor_owner,
+            view: ViewOptions::default(),
+        };
         document.commands();
         document
     }
@@ -127,29 +138,63 @@ impl LayoutDocument {
         let layout = self.session.layout();
         let placed: Vec<Placed> = layout.slots.iter().map(|slot| Placed { spread: slot.spread, xf: slot.xf }).collect();
         let view = Affine::scale(scale) * Affine::translate((-(origin.x + x), -(origin.y + y)));
-        let options = RenderOptions { background: Some(self.pasteboard), paper: true, page_shadow: true, greek_below_px: 3.0, ..Default::default() };
+        // Preview and Bleed show what prints: no non-printing objects, nothing past the trim (or
+        // the bleed) on the pasteboard.
+        let preview = self.view.screen_mode != ScreenMode::Normal;
+        let options = RenderOptions {
+            background: Some(self.pasteboard),
+            paper: true,
+            page_shadow: true,
+            greek_below_px: 3.0,
+            printing_only: preview,
+            ..Default::default()
+        };
         let mut renderer = self.renderer.try_borrow_mut().map_err(|_| "the renderer is busy".to_owned())?;
-        Ok(renderer.render(&state.doc, &self.session.cache, &placed, width, height, view, &options).to_straight())
+        let mut pixels = renderer.render(&state.doc, &self.session.cache, &placed, width, height, view, &options).to_straight();
+        if preview {
+            let shown: Vec<Rect> = layout
+                .slots
+                .iter()
+                .filter_map(|slot| {
+                    let spread = state.doc.spread(slot.spread)?;
+                    let area = match self.view.screen_mode {
+                        ScreenMode::Bleed => chrome::bleed_box(spread, state.doc.settings.bleed).unwrap_or_else(|| spread.bounds()),
+                        _ => spread.bounds(),
+                    };
+                    Some(view.transform_rect_bbox(slot.xf.transform_rect_bbox(area)))
+                })
+                .collect();
+            view::mask_outside(&mut pixels, width, height, &shown, self.pasteboard);
+        }
+        Ok(pixels)
     }
 
-    fn view(zoom: f64) -> ViewInfo {
-        ViewInfo::at_zoom(if zoom.is_finite() && zoom > 0.0 { zoom } else { 1.0 })
+    fn view(&self, zoom: f64) -> ViewInfo {
+        self.view.info(zoom)
     }
 
     /// The engine's answer after an event: its requests, overlays with the selection and text
     /// display (in document pixels), its cursor, and whether it is busy or takes text.
-    fn respond(&mut self, before_tool: &str, at: Option<Point>, zoom: f64) -> ToolResponse {
-        let view = Self::view(zoom);
+    fn respond(&mut self, before_tool: &str, at: Option<Point>, mods: Mods, zoom: f64) -> ToolResponse {
+        let view = self.view(zoom);
         let origin = self.origin();
         let mut requests: Vec<ToolRequest> = self.session.ui_requests.drain(..).filter_map(request_out).collect();
         if self.session.tool_id() != before_tool {
             requests.push(ToolRequest::SwitchTool { id: self.session.tool_id().to_owned() });
         }
-        let mut engine = chrome::overlays(&self.session, zoom);
+        let mut engine = chrome::overlays(&self.session, zoom, &self.view);
         engine.extend(self.session.overlays(view).into_iter().filter_map(chrome::from_tool));
         let overlays = engine.into_iter().filter_map(|overlay| shift(overlay, origin)).collect();
-        let cursor = at.map_or_else(|| "default".to_owned(), |point| cursor_css(self.session.cursor(point, Mods::default(), view)));
-        ToolResponse { requests, overlays, cursor, busy: self.session.tool_busy(), wants_text: self.session.wants_text() }
+        let busy = self.session.tool_busy();
+        let wants_text = self.session.wants_text();
+        // The cursor follows the modifiers held: Space (outside text) and Alt while typing pan, as
+        // the editor does with them; the tool says the rest (Alt with the Zoom tool zooms out).
+        let cursor = match at {
+            Some(_) if !busy && ((mods.space && !wants_text) || (mods.alt && wants_text)) => "grab".to_owned(),
+            Some(point) => cursor_css(self.session.cursor(point, mods, view)),
+            None => "default".to_owned(),
+        };
+        ToolResponse { requests, overlays, cursor, busy, wants_text }
     }
 }
 
@@ -444,7 +489,17 @@ impl KitDocument for LayoutDocument {
             .filter_map(|slot| {
                 let spread = state.doc.spread(slot.spread)?;
                 let placed = slot.xf.transform_rect_bbox(spread.bounds());
-                Some(json!({ "x": placed.x0 - origin.x, "y": placed.y0 - origin.y, "width": placed.width(), "height": placed.height(), "pages": spread.pages.len() }))
+                // The ruler guides the editor's hands take (plan 2026-11-25, stage 3): those shown
+                // and unlocked, each with its page, its index on the page and its place (spread points).
+                let guides: Vec<Value> = spread
+                    .pages
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(page, p)| p.guides.iter().enumerate().map(move |(index, guide)| (page, index, guide)))
+                    .filter(|(_, _, guide)| guide.editable_in(&state.doc))
+                    .map(|(page, index, guide)| json!({ "page": page, "index": index, "orientation": guide.orientation, "position": guide.position, "spread": guide.spread }))
+                    .collect();
+                Some(json!({ "x": placed.x0 - origin.x, "y": placed.y0 - origin.y, "width": placed.width(), "height": placed.height(), "pages": spread.pages.len(), "guides": guides }))
             })
             .collect();
         if let Some(object) = inspected.as_object_mut() {
@@ -560,14 +615,14 @@ impl KitTools for LayoutDocument {
         // A tool a command started (the loaded text or place cursor, off the rail) stays as it is
         // when the editor confirms the engine's switch to it.
         if id == self.session.tool_id() {
-            return Ok(self.respond(self.session.tool_id(), None, zoom));
+            return Ok(self.respond(self.session.tool_id(), None, Mods::default(), zoom));
         }
         if kition_layout_tools::catalog::tool_info(id).is_none() {
             return Err(format!("no tool {id}"));
         }
         self.session.set_tool(id);
         let tool = self.session.tool_id();
-        Ok(self.respond(tool, None, zoom))
+        Ok(self.respond(tool, None, Mods::default(), zoom))
     }
 
     fn pointer(&mut self, event: &ToolPointer) -> Result<ToolResponse, String> {
@@ -581,16 +636,18 @@ impl KitTools for LayoutDocument {
         };
         self.hover = (event.action == PointerAction::Move).then_some(at);
         let before = self.session.tool_id();
-        self.session.pointer(&PointerEvent::new(kind, at.x, at.y).with_mods(mods_in(event.mods)), Self::view(event.zoom)).map_err(engine_error)?;
-        Ok(self.respond(before, Some(at), event.zoom))
+        let mods = mods_in(event.mods);
+        self.session.pointer(&PointerEvent::new(kind, at.x, at.y).with_mods(mods), self.view(event.zoom)).map_err(engine_error)?;
+        Ok(self.respond(before, Some(at), mods, event.zoom))
     }
 
     fn key(&mut self, key: &str, mods: ToolMods, zoom: f64) -> Result<ToolResponse, String> {
         let before = self.session.tool_id();
         if let Some(engine_key) = key_in(key) {
-            self.session.tool_key(engine_key, mods_in(mods), Self::view(zoom)).map_err(engine_error)?;
+            let view = self.view(zoom);
+            self.session.tool_key(engine_key, mods_in(mods), view).map_err(engine_error)?;
         }
-        Ok(self.respond(before, None, zoom))
+        Ok(self.respond(before, None, Mods::default(), zoom))
     }
 
     /// Typed text goes into the story at the caret, as the Type tool does.
@@ -600,13 +657,13 @@ impl KitTools for LayoutDocument {
             // Typing joins one undo step per word (the editor ends it at a pause: `endTyping`).
             self.session.type_text(text).map_err(engine_error)?;
         }
-        Ok(self.respond(before, None, zoom))
+        Ok(self.respond(before, None, Mods::default(), zoom))
     }
 
-    fn state(&mut self, x: f64, y: f64, _mods: ToolMods, zoom: f64) -> ToolResponse {
+    fn state(&mut self, x: f64, y: f64, mods: ToolMods, zoom: f64) -> ToolResponse {
         let at = self.to_canvas(x, y);
         let before = self.session.tool_id();
-        self.respond(before, Some(at), zoom)
+        self.respond(before, Some(at), mods_in(mods), zoom)
     }
 }
 
@@ -623,6 +680,37 @@ impl LayoutDocument {
     /// Ends the typing in progress: the next text typed (`toolText`) is a new undo step.
     pub fn end_typing(&mut self) {
         self.session.end_typing();
+    }
+
+    /// The editor's view options (`view::ViewOptions`, a JSON object): what the canvas shows over
+    /// the pages, the screen mode, what drags snap to and the ruler unit. Editor state: the
+    /// document, its file and its history do not change.
+    pub fn set_view(&mut self, json: &str) -> Result<(), String> {
+        self.view = ViewOptions::parse(json)?;
+        Ok(())
+    }
+
+    /// A dialog's live preview of `command` with `params` (JSON): shown on the document as it was
+    /// when the preview began, replacing the last; no history step until `commit_preview`.
+    pub fn preview_command(&mut self, command: &str, params: &str) -> Result<(), String> {
+        let params = kition_kit::parse_params(params)?;
+        self.refuse_unknown(command, &params)?;
+        let params = addresses::resolve(command, &params, self.session.kdm().map(|kdm| kdm.replica()))?;
+        self.session.preview_command(command, &params).map_err(engine_error)
+    }
+
+    /// Keeps the dialog's preview as one history step; false when none was showing.
+    pub fn commit_preview(&mut self) -> Result<bool, String> {
+        let kept = self.session.commit_preview().map_err(engine_error)?;
+        if kept && let Ok(state) = self.active() {
+            place::history::remember(&state.doc);
+        }
+        Ok(kept)
+    }
+
+    /// Takes the dialog's preview back, leaving no undo or redo step; false when none was showing.
+    pub fn cancel_preview(&mut self) -> bool {
+        self.session.cancel_preview()
     }
 
     /// The canvas around the spreads in `#rrggbb` (the editor's canvas color).
@@ -695,6 +783,30 @@ pub mod web {
 
         pub fn redo(&mut self) -> Result<String, JsError> {
             self.0.redo().map(|(done, damage)| serde_json::json!({ "done": done, "damage": damage }).to_string()).map_err(error)
+        }
+
+        /// The editor's view options as JSON (see `view::ViewOptions`); the editor repaints after.
+        #[wasm_bindgen(js_name = setView)]
+        pub fn set_view(&mut self, json: &str) -> Result<(), JsError> {
+            self.0.set_view(json).map_err(error)
+        }
+
+        /// A dialog's live preview of `command` with `params` (JSON text).
+        #[wasm_bindgen(js_name = previewCommand)]
+        pub fn preview_command(&mut self, command: &str, params: &str) -> Result<(), JsError> {
+            self.0.preview_command(command, params).map_err(error)
+        }
+
+        /// Keeps the dialog's preview as one history step.
+        #[wasm_bindgen(js_name = commitPreview)]
+        pub fn commit_preview(&mut self) -> Result<bool, JsError> {
+            self.0.commit_preview().map_err(error)
+        }
+
+        /// Takes the dialog's preview back (no undo or redo step).
+        #[wasm_bindgen(js_name = cancelPreview)]
+        pub fn cancel_preview(&mut self) -> bool {
+            self.0.cancel_preview()
         }
 
         /// Ends the typing in progress, so the next text typed is a new undo step: the editor
@@ -933,6 +1045,98 @@ mod tests {
         let up = doc.pointer(&event(PointerAction::Up)).unwrap();
         let handles = up.overlays.iter().filter(|overlay| matches!(overlay, ToolOverlay::Anchor { .. })).count();
         assert!(handles >= 8, "eight handles: {:?}", up.overlays);
+    }
+
+    /// layout-usable-by-hand phase 3: the view options decide what shows over the pages; they
+    /// are editor state, so the file saves the same bytes however the layout is viewed.
+    #[test]
+    fn the_view_options_show_and_hide_the_aids_and_never_reach_the_file() {
+        let mut doc = LayoutDocument::open("Flyer.klayout", &fixture()).unwrap();
+        doc.execute("guide.add", json!({ "orientation": "horizontal", "position": 300 })).unwrap();
+        doc.execute("frame.add", json!({ "rect": [300, 400, 400, 500], "content": "text", "text": "Hi", "caret": false })).unwrap();
+        doc.execute("select.set", json!({ "ids": [] })).unwrap();
+        let saved = doc.save(None).unwrap();
+        doc.mark_saved();
+        let guide = |overlays: &[ToolOverlay]| overlays.iter().any(|o| matches!(o, ToolOverlay::Path { color, .. } if *color == [74, 200, 245, 255]));
+        let edges = |overlays: &[ToolOverlay]| overlays.iter().filter(|o| matches!(o, ToolOverlay::Path { color, .. } if color[3] == 190)).count();
+        let shown = doc.state(0.0, 0.0, ToolMods::default(), 1.0).overlays;
+        assert!(guide(&shown), "the ruler guide is drawn: {shown:?}");
+        assert!(edges(&shown) > 0, "frame edges");
+        // Preview: no guides, no frame edges, no margins; and the pasteboard hides what lies on it.
+        doc.set_view(r#"{"screenMode": "preview"}"#).unwrap();
+        let preview = doc.state(0.0, 0.0, ToolMods::default(), 1.0).overlays;
+        assert!(!guide(&preview) && edges(&preview) == 0 && preview.len() < shown.len(), "{preview:?}");
+        assert_eq!(doc.render(10.0, 10.0, 1.0, 1, 1).unwrap(), vec![243, 243, 246, 255]);
+        doc.set_view(r#"{"guides": false, "frameEdges": false}"#).unwrap();
+        let hidden = doc.state(0.0, 0.0, ToolMods::default(), 1.0).overlays;
+        assert!(!guide(&hidden) && edges(&hidden) == 0);
+        doc.set_view(r#"{"baselineGrid": true, "documentGrid": true}"#).unwrap();
+        assert!(doc.state(0.0, 0.0, ToolMods::default(), 1.0).overlays.len() > shown.len() + 20, "the grids add lines");
+        assert!(doc.set_view(r#"{"guidez": false}"#).is_err());
+        assert_eq!(doc.save(None).unwrap(), saved, "the view is no part of the file");
+        assert!(!doc.dirty());
+    }
+
+    /// An overset story shows its red plus on its last frame whether or not it is selected.
+    #[test]
+    fn an_overset_frame_shows_its_plus_unselected() {
+        let mut doc = LayoutDocument::create("Story.klayout", 612, 792).unwrap();
+        let text = "Words keep coming and the frame fills up quickly with them. ".repeat(12);
+        doc.execute("frame.add", json!({ "rect": [100, 100, 300, 200], "content": "text", "text": text, "caret": false })).unwrap();
+        doc.execute("select.set", json!({ "ids": [] })).unwrap();
+        let shown = doc.state(0.0, 0.0, ToolMods::default(), 1.0).overlays;
+        assert!(shown.iter().any(|o| matches!(o, ToolOverlay::Line { color, .. } if *color == [230, 20, 20, 255])), "{shown:?}");
+    }
+
+    /// Hidden characters: a space's dot and the story's end mark, as labels.
+    #[test]
+    fn hidden_characters_mark_spaces_and_the_story_end() {
+        let mut doc = LayoutDocument::create("Story.klayout", 612, 792).unwrap();
+        doc.execute("frame.add", json!({ "rect": [100, 100, 300, 200], "content": "text", "text": "One two", "caret": false })).unwrap();
+        let marks = |doc: &mut LayoutDocument| {
+            doc.state(0.0, 0.0, ToolMods::default(), 1.0)
+                .overlays
+                .into_iter()
+                .filter_map(|o| match o {
+                    ToolOverlay::Label { text, .. } => Some(text),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        assert!(marks(&mut doc).is_empty());
+        doc.set_view(r#"{"hiddenCharacters": true}"#).unwrap();
+        let shown = marks(&mut doc);
+        assert!(shown.contains(&"·".to_owned()) && shown.contains(&"#".to_owned()), "{shown:?}");
+    }
+
+    /// A dialog's preview through the editor's methods: Cancel leaves no undo or redo, OK one step.
+    #[test]
+    fn a_dialog_preview_through_the_editor_methods() {
+        let mut doc = LayoutDocument::open("Flyer.klayout", &fixture()).unwrap();
+        let frame =
+            doc.execute("frame.add", json!({ "rect": [300, 300, 400, 400], "content": "text", "text": "Hi", "caret": false })).unwrap()["id"].clone();
+        doc.execute("select.set", json!({ "ids": [frame] })).unwrap();
+        let history = |doc: &mut LayoutDocument| doc.execute("file.history", json!({})).unwrap();
+        let before = history(&mut doc);
+        doc.preview_command("object.textFrameOptions", r#"{"columns": 3}"#).unwrap();
+        assert!(doc.preview_command("object.textFrameOptions", r#"{"colums": 3}"#).is_err(), "an unknown key is refused");
+        assert!(doc.cancel_preview());
+        assert_eq!(history(&mut doc), before);
+        assert!(!doc.can_redo());
+        doc.preview_command("object.textFrameOptions", r#"{"columns": 2}"#).unwrap();
+        assert!(doc.commit_preview().unwrap());
+        let after = history(&mut doc);
+        assert_eq!(after["undo"].as_array().map(Vec::len), before["undo"].as_array().map(|undo| undo.len() + 1), "{after}");
+    }
+
+    /// The cursor follows the modifiers held: Space over the canvas is the hand.
+    #[test]
+    fn the_cursor_follows_the_held_modifiers() {
+        let mut doc = LayoutDocument::open("Flyer.klayout", &fixture()).unwrap();
+        doc.select_tool("rectangle", 1.0).unwrap();
+        assert_eq!(doc.state(72.0 + 400.0, 72.0 + 400.0, ToolMods::default(), 1.0).cursor, "crosshair");
+        let space = ToolMods { space: true, ..ToolMods::default() };
+        assert_eq!(doc.state(72.0 + 400.0, 72.0 + 400.0, space, 1.0).cursor, "grab");
     }
 
     #[test]

@@ -1,5 +1,6 @@
 import type { MenuRow } from '@kition/sdk/editor'
 import { VIEW_ACTIONS } from '../view.ts'
+import { SCREEN_MODES, VIEW_TOGGLES, type ViewToggle } from '../viewOptions.ts'
 
 /**
  * Layout's menus (plan 2026-11-25, stage 1): the reference application's menu tables, in its
@@ -27,6 +28,11 @@ type Entry =
 const c = (cmd: string, label?: string): Entry => ({ cmd, label })
 const v = (cmd: string, variant: string, label: string, params: Record<string, unknown>): Entry => ({ cmd, variant, label, params })
 const k = (kit: string, label: string, shortcut?: string): Entry => ({ kit, label, shortcut })
+/** A view option's checked row (plan stage 3), with its key. */
+const toggle = (key: ViewToggle): Entry => {
+  const [, label, shortcut] = VIEW_TOGGLES.find(([option]) => option === key) ?? [key, key, null]
+  return k(`view.${key}`, label, shortcut ?? undefined)
+}
 
 /** A run of variant rows: one command, each with its own value of one key. */
 const each = (cmd: string, key: string, rows: ReadonlyArray<readonly [string, unknown, string]>): Entry[] => rows.map(([variant, value, label]) => v(cmd, variant, label, { [key]: value }))
@@ -70,6 +76,8 @@ const MENUS: ReadonlyArray<readonly [string, readonly Entry[]]> = [
       v('edit.transparencyBlendSpace', 'rgb', 'Document RGB', { space: 'rgb' }),
       v('edit.transparencyBlendSpace', 'cmyk', 'Document CMYK', { space: 'cmyk' }),
       '<',
+      '-',
+      k('edit.preferences', 'Preferences…', 'Cmd+K'),
     ],
   ],
   [
@@ -217,6 +225,8 @@ const MENUS: ReadonlyArray<readonly [string, readonly Entry[]]> = [
         ['rightToLeft', 'rightToLeft', 'Right to Left'],
       ]),
       '<',
+      '-',
+      toggle('hiddenCharacters'),
     ],
   ],
   [
@@ -421,10 +431,31 @@ const MENUS: ReadonlyArray<readonly [string, readonly Entry[]]> = [
       '-',
       ...VIEW_ACTIONS.slice(6).map(([action, label, shortcut]) => k(`view.${action}`, label, shortcut)),
       '-',
-      k('view.rulers', 'Rulers'),
+      // The view options (plan stage 3): checked rows, each with InDesign's key.
+      '>Screen Mode',
+      ...SCREEN_MODES.map(([mode, label]) => k(`view.screenMode.${mode}`, label, mode === 'preview' ? 'W' : undefined)),
+      '<',
+      '-',
+      toggle('rulers'),
+      '>Extras',
+      toggle('frameEdges'),
       c('view.showTextThreads'),
+      '<',
+      '>Grids & Guides',
+      toggle('guides'),
+      toggle('lockGuides'),
+      toggle('margins'),
+      toggle('bleed'),
+      '-',
+      toggle('snapToGuides'),
+      toggle('smartGuides'),
+      '-',
+      toggle('baselineGrid'),
+      toggle('documentGrid'),
+      toggle('snapToDocumentGrid'),
       '-',
       c('guide.deleteAll'),
+      '<',
     ],
   ],
   ['Help', [c('file.newSample')]],

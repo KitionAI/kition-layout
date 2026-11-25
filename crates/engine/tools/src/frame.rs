@@ -37,6 +37,18 @@ impl FrameTool {
             Action::Preview("frame.add".into(), json!({"spread": spread, "shape": shape, "content": content, "rect": rect_json(r)}))
         }
     }
+    /// The size readout while drawing: the shape as it is drawn (snapped, Shift and Alt applied),
+    /// so it reads what the new object will measure, in the editor's ruler unit. A line reads the
+    /// box from its start to the pointer.
+    fn readout(&self, start: Point, unit: kition_layout_geom::Unit) -> String {
+        let r = match &self.last {
+            Some((_, drawn)) => *drawn,
+            None => Rect::from_points(start, self.cur),
+        };
+        let measure = |v: f64| kition_layout_geom::units::format_measure_prec(v, unit, 2);
+        format!("W: {}  H: {}", measure(r.width()), measure(r.height()))
+    }
+
     fn kind(&self) -> (&'static str, &'static str) {
         match self.id {
             "rectangleFrame" => ("rectangle", "graphic"),
@@ -449,10 +461,8 @@ impl Tool for FrameTool {
 
     fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         if let (true, Some(a)) = (self.active, self.start) {
-            let r = Rect::from_points(a, self.cur);
-            let _ = cx;
             let mut v = self.guides.clone();
-            v.push(Overlay::Measure { p: self.cur, text: format!("W: {:.0} pt  H: {:.0} pt", r.width(), r.height()) });
+            v.push(Overlay::Measure { p: self.cur, text: self.readout(a, cx.unit) });
             return v;
         }
         vec![]

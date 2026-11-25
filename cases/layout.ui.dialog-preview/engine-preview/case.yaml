@@ -1,0 +1,23 @@
+format: 1
+id: layout.ui.dialog-preview/engine-preview
+feature: layout.ui.dialog-preview
+intent: >-
+  In the engine and its binding: a dialog's preview replaces itself as its values change, writes
+  nothing to the history while it shows, leaves no undo or redo step on Cancel and one step named
+  for the command on OK; a command from elsewhere takes it back first; a query is no preview; typing
+  in progress stays its own step; the editor's methods refuse an unknown parameter.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/src/tests.rs, bindings/wasm/src/lib.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: a_dialog_preview_leaves_one_step_on_ok_and_none_on_cancel }
+  - cargo-test: { package: kition-layout-engine, filter: a_dialog_preview_keeps_the_typing_step_apart }
+  - cargo-test: { package: kition-layout-kit, filter: a_dialog_preview_through_the_editor_methods }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

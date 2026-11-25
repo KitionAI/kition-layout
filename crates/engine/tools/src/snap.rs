@@ -427,10 +427,11 @@ fn grid_origin(cx: &ToolContext, req: &SnapRequest<'_>, axis: Axis) -> Option<f6
 ///
 /// Lines are `page.y0 + start + n * increment` for n >= 0 while the line is inside the page
 /// (the bottom edge is not a line, matching the canvas). An increment of 0 or less skips the
-/// pass. `relative_to` and `view_threshold` are not read, and hiding the baseline grid does not
-/// turn this off. Only a page the rect crosses on x contributes.
+/// pass. `relative_to` and `view_threshold` are not read. It runs with Snap to Guides and
+/// [`SnapView::snap_to_baseline_grid`] (an editor sets it while the grid is shown). Only a page
+/// the rect crosses on x contributes.
 fn pass_baseline(cx: &ToolContext, req: &SnapRequest<'_>, axis: Axis, tol: f64) -> Option<AxisHit> {
-    if !matches!(axis, Axis::Y) || !cx.snap.snap_to_guides {
+    if !matches!(axis, Axis::Y) || !cx.snap.snap_to_guides || !cx.snap.snap_to_baseline_grid {
         return None;
     }
     let baseline = &cx.doc.settings.baseline_grid;
@@ -1745,6 +1746,33 @@ mod tests {
         let cx = ctx_on(&dead, &sel, &cache, &layout);
         let hit = snap(&cx, y_req(Rect::new(100.0, 49.0, 140.0, 80.0)));
         assert_eq!(hit.delta.y, 0.0);
+    }
+
+    /// layout-usable-by-hand phase 3: a drawn shape caught by an invisible 12 pt grid. The editor
+    /// keeps the baseline grid out of snapping while it is hidden; guides still snap.
+    #[test]
+    fn the_baseline_grid_snaps_only_while_the_editor_says_so() {
+        let mut doc = Document::new(&NewDocument::default());
+        doc.settings.baseline_grid.start = 36.0;
+        doc.settings.baseline_grid.increment = 12.0;
+        let cache = Cache::new();
+        let layout = CanvasLayout::new(&doc, false);
+        let sel = Selection::default();
+        let mut cx = ctx_on(&doc, &sel, &cache, &layout);
+        cx.snap.snap_to_baseline_grid = false;
+        cx.snap.smart_guides = false;
+        // Top at 49 would want the baseline at 48; with the grid out of snapping nothing moves it.
+        let hit = snap(&cx, y_req(Rect::new(100.0, 49.0, 140.0, 80.0)));
+        assert_eq!(hit.delta.y, 0.0);
+        // A ruler guide still catches the same edge.
+        let page = &mut Arc::make_mut(&mut doc.spreads[0]).pages[0];
+        page.guides.push(Guide { orientation: Orientation::Horizontal, position: 51.0, spread: false, locked: false, layer: None, liquid: false });
+        let layout = CanvasLayout::new(&doc, false);
+        let mut cx = ctx_on(&doc, &sel, &cache, &layout);
+        cx.snap.snap_to_baseline_grid = false;
+        cx.snap.smart_guides = false;
+        let hit = snap(&cx, y_req(Rect::new(100.0, 49.0, 140.0, 80.0)));
+        assert!((hit.delta.y - 2.0).abs() < 1e-6, "{:?}", hit.delta);
     }
 
     #[test]

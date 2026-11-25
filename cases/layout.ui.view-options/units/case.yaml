@@ -1,0 +1,27 @@
+format: 1
+id: layout.ui.view-options/units
+feature: layout.ui.view-options
+intent: >-
+  Lengths and view options without a browser: a length typed in the field's unit or its own (10mm,
+  3p6, 0.5in, 1in+6pt, 210毫米) is read in points and a wrong one refused; what a field shows reads
+  back within its last decimal; the rulers tick on round numbers of each unit, never closer than 4
+  screen pixels; each view row toggles its option, the screen modes and units choose one, the
+  engine is told its options in its own unit names; the options outlast a reload with any bad one
+  at its default and the screen mode Normal; the View, Type and Edit menus and the right-click
+  menus offer them in Chinese; a press finds a guide within 3 screen pixels and a dragged guide
+  snaps to the page, margins, columns, guides and objects, with Shift to the ruler's ticks.
+layer: gate
+source:
+  kind: probe
+  from: web/src/units.test.mjs, web/src/viewOptions.test.mjs (plan 2026-11-25, stage 3)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, --test, src/units.test.mjs, src/viewOptions.test.mjs]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+timeout_s: 60
+since: "2026-11-25"

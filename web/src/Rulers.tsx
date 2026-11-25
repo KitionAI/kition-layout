@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { KitCanvasView } from '@kition/sdk/editor'
 import { spreadAt, type DocumentInfo, type Spread } from './layout'
+import { rulerLabel, rulerTicks, type Unit } from './units'
 
 /** Ruler thickness in CSS pixels. */
 export const RULER = 18
-/** Major tick steps in points: the first at least `MIN_GAP` screen pixels apart is used. */
-const STEPS = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000, 10000]
-const MIN_GAP = 56
 
-/** The major step for `zoom` screen pixels per point. */
-export function rulerStep(zoom: number) {
-  return STEPS.find((step) => step * zoom >= MIN_GAP) ?? STEPS[STEPS.length - 1]
+/** The major step (points) for `zoom` screen pixels per point in `unit`. */
+export function rulerStep(zoom: number, unit: Unit = 'pt') {
+  return rulerTicks(unit, zoom).major
 }
 
 /** Where the rulers count from: the top-left of the page under the middle of the view, in document pixels. */
@@ -34,11 +32,12 @@ function useCssColor(name: string, fallback: string) {
 }
 
 /**
- * One ruler along the canvas (InDesign's: points from the top-left of the page in view; ticks
- * every major step, four minor ones between). Dragging from it onto the canvas makes a guide
- * there (`guide.add`). Its origin and scale are on `data-origin` and `data-zoom`.
+ * One ruler along the canvas (InDesign's: the ruler unit from the top-left of the page in view;
+ * ticks every major step, cut into parts between). A press starts a guide (`onGuide`), which the
+ * guide layer drags onto the canvas. Its origin, scale and unit are on `data-origin`, `data-zoom`
+ * and `data-unit`.
  */
-export function Ruler({ axis, info, view, onGuide }: { axis: 'x' | 'y'; info: DocumentInfo; view: KitCanvasView | null; onGuide: (orientation: 'horizontal' | 'vertical', position: number, spread: number) => void }) {
+export function Ruler({ axis, info, view, unit, onGuide }: { axis: 'x' | 'y'; info: DocumentInfo; view: KitCanvasView | null; unit: Unit; onGuide: (axis: 'x' | 'y', event: ReactPointerEvent<HTMLCanvasElement>) => void }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const text = useCssColor('--kit-text-muted', '#6b6b76')
@@ -78,17 +77,18 @@ export function Ruler({ axis, info, view, onGuide }: { axis: 'x' | 'y'; info: Do
       context.lineTo(size.width - 0.5, size.height)
     }
     const length = axis === 'x' ? size.width : size.height
-    const step = rulerStep(view.zoom)
-    const minor = step / 5
-    const firstValue = Math.floor(-at / view.zoom / minor) * minor
-    for (let value = firstValue; (value * view.zoom + at) <= length; value += minor) {
+    const { major: step, parts } = rulerTicks(unit, view.zoom)
+    const minor = step / Math.max(1, parts)
+    const first = Math.floor(-at / view.zoom / minor)
+    for (let n = first; (n * minor * view.zoom + at) <= length; n += 1) {
+      const value = n * minor
       const position = Math.round(value * view.zoom + at) + 0.5
-      const major = Math.abs(value / step - Math.round(value / step)) < 1e-6
+      const major = n % Math.max(1, parts) === 0
       const tick = major ? RULER : RULER * 0.3
       if (axis === 'x') {
         context.moveTo(position, RULER - tick)
         context.lineTo(position, RULER)
-        if (major) context.fillText(String(Math.round(value)), position + 2, 9)
+        if (major) context.fillText(rulerLabel(value, unit), position + 2, 9)
       } else {
         context.moveTo(RULER - tick, position)
         context.lineTo(RULER, position)
@@ -97,35 +97,13 @@ export function Ruler({ axis, info, view, onGuide }: { axis: 'x' | 'y'; info: Do
           context.translate(9, position + 2)
           context.rotate(-Math.PI / 2)
           context.textAlign = 'right'
-          context.fillText(String(Math.round(value)), 0, 0)
+          context.fillText(rulerLabel(value, unit), 0, 0)
           context.restore()
         }
       }
     }
     context.stroke()
-  }, [at, axis, line, size, surface, text, view])
-
-  // Drag a guide out of the ruler: released over the canvas, it lands under the pointer.
-  const drag = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (event.button !== 0 || !view) return
-    const ruler = event.currentTarget.getBoundingClientRect()
-    const up = (done: PointerEvent) => {
-      window.removeEventListener('pointerup', up)
-      // Canvas left/top: the ruler's own far edge.
-      const canvasLeft = axis === 'x' ? ruler.left : ruler.right
-      const canvasTop = axis === 'x' ? ruler.bottom : ruler.top
-      const dx = (done.clientX - canvasLeft) / view.zoom
-      const dy = (done.clientY - canvasTop) / view.zoom
-      if ((axis === 'x' && dy <= 0) || (axis === 'y' && dx <= 0)) return
-      const docX = view.x + dx
-      const docY = view.y + dy
-      const spread = spreadAt(info, docX, docY)
-      if (!spread) return
-      if (axis === 'x') onGuide('horizontal', docY - spread.area.y0, spread.index)
-      else onGuide('vertical', docX - spread.area.x0 + spread.left, spread.index)
-    }
-    window.addEventListener('pointerup', up)
-  }
+  }, [at, axis, line, size, surface, text, view, unit])
 
   return (
     <canvas
@@ -134,8 +112,9 @@ export function Ruler({ axis, info, view, onGuide }: { axis: 'x' | 'y'; info: Do
       data-axis={axis}
       data-origin={Math.round(at * 100) / 100}
       data-zoom={view?.zoom}
-      data-step={view ? rulerStep(view.zoom) : undefined}
-      onPointerDown={drag}
+      data-step={view ? rulerStep(view.zoom, unit) : undefined}
+      data-unit={unit}
+      onPointerDown={(event) => onGuide(axis, event)}
       data-testid={`layout-ruler-${axis}`}
     />
   )

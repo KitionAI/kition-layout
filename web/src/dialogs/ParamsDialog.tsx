@@ -2,9 +2,17 @@ import { useMemo, useState } from 'react'
 import { useEngineQuery, useKitEditor, type KitCommand } from '@kition/sdk/editor'
 import type { DocumentInfo } from '../layout'
 import { DialogFrame, useRunInDialog } from './DialogFrame'
-import { CheckRow, ChoiceRow, ColorRow, NumberRow, TextRow } from './controls'
+import { CheckRow, ChoiceRow, ColorRow, LengthRow, NumberRow, TextRow } from './controls'
+import { useCommandPreview } from './preview'
+import { useEditorView } from '../viewContext'
 import { dialogTitle, optionLabel, paramLabel } from './labels'
 import { initialValues, paramFields, paramsOf, requiredKeys, valuesValid, type ParamField, type ParamValues } from './params'
+
+/**
+ * The generic dialogs that preview their values live (plan 2026-11-25, stage 3): the transforms,
+ * Step and Repeat and Corner Options, which change what is selected where the person sees it.
+ */
+export const PREVIEWED: ReadonlySet<string> = new Set(['transform.move', 'transform.rotate', 'transform.scale', 'transform.shear', 'edit.stepAndRepeat', 'object.cornerOptions'])
 
 /** The values each command's dialog was last OK'd with, for the session (the next one opens with them). */
 const remembered = new Map<string, ParamValues>()
@@ -46,11 +54,15 @@ export function ParamsDialog({ command, info, values: given, fixed, onClose }: {
   const params = paramsOf(fields, values)
   // A choice of the document's (a parent, a style) left at "none" sends null, which clears it.
   for (const field of fields) if (field.kind === 'choice' && values[field.key] === '' && field.key === 'parent') params.parent = null
+  const { view } = useEditorView()
+  const valid = valuesValid(fields, values, required)
+  const preview = useCommandPreview(command.id, PREVIEWED.has(command.id) && valid ? { ...fixed, ...params } : null)
   return (
     <DialogFrame
       command={command.id}
       title={dialogTitle(words, command.title)}
-      okDisabled={!valuesValid(fields, values, required)}
+      okDisabled={!valid}
+      preview={PREVIEWED.has(command.id) ? preview : undefined}
       onOk={async () => {
         await run(command.id, { ...fixed, ...params })
         remembered.set(command.id, values)
@@ -63,6 +75,7 @@ export function ParamsDialog({ command, info, values: given, fixed, onClose }: {
           const value = values[field.key]
           switch (field.kind) {
             case 'number':
+              if (field.unit === 'pt') return <LengthRow key={field.key} label={label(field.key)} value={typeof value === 'number' ? value : null} unit={view.unit} placeholder={words.t('dialog.engineDefault')} onChange={(next) => set(field.key, next)} testId={testId(field.key)} />
               return <NumberRow key={field.key} label={label(field.key)} value={typeof value === 'number' ? value : null} min={field.min} max={field.max} decimals={field.decimals} unit={field.unit ?? undefined} placeholder={words.t('dialog.engineDefault')} onChange={(next) => set(field.key, next)} testId={testId(field.key)} />
             case 'choice':
               return <ChoiceRow key={field.key} label={label(field.key)} value={typeof value === 'string' ? value : field.initial} choices={field.options.map((option) => [option, field.key === 'parent' || field.key === 'style' ? option || optionLabel(words, '') : optionLabel(words, option)] as const)} onChange={(next) => set(field.key, next)} testId={testId(field.key)} />

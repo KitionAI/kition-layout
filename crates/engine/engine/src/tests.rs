@@ -628,3 +628,74 @@ fn cmd_arrows_move_the_caret_to_the_line_and_story_ends() {
     s.type_text("$").unwrap();
     assert_eq!(text(&mut s), "^[Hello world]$");
 }
+
+/// layout-usable-by-hand phase 3: a dialog's live preview. Changing the values replaces the
+/// preview; Cancel leaves neither an undo nor a redo step; OK keeps one step, labelled with the
+/// command; a command from elsewhere takes the preview back first.
+#[test]
+fn a_dialog_preview_leaves_one_step_on_ok_and_none_on_cancel() {
+    let mut s = session();
+    let r = s.execute("frame.add", &json!({"rect": [36, 36, 300, 200], "content": "text", "text": "Words"})).unwrap();
+    let id = r["id"].clone();
+    s.execute("select.set", &json!({"ids": [id]})).unwrap();
+    let columns = |s: &mut Session| s.execute("file.inspect", &json!({})).unwrap()["spreads"][0]["items"][0]["columns"].as_u64();
+    let labels = |s: &Session| {
+        let (undo, redo) = s.doc().unwrap().history_labels();
+        (undo.to_vec(), redo.to_vec())
+    };
+    let before = labels(&s);
+    let start = columns(&mut s);
+    // The preview shows the dialog's values, the latest replacing the last.
+    s.preview_command("object.textFrameOptions", &json!({"columns": 3})).unwrap();
+    assert!(s.previewing());
+    assert_eq!(columns(&mut s), Some(3));
+    s.preview_command("object.textFrameOptions", &json!({"columns": 2})).unwrap();
+    assert_eq!(columns(&mut s), Some(2));
+    assert_eq!(labels(&s), before, "nothing in the history while previewing");
+    // Cancel: as it was, nothing to undo or redo.
+    assert!(s.cancel_preview());
+    assert!(!s.previewing());
+    assert_eq!(columns(&mut s), start);
+    assert_eq!(labels(&s), before);
+    assert!(!s.cancel_preview(), "no preview to take back");
+    // OK: one step, named for the command; Undo takes it back and Redo brings it again.
+    s.preview_command("object.textFrameOptions", &json!({"columns": 4})).unwrap();
+    assert!(s.commit_preview().unwrap());
+    assert_eq!(columns(&mut s), Some(4));
+    let (undo, redo) = labels(&s);
+    assert_eq!(undo.len(), before.0.len() + 1);
+    assert_eq!(undo.last().map(String::as_str), Some("Text Frame Options"));
+    assert!(redo.is_empty());
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(columns(&mut s), start);
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(columns(&mut s), Some(4));
+    // Another command while a preview shows runs on the document as it is, not on the preview.
+    s.preview_command("object.textFrameOptions", &json!({"columns": 5})).unwrap();
+    s.execute("object.textFrameOptions", &json!({"ids": [id], "gutter": 6})).unwrap();
+    assert!(!s.previewing());
+    assert_eq!(columns(&mut s), Some(4));
+    // A query or a command that cannot change the document is no preview.
+    assert!(s.preview_command("file.inspect", &json!({})).is_err());
+    assert!(!s.previewing());
+}
+
+/// A preview opened while typing leaves the typing's step alone on Cancel and is its own step on OK.
+#[test]
+fn a_dialog_preview_keeps_the_typing_step_apart() {
+    let mut s = session();
+    s.execute("frame.add", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
+    let steps = |s: &Session| s.doc().unwrap().undo_steps();
+    s.type_text("Hello").unwrap();
+    let typed = steps(&s);
+    s.preview_command("text.para", &json!({"attrs": {"align": "center"}})).unwrap();
+    s.cancel_preview();
+    s.type_text("o").unwrap();
+    assert_eq!(steps(&s), typed, "Cancel did not end the word");
+    s.preview_command("text.para", &json!({"attrs": {"align": "center"}})).unwrap();
+    s.commit_preview().unwrap();
+    assert_eq!(steps(&s), typed + 1, "the dialog's step after the typing's");
+    s.execute("edit.undo", &json!({})).unwrap();
+    let text = s.execute("file.inspect", &json!({})).unwrap()["stories"][0]["preview"].as_str().map(str::to_owned);
+    assert_eq!(text.as_deref(), Some("Helloo"));
+}

@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { useKitEditor } from '@kition/sdk/editor'
 import { findItem, type DocumentInfo } from '../layout'
 import { DialogFrame, useRunInDialog } from './DialogFrame'
-import { CheckRow, ChoiceRow, NumberRow } from './controls'
+import { CheckRow, ChoiceRow, LengthRow, NumberRow } from './controls'
+import { useCommandPreview } from './preview'
+import { useEditorView } from '../viewContext'
 
 /**
  * The frame dialogs (plan 2026-11-25, stage 1): Text Frame Options, the size a click with a frame
@@ -21,38 +23,38 @@ type Inset = [number | null, number | null, number | null, number | null]
 export function TextFrameOptionsDialog({ info, onClose }: { info: DocumentInfo; onClose: () => void }) {
   const { t, phrase } = useKitEditor()
   const run = useRunInDialog()
-  const first = info.selection.map((id) => findItem(info, id)?.item).find((item) => item?.story != null) as ({ columns?: number } | undefined)
-  const [columns, setColumns] = useState<number>(first?.columns ?? 1)
+  const { view } = useEditorView()
+  // The frame's columns when the dialog opened (the preview changes what the document reports).
+  const [start] = useState(() => (info.selection.map((id) => findItem(info, id)?.item).find((item) => item?.story != null) as { columns?: number } | undefined)?.columns ?? 1)
+  const [columns, setColumns] = useState<number>(start)
   const [gutter, setGutter] = useState<number | null>(null)
   const [inset, setInset] = useState<Inset>([null, null, null, null])
   const [justification, setJustification] = useState<'' | (typeof JUSTIFICATION)[number]>('')
   const [flags, setFlags] = useState<{ autoSize?: boolean; ignoreWrap?: boolean; balanceColumns?: boolean }>({})
   const params = {
-    ...(columns !== (first?.columns ?? 1) ? { columns } : {}),
+    ...(columns !== start ? { columns } : {}),
     ...(gutter !== null ? { gutter } : {}),
     ...(inset.some((side) => side !== null) ? { inset } : {}),
     ...(justification ? { verticalJustification: justification } : {}),
     ...flags,
   }
+  const preview = useCommandPreview('object.textFrameOptions', params)
   const side = (index: number, key: string) => (
-    <NumberRow
+    <LengthRow
       key={key}
       label={t(`side.${key}`)}
       value={inset[index]}
-      min={0}
-      max={100000}
-      decimals={2}
-      unit="pt"
+      unit={view.unit}
       placeholder={t('unchanged')}
       onChange={(next) => setInset((now) => now.map((value, at) => (at === index ? (next !== null && next >= 0 ? next : null) : value)) as Inset)}
       testId={`layout-tfo-inset-${key}`}
     />
   )
   return (
-    <DialogFrame command="object.textFrameOptions" title={phrase('Text Frame Options')} onOk={() => (Object.keys(params).length ? run('object.textFrameOptions', params) : undefined)} onClose={onClose}>
+    <DialogFrame command="object.textFrameOptions" title={phrase('Text Frame Options')} preview={preview} onOk={() => (Object.keys(params).length ? run('object.textFrameOptions', params) : undefined)} onClose={onClose}>
       <div className="layout-dialog-fields">
         <NumberRow label={t('columns')} value={columns} min={1} max={40} decimals={0} onChange={(next) => next !== null && next >= 1 && setColumns(Math.round(next))} testId="layout-tfo-columns" />
-        <NumberRow label={t('gutter')} value={gutter} min={0} max={100000} decimals={2} unit="pt" placeholder={t('unchanged')} onChange={setGutter} testId="layout-tfo-gutter" />
+        <LengthRow label={t('gutter')} value={gutter} unit={view.unit} placeholder={t('unchanged')} onChange={(next) => setGutter(next !== null && next >= 0 ? next : null)} testId="layout-tfo-gutter" />
         <fieldset className="layout-dialog-group">
           <legend>{t('dialog.inset')}</legend>
           {side(0, 'top')}
@@ -75,6 +77,7 @@ export type FrameSizeRequest = { spread: unknown; shape?: string; content?: stri
 /** A click with a frame or shape tool: the new frame's width and height, its top left at the click. */
 export function FrameSizeDialog({ request, onClose }: { request: FrameSizeRequest; onClose: () => void }) {
   const { t } = useKitEditor()
+  const { view } = useEditorView()
   const run = useRunInDialog()
   const [width, setWidth] = useState(request.width)
   const [height, setHeight] = useState(request.height)
@@ -88,8 +91,8 @@ export function FrameSizeDialog({ request, onClose }: { request: FrameSizeReques
       onClose={onClose}
     >
       <div className="layout-dialog-fields">
-        <NumberRow label={t('width')} value={width} min={0} max={100000} decimals={2} unit="pt" onChange={(next) => next !== null && setWidth(next)} testId="layout-frame-width" />
-        <NumberRow label={t('height')} value={height} min={0} max={100000} decimals={2} unit="pt" onChange={(next) => next !== null && setHeight(next)} testId="layout-frame-height" />
+        <LengthRow label={t('width')} value={width} unit={view.unit} onChange={(next) => next !== null && setWidth(next)} testId="layout-frame-width" />
+        <LengthRow label={t('height')} value={height} unit={view.unit} onChange={(next) => next !== null && setHeight(next)} testId="layout-frame-height" />
       </div>
     </DialogFrame>
   )

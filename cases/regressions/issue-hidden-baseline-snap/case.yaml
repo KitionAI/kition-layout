@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-hidden-baseline-snap
+feature: layout.ui.view-options
+intent: >-
+  A shape drawn with the Rectangle tool snapped to an invisible 12 pt grid (dragged to 160, it ended
+  at 156; the readout, the panel and the result said three sizes): the baseline grid, hidden, still
+  caught every drag with Snap to Guides on, before a ruler guide could. The editor keeps the
+  baseline grid out of snapping while it is hidden, and the readout shows the shape as drawn.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings.md (section 4, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-tools, filter: the_baseline_grid_snaps_only_while_the_editor_says_so }
+  - cargo-test: { package: kition-layout-tools, filter: the_drawing_readout_is_the_drawn_shape_in_the_ruler_unit }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

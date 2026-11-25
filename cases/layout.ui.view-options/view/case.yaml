@@ -1,0 +1,29 @@
+format: 1
+id: layout.ui.view-options/view
+feature: layout.ui.view-options
+intent: >-
+  A person at the canvas: a guide dragged out of the ruler shows its line and where it is, lands
+  where it was dropped and is drawn on the page; pressed it is selected, an arrow moves it a point,
+  a drag moves it, Delete deletes it and a drop on the ruler deletes it; Cmd+; hides and shows the
+  guides; W shows the preview without guides or frame edges and W again goes back; a drawn shape is
+  as tall as the drag (no hidden baseline grid catching it), snaps to a guide drawn near and not
+  with snapping off; the ruler's menu sets millimetres and the panel and Document Setup read an A4
+  page as 210 × 297; Preferences (Cmd+K) sets the ruler unit and takes a length typed with its own
+  unit; the unit outlasts a reload.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/view.mjs (plan 2026-11-25, stage 3)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/view.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 240
+since: "2026-11-25"

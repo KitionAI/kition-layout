@@ -34,6 +34,7 @@ type Held = { space: boolean; control: boolean }
  * Wraps the open document's tool calls: a pointer event carries Space and Ctrl as they are held
  * (kit-editor sends both as false), a modifier pressed or released during a drag sends the drag
  * again where the pointer is (the engine applies Shift or Alt at once, not at the next move), and
+ * while hovering a move (the engine's cursor follows the modifiers, plan stage 3), and
  * typing that pauses ends its undo step (the engine's `endTyping`).
  */
 export function useEngineModifiers(doc: KitEngine | null) {
@@ -41,7 +42,7 @@ export function useEngineModifiers(doc: KitEngine | null) {
     if (!doc) return undefined
     const held: Held = { space: false, control: false }
     let dragging = false
-    let pointer: { x: number; y: number; id: number; buttons: number; surface: HTMLElement | null } = { x: 0, y: 0, id: 1, buttons: 0, surface: null }
+    let pointer: { x: number; y: number; id: number; buttons: number; surface: HTMLElement | null; over: boolean } = { x: 0, y: 0, id: 1, buttons: 0, surface: null, over: false }
     let pause: number | undefined
     const own = doc as unknown as { tool: KitEngine['tool'] }
     const original = doc.tool.bind(doc)
@@ -66,7 +67,7 @@ export function useEngineModifiers(doc: KitEngine | null) {
 
     const track = (event: PointerEvent) => {
       if (!event.isTrusted) return
-      pointer = { x: event.clientX, y: event.clientY, id: event.pointerId, buttons: event.buttons, surface: onSurface(event.target) ? event.target : pointer.surface }
+      pointer = { x: event.clientX, y: event.clientY, id: event.pointerId, buttons: event.buttons, surface: onSurface(event.target) ? event.target : pointer.surface, over: onSurface(event.target) }
       if (event.type === 'pointerup' || event.type === 'pointercancel') dragging = false
     }
     const key = (event: KeyboardEvent) => {
@@ -75,8 +76,17 @@ export function useEngineModifiers(doc: KitEngine | null) {
       if (event.code === 'Space' && !event.isComposing && !(down && takesSpace(event.target))) held.space = down
       held.control = event.ctrlKey
       const modifier = ['Shift', 'Alt', 'Meta', 'Control'].includes(event.key) || event.code === 'Space'
-      if (!modifier || event.repeat || !dragging || !pointer.buttons || !pointer.surface) return
+      if (!modifier || event.repeat || !pointer.surface) return
       if (before.space === held.space && before.control === held.control && event.code === 'Space') return
+      // Hovering, the engine's cursor follows the modifiers held (Space or Alt while typing: the
+      // hand; Alt with the Zoom tool: zoom out): the pointer moves again where it is, no button.
+      if (!dragging || !pointer.buttons) {
+        if (!pointer.over || pointer.buttons) return
+        const hover = new PointerEvent('pointermove', { clientX: pointer.x, clientY: pointer.y, pointerId: pointer.id, buttons: 0, shiftKey: event.shiftKey, altKey: event.altKey, metaKey: event.metaKey, ctrlKey: event.ctrlKey, bubbles: true, cancelable: true })
+        Object.defineProperty(hover, 'getCoalescedEvents', { value: () => [hover] })
+        pointer.surface.dispatchEvent(hover)
+        return
+      }
       // The drag again at the same place, with the modifiers now held (a synthetic move the canvas
       // gives the active gesture; it reports itself as its own coalesced sample).
       const move = new PointerEvent('pointermove', { clientX: pointer.x, clientY: pointer.y, pointerId: pointer.id, buttons: pointer.buttons, shiftKey: event.shiftKey, altKey: event.altKey, metaKey: event.metaKey, ctrlKey: event.ctrlKey, bubbles: true, cancelable: true })
