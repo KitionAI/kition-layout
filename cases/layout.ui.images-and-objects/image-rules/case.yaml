@@ -1,0 +1,25 @@
+format: 1
+id: layout.ui.images-and-objects/image-rules
+feature: layout.ui.images-and-objects
+intent: >-
+  The editor's image rules without a browser: the Fitting rows carry InDesign's keys, shown in the
+  menu and none shared; Escape takes a selected image back to its frame and drops the place
+  cursor's front image; several files load the place cursor, the first replacing its load unless
+  adding; an unembedded image goes beside the document under its own name, PNG and JPEG only; the
+  Selection tool's hand cursor, the layer menu's Duplicate Layer and the new words in Chinese; each
+  press keeps its own count when the editor sends it late.
+layer: gate
+source:
+  kind: probe
+  from: web/src/images.test.mjs (plan 2026-11-25, stage 6)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, --test, src/images.test.mjs]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+timeout_s: 60
+since: "2026-11-25"

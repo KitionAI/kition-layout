@@ -133,10 +133,15 @@ pub fn specs() -> Vec<CommandSpec> {
             let label = s.undo_redo(false, scope)?.ok_or_else(|| super::bad("edit.redo", "nothing to redo"))?;
             Ok(json!({"redone": label}))
         }),
-        cmd!(noundo "select.set", "Select", [], None, "{ids: [id], add?: bool, content?: bool}", has_doc, |s, p| {
+        cmd!(noundo "select.set", "Select", [], None, "{ids: [id], add?: bool, content?: bool, key?: id|null (the key object Align aligns to: one of the selected objects; null drops it)}", has_doc, |s, p| {
             let ids = ids_param(p, "ids").unwrap_or_default();
             let add = bool_or(p, "add", false);
             let content = bool_or(p, "content", false);
+            let key = match p.get("key") {
+                None => None,
+                Some(Value::Null) => Some(None),
+                Some(_) => Some(Some(super::id_param(p, "key").ok_or_else(|| super::bad("select.set", "`key` is an object id or null"))?)),
+            };
             let st = s.doc_mut()?;
             let ids: Vec<ItemId> = ids.into_iter().filter(|i| st.doc.item(*i).is_some()).collect();
             if add {
@@ -146,7 +151,13 @@ pub fn specs() -> Vec<CommandSpec> {
                     }
                 }
             } else {
+                let kept = st.selection.key;
                 st.selection = Selection { items: ids, content, ..Default::default() };
+                // The same objects again keep their key object.
+                st.selection.key = kept.filter(|k| st.selection.items.contains(k));
+            }
+            if let Some(key) = key {
+                st.selection.key = key.filter(|k| st.selection.items.contains(k));
             }
             st.selection.text = None;
             st.selection.cells = None;

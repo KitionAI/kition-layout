@@ -20,6 +20,8 @@ const TEXT_HIGHLIGHT: [u8; 4] = [80, 140, 255, 90];
 const OVERSET_RED: [u8; 4] = [230, 20, 20, 255];
 const BLACK: [u8; 4] = [0, 0, 0, 255];
 const SMART_GUIDE: [u8; 4] = [255, 0, 170, 255];
+/// A selected placed graphic's own box and handles (InDesign draws it in a warm brown).
+pub(crate) const CONTENT_BOX: [u8; 4] = [196, 120, 40, 255];
 /// Ruler guides (InDesign's default cyan) and a selected one.
 const RULER_GUIDE: [u8; 4] = [74, 200, 245, 255];
 /// The most hidden-character marks drawn at once (a long story's spaces).
@@ -77,6 +79,8 @@ pub fn from_tool(overlay: Overlay) -> Option<ToolOverlay> {
             let mid = a.midpoint(b);
             ToolOverlay::Label { x: mid.x, y: mid.y, text: label, color: SMART_GUIDE }
         }
+        // Drawn with the page (`LayoutDocument::draw`), not over it.
+        Overlay::ContentGhost(_) => return None,
     })
 }
 
@@ -108,10 +112,28 @@ pub fn overlays(session: &Session, zoom: f64, view: &ViewOptions) -> Vec<ToolOve
     }
     let mut union: Option<Rect> = None;
     let mut color = SELECTION_BLUE;
+    // A selected placed graphic: the frame's outline, and the graphic's own box with its handles.
+    if sel.content
+        && let [id] = sel.items.as_slice()
+        && let (Some(it), Some(a)) = (doc.item(*id), item_xf(doc, &layout, *id))
+        && let Content::Graphic(g) = &it.content
+    {
+        out.push(path(outline(it, a), rgba(layer_color(doc, it), 255), 1.0));
+        let b = (a * it.xf * g.xf).transform_rect_bbox(Rect::new(0.0, 0.0, g.size.0, g.size.1));
+        if b.x0.is_finite() && b.y0.is_finite() && b.x1.is_finite() && b.y1.is_finite() {
+            out.push(path(rect_path(b), CONTENT_BOX, 1.0));
+            for h in kition_layout_tools::select::handles(b) {
+                out.push(ToolOverlay::Anchor { x: h.x, y: h.y, color: CONTENT_BOX, filled: false, size: 6.5 });
+            }
+        }
+        return out;
+    }
     for id in &sel.items {
         let (Some(it), Some(a)) = (doc.item(*id), item_xf(doc, &layout, *id)) else { continue };
         color = layer_color(doc, it);
-        out.push(path(outline(it, a), rgba(color, 255), 1.0));
+        // The key object for Align shows a heavier outline.
+        let weight = if sel.key == Some(*id) && sel.items.len() > 1 { 2.5 } else { 1.0 };
+        out.push(path(outline(it, a), rgba(color, 255), weight));
         let b = a.transform_rect_bbox(it.bounds());
         if sel.items.len() == 1 {
             out.push(path(rect_path(b), rgba(color, 255), 1.0));

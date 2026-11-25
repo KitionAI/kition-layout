@@ -88,7 +88,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Load Place Cursor",
             [],
             None,
-            "{path | base64, name?} — load a graphic into the place cursor (then click/drag with the placeGun tool)",
+            "{path | base64, name?, queue?: bool (add it behind the graphics already loaded: each click places the next)} — load a graphic into the place cursor (then click/drag with the placeGun tool)",
             has_doc,
             place_load
         ),
@@ -479,9 +479,15 @@ fn place_load(s: &mut Session, p: &Value) -> Result<Value> {
         );
         Ok(aid)
     })?;
-    s.loaded = Some((aid, (pw as f64, ph as f64)));
+    let size = (pw as f64, ph as f64);
+    if super::bool_or(p, "queue", false) && s.loaded.is_some() {
+        s.place_queue.push((aid, size));
+    } else {
+        s.loaded = Some((aid, size));
+        s.place_queue.clear();
+    }
     s.set_tool("placeGun");
-    Ok(json!({"asset": aid.0, "name": name, "width": pw, "height": ph}))
+    Ok(json!({"asset": aid.0, "name": name, "width": pw, "height": ph, "loaded": 1 + s.place_queue.len()}))
 }
 
 fn place_drop(s: &mut Session, p: &Value) -> Result<Value> {
@@ -534,9 +540,62 @@ fn place_drop(s: &mut Session, p: &Value) -> Result<Value> {
         *sel = Selection::items(vec![id]);
         Ok(json!({"id": id.0}))
     })?;
-    s.loaded = None;
-    s.set_tool("selection");
+    // The next graphic loaded waits in the cursor.
+    if s.place_queue.is_empty() {
+        s.loaded = None;
+        s.set_tool("selection");
+    } else {
+        s.loaded = Some(s.place_queue.remove(0));
+    }
     Ok(r)
+}
+
+impl Session {
+    /// The graphics in the place cursor, the one a click places first: (asset, natural size).
+    pub fn place_queue(&self) -> Vec<(kition_layout_doc::AssetId, (f64, f64))> {
+        self.loaded.into_iter().chain(self.place_queue.iter().copied()).collect()
+    }
+
+    /// The arrow keys with several graphics loaded: the next (`forward`) or the previous one
+    /// comes to the front. Editor state: the document does not change.
+    pub fn place_cycle(&mut self, forward: bool) -> usize {
+        let Some(front) = self.loaded else { return 0 };
+        if self.place_queue.is_empty() {
+            return 1;
+        }
+        if forward {
+            self.place_queue.push(front);
+            self.loaded = Some(self.place_queue.remove(0));
+        } else if let Some(last) = self.place_queue.pop() {
+            self.place_queue.insert(0, front);
+            self.loaded = Some(last);
+        }
+        self.place_changed();
+        1 + self.place_queue.len()
+    }
+
+    /// Escape in the place cursor: the graphic in front is dropped from it (it stays among the
+    /// document's graphics, unplaced), the next comes to the front; with none left the Selection
+    /// tool comes back. Answers how many are left.
+    pub fn place_skip(&mut self) -> usize {
+        self.place_changed();
+        if self.place_queue.is_empty() {
+            self.loaded = None;
+            if self.tool_id() == "placeGun" {
+                self.set_tool("selection");
+            }
+            return 0;
+        }
+        self.loaded = Some(self.place_queue.remove(0));
+        1 + self.place_queue.len()
+    }
+
+    /// The place cursor's load changed: what the editor shows of the session follows (no edit).
+    fn place_changed(&mut self) {
+        if let Some(st) = self.active_mut() {
+            st.revision = st.revision.saturating_add(1);
+        }
+    }
 }
 
 /// The selection as `.klayout` snippet bytes.

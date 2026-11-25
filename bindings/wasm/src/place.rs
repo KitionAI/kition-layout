@@ -252,6 +252,47 @@ impl LayoutDocument {
             for id in targets {
                 under.premises.push(Premise::on(id).fields(["layer"]).positions(["xf", "items", "spread"]));
             }
+        } else if command == "arrange.reorder" {
+            // The targets' layer and place in the stacking order, the order and layer of every
+            // object on their spread, and that the destination layer is there.
+            let first = targets.first().and_then(Value::as_u64).and_then(|id| state.doc.find(ItemId(id)));
+            for id in &targets {
+                under.premises.push(Premise::on(id.clone()).fields(["layer"]).positions(["items", "spread"]));
+            }
+            if let Some(spread) = first.as_ref().and_then(|loc| state.doc.spread(loc.spread)) {
+                for item in &spread.items {
+                    let id = json!(item.id.0);
+                    if !targets.contains(&id) {
+                        under.premises.push(Premise::on(id).fields(["layer"]).positions(["items"]));
+                    }
+                }
+            }
+            let layer =
+                params.get("layer").cloned().or_else(|| first.as_ref().and_then(|loc| state.doc.item_at(loc)).map(|item| json!(item.layer.0)));
+            if let Some(layer) = layer {
+                under.premises.push(Premise::on(layer).fields(Vec::<String>::new()).positions(Vec::<String>::new()));
+            }
+        } else if command == "layer.duplicate" {
+            // The layer whole and the layer list, and every object on the layer whole (with the
+            // stories of its text frames): each is copied.
+            if let Some(id) = params.get("id") {
+                under.premises.push(Premise::on("layout").fields(["layers"]).positions(Vec::<String>::new()));
+                under.premises.push(Premise::on(id.clone()));
+                let layer = id.as_u64();
+                for spread in state.doc.spreads.iter().chain(&state.doc.parents) {
+                    for item in spread.items.iter().filter(|item| Some(item.layer.0) == layer) {
+                        under.premises.push(Premise::on(item.id.0));
+                        if let Some(frame) = item.text_frame() {
+                            under.premises.push(Premise::on(frame.story.0));
+                        }
+                    }
+                }
+            }
+        } else if command == "linkedFile.unembed" {
+            // Whether the graphic is linked already, and its bytes (kept in the file).
+            if let Some(asset) = params.get("asset") {
+                under.premises.push(Premise::on(asset.clone()).fields(["link", "blob"]).positions(Vec::<String>::new()));
+            }
         } else if command == "layer.move" {
             if let Some(id) = params.get("id") {
                 under.premises.push(Premise::on(id.clone()).fields(Vec::<String>::new()).positions(["layers"]));

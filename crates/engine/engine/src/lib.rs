@@ -254,6 +254,8 @@ pub struct Session {
     pub ui_requests: Vec<UiRequest>,
     /// Graphic loaded in the place cursor: (asset, natural size in points).
     pub loaded: Option<(kition_layout_doc::AssetId, (f64, f64))>,
+    /// Graphics loaded behind `loaded` (several placed at once): each click places the next.
+    pub place_queue: Vec<(kition_layout_doc::AssetId, (f64, f64))>,
     pub(crate) untitled: u32,
     /// Transforms applied to the current selection, oldest first (Transform Again / Sequence
     /// Again), with the selection they were applied to and whether the last one came from a
@@ -313,6 +315,7 @@ impl Session {
             text_clipboard: None,
             ui_requests: vec![],
             loaded: None,
+            place_queue: Vec::new(),
             transforms: Default::default(),
             text_drag: false,
             library: None,
@@ -647,6 +650,8 @@ mod tests;
 mod tests_hosted;
 #[cfg(test)]
 mod tests_idml;
+#[cfg(test)]
+mod tests_images;
 #[cfg(test)]
 mod tests_roundtrip;
 #[cfg(test)]

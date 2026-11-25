@@ -16,6 +16,8 @@ pub struct EditorSnapshot {
     clipboard: Option<Arc<Document>>,
     text_clipboard: Option<(Arc<Story>, String)>,
     loaded: Option<(AssetId, (f64, f64))>,
+    #[serde(default)]
+    place_queue: Vec<(AssetId, (f64, f64))>,
     transforms: (Vec<(String, Value)>, Vec<ItemId>, bool),
     text_drag: bool,
     untitled: u32,
@@ -80,6 +82,7 @@ impl Session {
             clipboard: self.clipboard.clone(),
             text_clipboard: self.text_clipboard.clone(),
             loaded: self.loaded,
+            place_queue: self.place_queue.clone(),
             transforms: self.transforms.clone(),
             text_drag: self.text_drag,
             untitled: self.untitled,
@@ -114,6 +117,7 @@ impl Session {
         self.clipboard = saved.clipboard;
         self.text_clipboard = saved.text_clipboard;
         self.loaded = saved.loaded;
+        self.place_queue = saved.place_queue;
         self.transforms = saved.transforms;
         self.text_drag = saved.text_drag;
         self.untitled = saved.untitled;

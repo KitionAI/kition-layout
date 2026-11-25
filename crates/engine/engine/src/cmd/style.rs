@@ -991,26 +991,7 @@ fn apply_color(s: &mut Session, p: &Value) -> Result<Value> {
     let stroke = str_param(p, "target") == Some("stroke");
     let ids = super::targets(s, p)?;
     s.edit(|d, _| {
-        // Reuse a swatch holding exactly this colour, else add an unnamed one.
-        let existing = d
-            .swatches
-            .iter()
-            .find(|w| matches!(&w.value, SwatchValue::Color { color: c, color_type: kition_layout_color::ColorType::Process } if *c == color))
-            .map(|w| w.name.clone());
-        let name = match existing {
-            Some(n) => n,
-            None => {
-                let name = Styles::unique_name(|n| d.swatch(n).is_some(), &value_name(color));
-                d.swatches.push(Swatch {
-                    name: name.clone(),
-                    value: SwatchValue::Color { color, color_type: kition_layout_color::ColorType::Process },
-                    locked: false,
-                    named: false,
-                    hidden: true,
-                });
-                name
-            }
-        };
+        let name = color_swatch(d, color);
         for id in &ids {
             if let Some(it) = d.item_mut(*id) {
                 if stroke {
@@ -1024,6 +1005,28 @@ fn apply_color(s: &mut Session, p: &Value) -> Result<Value> {
         }
         Ok(json!({"swatch": name}))
     })
+}
+
+/// The swatch holding exactly `color` (a process colour), or a new unnamed one (hidden from the
+/// Swatches panel until Add to Swatches): its name.
+pub(crate) fn color_swatch(d: &mut kition_layout_doc::Document, color: kition_layout_color::Color) -> String {
+    let existing = d
+        .swatches
+        .iter()
+        .find(|w| matches!(&w.value, SwatchValue::Color { color: c, color_type: kition_layout_color::ColorType::Process } if *c == color))
+        .map(|w| w.name.clone());
+    if let Some(name) = existing {
+        return name;
+    }
+    let name = Styles::unique_name(|n| d.swatch(n).is_some(), &value_name(color));
+    d.swatches.push(Swatch {
+        name: name.clone(),
+        value: SwatchValue::Color { color, color_type: kition_layout_color::ColorType::Process },
+        locked: false,
+        named: false,
+        hidden: true,
+    });
+    name
 }
 
 fn add_to_swatches(s: &mut Session, p: &Value) -> Result<Value> {

@@ -1,0 +1,24 @@
+format: 1
+id: layout.ui.images-and-objects/tool-images
+feature: layout.ui.images-and-objects
+intent: >-
+  In the tools: the Selection tool shows a frame's content grabber and its hand, a press there
+  selects the image and a drag moves it with its ghost; the second press of a double click toggles
+  frame and image and the editor's own double click after it (or before it) does not toggle back;
+  the image's own handles size it, Shift keeping its proportions; Escape goes back to the frame and
+  the arrows move the image; a double click on a handle fits the frame along that side; a click on
+  one of several selected objects makes it the key object; the Eyedropper samples an image (Shift
+  the stroke) and picks up text.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/tools/src/tests_content.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-tools, filter: tests_content }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

@@ -36,6 +36,8 @@ import { LAYOUT_ZOOM_TOOL, useBlinkingCaret, useCanvasWheel, useEngineModifiers,
 import { useFileDrop, useSystemClipboard } from './clipboard'
 import { VIEW_ACTIONS, VIEW_KEY_ALIASES, viewMove, type ViewAction } from './view'
 import { ZoomEntry } from './ZoomEntry'
+import { PlaceCursorBadge } from './PlaceCursorBadge'
+import { escapeAction } from './images'
 import { drawnCursor } from './cursors'
 import { useInputMethod } from './ime'
 import { LIST_ROWS, nextListType, type ListKind } from './lists'
@@ -104,6 +106,15 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
     void canvas.current?.retryRender()
     refreshTools()
   }, [refreshTools])
+  /**
+   * After an editor method that changed the document or the session (`runSteps`, the place
+   * cursor's `placeCycle`): the session's info and everything drawn from it follow, as after a
+   * tool's gesture (a settled tool call brings the info up to date and tells the editor).
+   */
+  const settle = useCallback(async () => {
+    await session.tool('toolState', [0, 0, '{}', canvas.current?.view()?.zoom ?? 1], true)
+    repaint()
+  }, [session, repaint])
   const shownMode = useRef<ViewState['screenMode'] | null>(null)
   useEffect(() => {
     if (!doc) return
@@ -209,7 +220,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
       return true
     }
     // X swaps the selection's fill and stroke, D gives it the default ones (InDesign's keys; the
-    // engine has no command for either, so each is a fill and a stroke command).
+    // engine has no command for either: a fill and a stroke command, run as one undo step).
     const letter = event.key.toLowerCase()
     if ((letter === 'x' || (letter === 'd' && !event.shiftKey)) && !command && !event.altKey && !tools.wantsText && !inField(event.target) && state?.selected && !host.readOnly) {
       const items = state.selection.flatMap((id) => {
@@ -217,13 +228,30 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
         return found ? [found as Item & { fillTint?: number; strokeDetail?: { tint?: number } }] : []
       })
       const steps = letter === 'x' ? swapFillStroke(items) : defaultFillStroke(state.selection)
+      const open = session.doc
+      if (!open) return true
       void (async () => {
-        for (const [id, params] of steps) await editor.run(id, params)
+        try {
+          await open.invoke('runSteps', phrase(letter === 'x' ? 'Swap Fill and Stroke' : 'Default Fill and Stroke'), JSON.stringify(steps))
+        } catch (error) {
+          editor.report(t('commandFailed'), error)
+        }
+        await settle()
       })()
       return true
     }
     // A selected ruler guide takes the arrows, Delete and Escape.
     if (!tools.wantsText && !inField(event.target) && guideGestures.guideKey(event)) return true
+    // Several graphics in the place cursor: the arrows bring the next (or the previous) to the front.
+    if (ARROWS.has(event.key) && tools.active === 'placeGun' && !command && session.doc) {
+      const open = session.doc
+      const forward = event.key === 'ArrowRight' || event.key === 'ArrowDown'
+      void open
+        .invoke('placeCycle', forward)
+        .then(settle)
+        .catch(() => undefined)
+      return true
+    }
     if (ARROWS.has(event.key) && tools.active !== 'hand' && tools.active !== 'zoom') {
       const zoomNow = canvas.current?.view()?.zoom ?? zoom
       const mods = (cmd: boolean) => JSON.stringify({ shift: event.shiftKey, alt: event.altKey, command: cmd, control: false, space: false })
@@ -236,8 +264,20 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
       void session.tool('toolKey', [event.key, mods(false), zoomNow], true)
       return true
     }
-    if (event.key === 'Escape' && tools.active === 'placeGun') {
-      tools.select('selection')
+    // Escape drops the place cursor's front graphic (the last: the Selection tool comes back),
+    // and from a frame's selected graphic goes back to the frame.
+    const escape = event.key === 'Escape' && !command && !event.altKey && !event.shiftKey && !tools.wantsText ? escapeAction(state, tools.active) : null
+    if (escape === 'placeSkip') {
+      const open = session.doc
+      void (async () => {
+        const left = open ? await open.invoke<number>('placeSkip').catch(() => 0) : 0
+        if (!left) tools.select('selection')
+        await settle()
+      })()
+      return true
+    }
+    if (escape === 'frame' && state) {
+      void editor.run('select.set', { ids: state.selection })
       return true
     }
     return false
@@ -328,6 +368,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
         <CanvasShims info={state} canvas={canvas} workspace={workspace} typing={() => typing.current()} onOpen={openMenu} spread={() => spread?.index ?? 0} />
         <LayoutContextMenu menu={menu} info={state} onClose={() => setMenu(null)} dialogs={dialogs} onView={(action) => viewActions.current(action)} view={viewOptions} onViewOption={runKit} />
         <ZoomEntry canvas={canvas} zoom={zoom} />
+        <PlaceCursorBadge queue={state?.placeQueue ?? []} tool={tools.active} />
       </EditorFrame>
       </DialogsProvider>
       </MenuOpenerProvider>

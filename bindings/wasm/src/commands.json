@@ -79,6 +79,19 @@
    }
   }
  },
+ "arrange.reorder": {
+  "description": "Moves objects to a place in the stacking order among a layer's objects on their spread (0 is the frontmost), onto that layer, as dragging their rows in the Layers panel does.",
+  "params": {
+   "index": {
+    "description": "the place among the layer's objects, from the front (0 = frontmost)",
+    "type": "integer"
+   },
+   "layer": {
+    "description": "layer id (default: the first object's layer)",
+    "type": "integer"
+   }
+  }
+ },
  "article.add": {
   "description": "Appends objects to an article in order."
  },
@@ -1974,6 +1987,29 @@
    }
   }
  },
+ "layer.duplicate": {
+  "description": "Duplicates a layer with a copy of each of its objects, just above it.",
+  "params": {
+   "id": {
+    "description": "the layer to copy",
+    "type": "integer"
+   }
+  },
+  "output": {
+   "additionalProperties": true,
+   "properties": {
+    "id": {
+     "type": "integer",
+     "description": "the new layer"
+    },
+    "objects": {
+     "type": "integer",
+     "description": "objects copied"
+    }
+   },
+   "type": "object"
+  }
+ },
  "link.add": {
   "description": "Creates a hyperlink from the selected text or objects to a URL, email or page.",
   "params": {
@@ -2533,6 +2569,14 @@
    }
   }
  },
+ "linkedFile.unembed": {
+  "description": "Keeps an embedded graphic in a file and links it there (Unembed Link).",
+  "params": {
+   "asset": {
+    "type": "integer"
+   }
+  }
+ },
  "linkedFile.update": {
   "description": "Reloads modified links from their files (one or all).",
   "params": {
@@ -2936,7 +2980,18 @@
   }
  },
  "object.fit": {
-  "description": "Fits a frame's graphic: fill or fit proportionally, fit content to frame, centre, or frame to content."
+  "description": "Fits a frame's graphic: fill or fit proportionally, fit content to frame, centre, or frame to content.",
+  "params": {
+   "axis": {
+    "description": "fitFrameToContent: the sides that fit",
+    "enum": [
+     "both",
+     "width",
+     "height"
+    ],
+    "type": "string"
+   }
+  }
  },
  "object.fittingOptions": {
   "description": "Sets a frame's fitting options: auto-fit, fitting, alignment reference and crop amounts.",
@@ -3017,7 +3072,24 @@
   "description": "Joins the selected paths into one compound path with the backmost object's look."
  },
  "object.matchAttributes": {
-  "description": "Copies fill, stroke, corners, opacity, effects and wrap from one object to others, like the eyedropper."
+  "description": "Copies fill, stroke, corners, opacity, effects and wrap from one object to others, like the eyedropper; with a point, a placed graphic's colour there or the text formatting there.",
+  "params": {
+   "point": {
+    "description": "[x, y] in points on the spread",
+    "items": {
+     "type": "number"
+    },
+    "type": "array"
+   },
+   "target": {
+    "description": "with point on a placed graphic: the colour goes to the fill or the stroke",
+    "enum": [
+     "fill",
+     "stroke"
+    ],
+    "type": "string"
+   }
+  }
  },
  "object.opacity": {
   "description": "Sets objects' opacity from 0 to 1 and blend mode.",
@@ -3404,7 +3476,13 @@
   }
  },
  "place.load": {
-  "description": "Loads a graphic into the place cursor so place.drop puts it on the page."
+  "description": "Loads a graphic into the place cursor so place.drop puts it on the page.",
+  "params": {
+   "queue": {
+    "description": "add it behind the graphics already loaded: each click places the next",
+    "type": "boolean"
+   }
+  }
  },
  "place.styles": {
   "description": "Reads a document's paragraph and character styles before importing them, listing the names and conflicts; changes nothing.",
@@ -3520,7 +3598,16 @@
   "description": "Selects the previous object in the selection's group."
  },
  "select.set": {
-  "description": "Selects objects by id, adding to the selection or selecting their content when asked."
+  "description": "Selects objects by id, adding to the selection or selecting their content when asked.",
+  "params": {
+   "key": {
+    "description": "the key object Align aligns to: one of the selected objects; null drops it",
+    "type": [
+     "integer",
+     "null"
+    ]
+   }
+  }
  },
  "select.toggle": {
   "description": "Adds an object to the selection, or removes it if it is selected."
@@ -4603,6 +4690,12 @@
     }
    },
    "type": "object"
+  },
+  "params": {
+   "content": {
+    "description": "measure the first target's placed graphic, not the frame",
+    "type": "boolean"
+   }
   }
  },
  "transform.move": {
@@ -4620,6 +4713,10 @@
       "type": "object"
      }
     ]
+   },
+   "content": {
+    "description": "move each frame's placed graphic inside the frame, not the frame",
+    "type": "boolean"
    }
   }
  },
@@ -4672,6 +4769,17 @@
    "shear": {
     "description": "degrees",
     "type": "number"
+   },
+   "content": {
+    "description": "size and place each frame's placed graphic, not the frame",
+    "type": "boolean"
+   },
+   "bounds": {
+    "description": "with content: the graphic's box [x0, y0, x1, y1] on the spread",
+    "items": {
+     "type": "number"
+    },
+    "type": "array"
    }
   }
  },

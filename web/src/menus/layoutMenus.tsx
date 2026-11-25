@@ -2,7 +2,7 @@ import { useEffect, type KeyboardEvent } from 'react'
 import { catalogTabs, shortcutMatches, useKitEditor, type FrameTab, type KitCommand, type MenuAction, type Phrases } from '@kition/sdk/editor'
 import type { DocumentInfo } from '../layout'
 import { asks } from '../dialogs/routes'
-import { VARIANT, engineCommandOf, layoutMenus } from './catalog'
+import { VARIANT, VARIANT_KEYS, engineCommandOf, layoutMenus } from './catalog'
 import { LIST_ROWS } from '../lists'
 import { contextReason, disabledReason } from './context'
 import { menuContext, type Dialogs } from '../dialogs/DialogHost'
@@ -94,6 +94,12 @@ export function menuKey(event: KeyboardEvent<HTMLDivElement>, { commands, enable
   const own = KIT_KEYS.find(([shortcut]) => shortcutMatches(shortcut, event, undefined, true))
   if (own) {
     onKitCommand(own[1])
+    return true
+  }
+  // A variant row's key (the Fitting rows) runs it as its menu row does.
+  const variant = VARIANT_KEYS.find(([shortcut]) => shortcutMatches(shortcut, event, undefined, true))
+  if (variant) {
+    if (enabled(variant[1])) dialogs.invoke(variant[1])
     return true
   }
   const asking = commands.find((command) => command.shortcut && !command.id.includes(VARIANT) && shortcutMatches(command.shortcut, event, undefined, true) && (dialogs.asks(command.id) || INVOKED.includes(command.id)))

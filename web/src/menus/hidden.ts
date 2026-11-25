@@ -50,6 +50,7 @@ export const HIDDEN: Readonly<Record<string, string>> = {
   'linkedFile.relinkFolder': LOCAL_FILE,
   'linkedFile.update': 'The Links panel updates its links.',
   'linkedFile.embed': 'The Links panel works on the link chosen in it.',
+  'linkedFile.unembed': 'The Links panel unembeds the graphic chosen in it.',
   'linkedFile.goTo': 'The Links panel selects the frames of the link chosen in it.',
   // Not built before the launch (the plan's "not done" list).
   'note.new': NOT_BUILT_PANEL('Notes'),

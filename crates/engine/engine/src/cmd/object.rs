@@ -26,7 +26,15 @@ pub fn specs() -> Vec<CommandSpec> {
             frame_create
         ),
         cmd!("line.add", "Create Line", [], None, "{spread?, a: [x,y], b: [x,y]}", has_doc, line_create),
-        cmd!("transform.move", "Move", ["Object", "Transform"], None, "{dx, dy, copy?: bool, ids?, toSpread?}", has_selection, transform_move),
+        cmd!(
+            "transform.move",
+            "Move",
+            ["Object", "Transform"],
+            None,
+            "{dx, dy, copy?: bool, content?: bool (move each frame's placed graphic inside the frame, not the frame), ids?, toSpread?}",
+            has_selection,
+            transform_move
+        ),
         cmd!(
             "transform.resize",
             "Resize",
@@ -83,10 +91,16 @@ pub fn specs() -> Vec<CommandSpec> {
             "Apply Attributes (Eyedropper)",
             [],
             None,
-            "{from: id, ids?} — copy fill, stroke, corners, opacity, effects, wrap",
-            has_selection,
+            "{from: id, ids?, point?: [x, y] (spread coords), target?: fill|stroke} — copy fill, stroke, corners, opacity, effects, wrap. With `point` (the Eyedropper): on a placed graphic, its colour there goes to the selected text, else the selected objects' fill (or stroke); on a text frame with text selected, the character and paragraph formatting there goes to the selected text",
+            has_items_or_text,
             |s, p| {
                 let from = super::id_param(p, "from").ok_or_else(|| bad("object.matchAttributes", "missing from"))?;
+                if let Some(answer) = eyedropper(s, p, from)? {
+                    return Ok(answer);
+                }
+                if s.doc()?.selection.items.is_empty() && p.get("ids").is_none() {
+                    return Err(bad("object.matchAttributes", "select the objects to apply the attributes to"));
+                }
                 let src = s.doc()?.doc.item(from).cloned().ok_or(kition_layout_doc::DocError::NoItem(from))?;
                 set_flag(
                     s,
@@ -115,11 +129,11 @@ pub fn specs() -> Vec<CommandSpec> {
             "Transform Panel",
             [],
             None,
-            "{x?, y?, width?, height?, scaleX? (%), scaleY? (%), rotation? (°), shear? (°), ref?: 0..8, ids?} — reference-point based geometry; rotation and shear are absolute (Transformations are Totals decides whether nested objects measure them on the pasteboard)",
+            "{x?, y?, width?, height?, scaleX? (%), scaleY? (%), rotation? (°), shear? (°), ref?: 0..8, ids?, content?: bool (size and place each frame's placed graphic instead of the frame), bounds?: [x0,y0,x1,y1] (with content: the graphic's box on the spread)} — reference-point based geometry; rotation and shear are absolute (Transformations are Totals decides whether nested objects measure them on the pasteboard)",
             has_selection,
             transform_set
         ),
-        cmd!(query "transform.info", "Transform Values", [], None, "{ids?} → {scaleX, scaleY (%), rotation, shear (°), content?: the same for a placed graphic} of the first target; {x, y, width, height}: the box transform.set measures (top-left, page-relative)", has_selection, transform_info),
+        cmd!(query "transform.info", "Transform Values", [], None, "{ids?, content?: bool} → {scaleX, scaleY (%), rotation, shear (°), content?: the same for a placed graphic} of the first target; {x, y, width, height}: the box transform.set measures (top-left, page-relative). With `content: true`, the first target's placed graphic itself: its box, scale, rotation and shear", has_selection, transform_info),
         cmd!("object.arrange", "Arrange", ["Object", "Arrange"], None, "{to: front|forward|backward|back, ids?}", has_selection, arrange),
         cmd!("arrange.bringToFront", "Bring to Front", ["Object", "Arrange"], Some("Cmd+Shift+]"), "{}", has_selection, |s, _| s
             .execute("object.arrange", &json!({"to": "front"}))),
@@ -543,7 +557,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Fitting",
             ["Object", "Fitting"],
             None,
-            "{mode: fillProportionally|fitProportionally|fitContentToFrame|centerContent|fitFrameToContent, ids?}",
+            "{mode: fillProportionally|fitProportionally|fitContentToFrame|centerContent|fitFrameToContent, axis?: both|width|height (fitFrameToContent: the sides that fit; default both), ids?}",
             has_selection,
             fit
         ),
@@ -960,6 +974,9 @@ pub fn move_destination(p: &Value) -> Option<SpreadRef> {
 fn transform_move(s: &mut Session, p: &Value) -> Result<Value> {
     let ids = targets(s, p)?;
     let (dx, dy) = (f64_or(p, "dx", 0.0), f64_or(p, "dy", 0.0));
+    if bool_or(p, "content", false) {
+        return s.edit(|d, _| Ok(json!({"moved": super::content::move_content(d, &ids, dx, dy)})));
+    }
     let copy = bool_or(p, "copy", false);
     let to = move_destination(p);
     s.edit(|d, sel| {
@@ -1176,6 +1193,9 @@ fn values_json(m: Affine) -> Value {
 
 fn transform_info(s: &mut Session, p: &Value) -> Result<Value> {
     let ids = targets(s, p)?;
+    if bool_or(p, "content", false) {
+        return super::content::info(s, &ids);
+    }
     let totals = s.prefs.transformations_are_totals;
     let d = &s.doc()?.doc;
     let id = *ids.first().ok_or_else(|| bad("transform.info", "nothing selected"))?;
@@ -1253,6 +1273,9 @@ fn transform_values(s: &mut Session, p: &Value, ids: &[ItemId], rf: usize) -> Re
 
 fn transform_set(s: &mut Session, p: &Value) -> Result<Value> {
     let ids = targets(s, p)?;
+    if bool_or(p, "content", false) {
+        return super::content::set(s, p, &ids);
+    }
     if ["rotation", "shear", "scaleX", "scaleY"].iter().any(|k| p.get(*k).is_some()) {
         let rf = p.get("ref").and_then(Value::as_u64).unwrap_or(4) as usize;
         if !["x", "y", "width", "height"].iter().any(|k| p.get(*k).is_some()) {
@@ -1397,6 +1420,47 @@ fn ungroup(s: &mut Session, p: &Value) -> Result<Value> {
         *sel = Selection::items(out);
         ok()
     })
+}
+
+/// Objects selected, or text (the Eyedropper picks formatting up for text).
+fn has_items_or_text(s: &Session) -> std::result::Result<(), String> {
+    if s.active().is_some_and(|d| d.selection.text.is_some()) { Ok(()) } else { has_selection(s) }
+}
+
+/// The Eyedropper at a point (`object.matchAttributes` with `point`): a placed graphic's colour
+/// there for the selected text or objects, or the formatting of the text there for the selected
+/// text. `None`: match the object's attributes as without a point.
+fn eyedropper(s: &mut Session, p: &Value, from: ItemId) -> Result<Option<Value>> {
+    const ID: &str = "object.matchAttributes";
+    let Some(at) = point_param(p, "point") else { return Ok(None) };
+    let stroke = match str_param(p, "target") {
+        None | Some("fill") => false,
+        Some("stroke") => true,
+        Some(other) => return Err(bad(ID, format!("unknown target `{other}` (fill, stroke)"))),
+    };
+    let (text, src) = {
+        let st = s.doc()?;
+        (st.selection.text.is_some() && p.get("ids").is_none(), st.doc.item(from).cloned().ok_or(kition_layout_doc::DocError::NoItem(from))?)
+    };
+    if src.graphic().is_some() {
+        let Some(color) = super::content::sample(&s.doc()?.doc, from, at) else { return Ok(None) };
+        let hex = color.to_hex();
+        if text {
+            let name = s.edit(|d, _| Ok(super::style::color_swatch(d, color)))?;
+            super::text::format_chars(s, &json!({ if stroke { "stroke" } else { "fill" }: name }))?;
+            return Ok(Some(json!({"color": hex, "swatch": name})));
+        }
+        let mut params = json!({"color": hex, "target": if stroke { "stroke" } else { "fill" }});
+        if let Some(ids) = p.get("ids") {
+            params["ids"] = ids.clone();
+        }
+        let r = s.execute("object.color", &params)?;
+        return Ok(Some(json!({"color": hex, "swatch": r.get("swatch").cloned().unwrap_or(Value::Null)})));
+    }
+    if text && src.is_text_frame() {
+        return super::text::pick_up_format(s, from, at).map(Some);
+    }
+    Ok(None)
 }
 
 fn set_flag(s: &mut Session, p: &Value, f: impl Fn(&mut Item), deselect: bool) -> Result<Value> {
@@ -1778,6 +1842,10 @@ fn fitting_options(s: &mut Session, p: &Value) -> Result<Value> {
 fn fit(s: &mut Session, p: &Value) -> Result<Value> {
     let ids = targets(s, p)?;
     let mode = str_param(p, "mode").unwrap_or("fitProportionally").to_string();
+    let axis = str_param(p, "axis").unwrap_or("both").to_string();
+    if !["both", "width", "height"].contains(&axis.as_str()) {
+        return Err(bad("object.fit", format!("unknown axis `{axis}` (both, width, height)")));
+    }
     s.edit(|d, _| {
         for id in &ids {
             let Some(it) = d.item_mut(*id) else { continue };
@@ -1786,7 +1854,7 @@ fn fit(s: &mut Session, p: &Value) -> Result<Value> {
             let (nw, nh) = g.size;
             let cur = g.xf.transform_rect_bbox(Rect::new(0.0, 0.0, nw, nh));
             if mode == "fitFrameToContent" {
-                it.path = shapes::rectangle(cur);
+                it.path = shapes::rectangle(super::content::fit_frame_axis(r, cur, &axis));
                 continue;
             }
             let m = fitting_mode(&mode)

@@ -1,0 +1,33 @@
+format: 1
+id: layout.ui.images-and-objects/images
+feature: layout.ui.images-and-objects
+intent: >-
+  A person with images and objects: over a frame with a placed image the Selection tool shows the
+  hand on its content grabber and a drag there moves the image inside the frame in one undo step,
+  the frame staying; the Properties panel then measures the image and sets its scale; Escape goes
+  back to the frame and a double click to the image and back; a double click on the frame's side
+  handle fits it to the image across; Cmd+Alt+Shift+C and Cmd+Alt+Shift+E change the image's
+  scale; the Eyedropper puts the image's colour on a selected object and a text's formatting on
+  selected text; X swaps fill and stroke in one undo step; a click on one of two selected objects
+  makes it the key object and a second click drops it; three images dropped together load the
+  place cursor, which shows how many and a picture of the next, the arrow brings the next, Escape
+  drops one, a click places one and keeps the cursor loaded, the last Escape gives the Selection
+  tool back; the layer menu duplicates a layer; arrange.reorder moves an object in its layer; the
+  Links panel unembeds an embedded image.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/images.mjs (plan 2026-11-25, stage 6)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/images.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-25"

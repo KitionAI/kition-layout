@@ -19,6 +19,7 @@ pub mod check;
 mod chrome;
 mod collab;
 mod describe;
+mod ghost;
 pub use describe::NO_OUTPUT;
 
 #[cfg(test)]
@@ -156,6 +157,12 @@ impl LayoutDocument {
         };
         let mut renderer = self.renderer.try_borrow_mut().map_err(|_| "the renderer is busy".to_owned())?;
         let mut pixels = renderer.render(&state.doc, &self.session.cache, &placed, width, height, view, &options).to_straight();
+        // A graphic moved or sized inside its frame shows whole, faintly, outside the frame too.
+        if let Some(copy) = self.session.content_ghost().and_then(|id| ghost::document(&state.doc, id)) {
+            let bare = RenderOptions { background: None, paper: false, page_shadow: false, ..options.clone() };
+            let faint = renderer.render(&copy, &self.session.cache, &placed, width, height, view, &bare).to_straight();
+            ghost::blend(&mut pixels, &faint);
+        }
         if preview {
             let shown: Vec<Rect> = layout
                 .slots
@@ -257,6 +264,8 @@ fn cursor_css(cursor: Cursor) -> String {
         Cursor::ThreadLink => "alias",
         Cursor::Unthread => "no-drop",
         Cursor::NotAllowed => "not-allowed",
+        // Over a frame's content grabber or its selected graphic (the editor draws a hand).
+        Cursor::ContentHand => "pointer",
         _ => "default",
     }
     .to_owned()
@@ -520,6 +529,20 @@ impl KitDocument for LayoutDocument {
             object.insert("canRedo".into(), Value::Bool(state.can_redo()));
             object.insert("canvas".into(), json!({ "spreads": spreads }));
             object.insert("tool".into(), Value::String(self.session.tool_id().to_owned()));
+            // Plan 2026-11-25, stage 6: a frame's graphic selected rather than the frame, the key
+            // object for Align, and the graphics in the place cursor (the first is placed next).
+            object.insert("selectionContent".into(), Value::Bool(state.selection.content));
+            object.insert("keyObject".into(), state.selection.key.map_or(Value::Null, |key| json!(key.0)));
+            let queue: Vec<Value> = self
+                .session
+                .place_queue()
+                .into_iter()
+                .map(|(asset, (width, height))| {
+                    let name = state.doc.assets.get(&asset).map(|a| a.name.clone()).unwrap_or_default();
+                    json!({ "asset": asset.0, "name": name, "width": width, "height": height })
+                })
+                .collect();
+            object.insert("placeQueue".into(), Value::Array(queue));
         }
         Ok(inspected)
     }
@@ -738,6 +761,48 @@ impl LayoutDocument {
         self.session.end_typing();
     }
 
+    /// The arrow keys in the place cursor with several graphics loaded: the next (`forward`) or
+    /// the previous one comes to the front. Editor state; answers how many are loaded.
+    pub fn place_cycle(&mut self, forward: bool) -> usize {
+        self.session.place_cycle(forward)
+    }
+
+    /// Escape in the place cursor: the graphic in front is put down unplaced, the next comes to
+    /// the front (none left: the Selection tool). Answers how many are left.
+    pub fn place_skip(&mut self) -> usize {
+        self.session.place_skip()
+    }
+
+    /// A placed graphic's bytes as the document holds them (the Links panel's Unembed writes them
+    /// to a file through the host first), or None when there is no such graphic.
+    pub fn asset_bytes(&self, asset: u64) -> Option<Vec<u8>> {
+        let state = self.active().ok()?;
+        state.doc.assets.get(&kition_layout_doc::AssetId(asset)).map(|a| a.data.as_ref().clone())
+    }
+
+    /// Several commands as one undo step named `label` (`steps`: a JSON array of `[command,
+    /// params]`), for an editor action the engine spells as more than one command (Swap Fill and
+    /// Stroke). Each command is checked as `execute` checks it; one failing leaves the document
+    /// as it was.
+    pub fn run_steps(&mut self, label: &str, steps: &str) -> Result<Value, String> {
+        let list: Vec<(String, Value)> =
+            serde_json::from_str(steps).map_err(|error| format!("steps are a JSON array of [command, params]: {error}"))?;
+        if list.len() > 64 {
+            return Err("at most 64 steps".into());
+        }
+        let mut resolved = Vec::with_capacity(list.len());
+        for (command, params) in list {
+            self.refuse_unknown(&command, &params)?;
+            let params = addresses::resolve(&command, &params, self.session.kdm().map(|kdm| kdm.replica()))?;
+            resolved.push((command, params));
+        }
+        let answers = self.session.execute_steps(label, &resolved).map_err(engine_error)?;
+        if let Ok(state) = self.active() {
+            place::history::remember(&state.doc);
+        }
+        Ok(Value::Array(answers))
+    }
+
     /// The editor's view options (`view::ViewOptions`, a JSON object): what the canvas shows over
     /// the pages, the screen mode, what drags snap to and the ruler unit. Editor state: the
     /// document, its file and its history do not change.
@@ -900,6 +965,35 @@ pub mod web {
         #[wasm_bindgen(js_name = endTyping)]
         pub fn end_typing(&mut self) {
             self.0.end_typing();
+        }
+
+        /// The place cursor's arrow keys: brings the next (or previous) loaded graphic to the
+        /// front; answers how many are loaded (plan 2026-11-25, stage 6).
+        #[wasm_bindgen(js_name = placeCycle)]
+        pub fn place_cycle(&mut self, forward: bool) -> u32 {
+            u32::try_from(self.0.place_cycle(forward)).unwrap_or(u32::MAX)
+        }
+
+        /// Escape in the place cursor: drops the graphic in front; answers how many are left.
+        #[wasm_bindgen(js_name = placeSkip)]
+        pub fn place_skip(&mut self) -> u32 {
+            u32::try_from(self.0.place_skip()).unwrap_or(u32::MAX)
+        }
+
+        /// A placed graphic's bytes (empty when there is none), for the Links panel's Unembed.
+        #[wasm_bindgen(js_name = assetBytes)]
+        pub fn asset_bytes(&self, asset: f64) -> Vec<u8> {
+            if !(asset.is_finite() && asset >= 0.0) {
+                return Vec::new();
+            }
+            self.0.asset_bytes(asset as u64).unwrap_or_default()
+        }
+
+        /// Several commands as one undo step: `steps` is a JSON array of `[command, params]`;
+        /// answers the commands' answers as a JSON array.
+        #[wasm_bindgen(js_name = runSteps)]
+        pub fn run_steps(&mut self, label: &str, steps: &str) -> Result<String, JsError> {
+            self.0.run_steps(label, steps).map(|answers| answers.to_string()).map_err(error)
         }
 
         /// Adds a font file's faces the person chose (a system font, a file) and lays out the
@@ -1338,6 +1432,73 @@ mod tests {
         doc.end_typing();
         let after = history(&mut doc);
         assert_eq!(after["undo"].as_array().map(Vec::len), before["undo"].as_array().map(|undo| undo.len() + 1), "{after}");
+    }
+
+    /// A red square `side` points (and pixels) wide, as a PNG.
+    fn red_png(side: u32) -> Vec<u8> {
+        kition_layout_render::Rendered { width: side, height: side, pixels: [255, 0, 0, 255].repeat((side * side) as usize) }.to_png()
+    }
+
+    /// Plan 2026-11-25, stage 6: with the Selection tool the content grabber takes hold of a
+    /// placed graphic; while it moves, the part its frame crops shows faintly with the page; the
+    /// graphic's own box and handles show; the cursor over the grabber is the editor's hand.
+    #[test]
+    fn a_graphic_moves_inside_its_frame_with_its_ghost_showing() {
+        let mut doc = LayoutDocument::create("Ghost.klayout", 612, 792).unwrap();
+        let png = kition_layout_engine::cmd::base64_encode(&red_png(10));
+        let frame =
+            doc.execute("file.place", json!({ "base64": png, "name": "red.png", "x": 100, "y": 100, "width": 100 })).unwrap()["id"].as_u64().unwrap();
+        // The graphic twice the frame's width: its right half is cropped.
+        doc.execute("transform.set", json!({ "ids": [frame], "content": true, "bounds": [100, 100, 300, 200] })).unwrap();
+        doc.select_tool("selection", 1.0).unwrap();
+        let px = |doc: &LayoutDocument, x: f64, y: f64| doc.render(72.0 + x, 72.0 + y, 1.0, 1, 1).unwrap();
+        assert_eq!(px(&doc, 250.0, 150.0), vec![255, 255, 255, 255], "cropped: paper");
+        let event = |action, x: f64, y: f64| ToolPointer { action, x: 72.0 + x, y: 72.0 + y, mods: ToolMods::default(), pressure: 1.0, zoom: 1.0 };
+        assert_eq!(doc.state(72.0 + 150.0, 72.0 + 150.0, ToolMods::default(), 1.0).cursor, "pointer", "the grabber's hand");
+        doc.pointer(&event(PointerAction::Down, 150.0, 150.0)).unwrap();
+        assert!(doc.inspect().unwrap()["selectionContent"].as_bool().unwrap(), "the graphic, not the frame");
+        doc.pointer(&event(PointerAction::Drag, 154.0, 150.0)).unwrap();
+        let faint = px(&doc, 250.0, 150.0);
+        assert!(faint[0] == 255 && faint[1] < 255 && faint[1] > 100, "the cropped part shows faintly: {faint:?}");
+        let up = doc.pointer(&event(PointerAction::Up, 154.0, 150.0)).unwrap();
+        assert_eq!(px(&doc, 250.0, 150.0), vec![255, 255, 255, 255], "no ghost once let go");
+        // The graphic's own box: its handles at its corners (304, 200 on the spread).
+        assert!(
+            up.overlays.iter().any(|o| matches!(o, ToolOverlay::Anchor { x, y, color, .. } if *color == chrome::CONTENT_BOX && (*x - 304.0 - 72.0).abs() < 1e-6 && (*y - 200.0 - 72.0).abs() < 1e-6)),
+            "{:?}",
+            up.overlays
+        );
+        assert_eq!(doc.execute("transform.info", json!({ "ids": [frame], "content": true })).unwrap()["x"], json!(104.0));
+    }
+
+    /// Plan 2026-11-25, stage 6: X is one undo step (`runSteps`), the place cursor's queue cycles
+    /// and drops through the editor methods and reads back in `inspect`.
+    #[test]
+    fn steps_and_the_place_queue_through_the_editor_methods() {
+        let mut doc = LayoutDocument::create("Steps.klayout", 612, 792).unwrap();
+        let id = doc.execute("frame.add", json!({ "rect": [10, 10, 50, 50], "content": "unassigned" })).unwrap()["id"].as_u64().unwrap();
+        let undo = |doc: &mut LayoutDocument| doc.execute("file.history", json!({})).unwrap()["undo"].as_array().map_or(0, Vec::len);
+        let before = undo(&mut doc);
+        let steps =
+            json!([["object.fill", { "ids": [id], "swatch": "[Black]" }], ["object.stroke", { "ids": [id], "swatch": "[None]" }]]).to_string();
+        doc.run_steps("Swap Fill and Stroke", &steps).unwrap();
+        assert_eq!(undo(&mut doc), before + 1);
+        assert!(doc.run_steps("Bad", "[[\"object.fill\", {\"nope\": 1}]]").is_err(), "unknown parameters are refused");
+        assert!(doc.run_steps("Bad", "not json").is_err());
+        let png = kition_layout_engine::cmd::base64_encode(&red_png(4));
+        doc.execute("place.load", json!({ "base64": png, "name": "one.png" })).unwrap();
+        doc.execute("place.load", json!({ "base64": png, "name": "two.png", "queue": true })).unwrap();
+        let names = |doc: &LayoutDocument| {
+            doc.inspect().unwrap()["placeQueue"].as_array().unwrap().iter().map(|q| q["name"].as_str().unwrap().to_owned()).collect::<Vec<_>>()
+        };
+        assert_eq!(names(&doc), ["one.png", "two.png"]);
+        assert_eq!(doc.place_cycle(true), 2);
+        assert_eq!(names(&doc), ["two.png", "one.png"]);
+        assert_eq!(doc.place_skip(), 1);
+        assert_eq!(names(&doc), ["one.png"]);
+        assert_eq!(doc.place_skip(), 0);
+        assert_eq!(doc.tool(), "selection");
+        assert!(doc.asset_bytes(999_999).is_none());
     }
 
     /// With the loaded text cursor, the cursor says what a click does.

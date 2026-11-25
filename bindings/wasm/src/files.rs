@@ -59,6 +59,7 @@ pub const FILES: &[FileParam] = &[
     FileParam::create("swatch.save", "path", &[]),
     FileParam::read("linkedFile.relink", "path", &[]),
     FileParam::folder("linkedFile.relinkFolder", "dir"),
+    FileParam::create("linkedFile.unembed", "path", &[]),
 ];
 
 /// The commands with file parameters an agent may run: they read only what the host lends from

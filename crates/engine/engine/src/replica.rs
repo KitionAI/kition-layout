@@ -457,6 +457,48 @@ impl Session {
         result
     }
 
+    /// Runs `steps` (command, params) as one command: one undo step named `label` (Swap Fill and
+    /// Stroke is a fill and a stroke). When a step fails the document goes back to how it was
+    /// and the error is answered. Inside another command, the steps are just part of it.
+    pub fn execute_steps(&mut self, label: &str, steps: &[(String, serde_json::Value)]) -> Result<Vec<serde_json::Value>> {
+        if self.depth > 0 {
+            return steps.iter().map(|(id, params)| self.execute(id, params)).collect();
+        }
+        if self.dialog_preview {
+            self.cancel_preview();
+        }
+        self.end_typing();
+        self.sync_all(None, "");
+        let acting = self.active().map(|d| d.uid);
+        let before = self.active().map(|d| (d.doc.clone(), d.selection.clone()));
+        self.depth += 1;
+        let mut answers = Vec::with_capacity(steps.len());
+        let mut failed = None;
+        for (id, params) in steps {
+            match self.execute(id, params) {
+                Ok(answer) => answers.push(answer),
+                Err(error) => {
+                    failed = Some(error);
+                    break;
+                }
+            }
+        }
+        self.depth = self.depth.saturating_sub(1);
+        if let Some(error) = failed {
+            if let (Some((doc, selection)), Some(st)) = (before, self.active_mut())
+                && Some(st.uid) == acting
+            {
+                st.doc = doc;
+                st.selection = selection;
+                st.revision = st.revision.saturating_add(1);
+            }
+            return Err(error);
+        }
+        let still = acting.filter(|uid| self.active().is_some_and(|d| d.uid == *uid));
+        self.sync_all(still, label);
+        Ok(answers)
+    }
+
     /// Ends the typing in progress: what is typed next is a new undo step.
     pub fn end_typing(&mut self) {
         let Some(typing) = self.typing.take() else { return };

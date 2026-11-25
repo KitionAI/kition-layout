@@ -73,7 +73,16 @@ export type DocumentInfo = {
   layouts: LayoutInfo[]
   settings: { pageWidth: number; pageHeight: number; facingPages: boolean; intent: string }
   tool: string
+  /** The selected frame's placed graphic is selected, not the frame (plan stage 6). */
+  selectionContent: boolean
+  /** The key object Align aligns to (one of the selected objects), if any. */
+  keyObject: number | null
+  /** The graphics in the place cursor, the one a click places first. */
+  placeQueue: PlaceQueued[]
 }
+
+/** A graphic waiting in the place cursor. */
+export type PlaceQueued = { asset: number; name: string; width: number; height: number }
 
 type Inspected = {
   pageCount?: number
@@ -92,6 +101,9 @@ type Inspected = {
   layouts?: LayoutInfo[]
   settings?: Partial<DocumentInfo['settings']>
   tool?: string
+  selectionContent?: boolean
+  keyObject?: number | null
+  placeQueue?: PlaceQueued[]
 }
 
 const NO_BOUNDS: [number, number, number, number] = [0, 0, 0, 0]
@@ -138,6 +150,9 @@ export function describe(info: KitEngineInfo): DocumentInfo {
     layouts: inspected.layouts ?? [],
     settings: { pageWidth: 612, pageHeight: 792, facingPages: false, intent: 'print', ...inspected.settings },
     tool: inspected.tool ?? 'selection',
+    selectionContent: inspected.selectionContent ?? false,
+    keyObject: inspected.keyObject ?? null,
+    placeQueue: inspected.placeQueue ?? [],
   }
 }
 

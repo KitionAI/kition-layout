@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-press-count-order
+feature: layout.ui.images-and-objects
+intent: >-
+  A fast double click gave both of its presses the count two: the editor counts presses as they
+  come but sends each on when its queue reaches it, and read the latest count then, so a double
+  click toggled a frame to its image and straight back. Each counted press now waits in order for
+  its own press.
+layer: gate
+source:
+  kind: issue
+  from: plan 2026-11-25 section 9 (stage 6, found by web/tests/images.mjs)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, --test, --test-name-pattern, "keeps its own count", src/images.test.mjs]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+timeout_s: 60
+since: "2026-11-25"

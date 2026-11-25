@@ -816,3 +816,30 @@
   gap: 4px;
   margin-bottom: 8px;
 }
+
+/* The place cursor's load beside the pointer (plan 2026-11-25, stage 6). */
+.layout-place-badge {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid var(--kit-border);
+  border-radius: var(--kit-radius-control);
+  background: var(--kit-surface);
+  color: var(--kit-text);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.layout-place-badge img {
+  display: block;
+  max-width: 48px;
+  max-height: 48px;
+  object-fit: contain;
+}
+
+.layout-place-count {
+  padding: 0 4px;
+}

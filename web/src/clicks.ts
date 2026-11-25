@@ -17,3 +17,19 @@ export function nextPress(last: Press | null, time: number, x: number, y: number
   const near = last !== null && time - last.time >= 0 && time - last.time <= CLICK_INTERVAL_MS && Math.hypot(x - last.x, y - last.y) <= CLICK_SLOP_PX
   return { time, x, y, count: near && last ? Math.min(last.count + 1, 255) : 1 }
 }
+
+/** A counted press waiting for the editor to send its press on (plan 2026-11-25, stage 6). */
+export type Counted = { count: number; at: number }
+
+/** The longest a counted press waits for its own press to be sent (a press the view tools took is never sent). */
+export const PRESS_WAIT_MS = 2000
+
+/**
+ * The count for the press the editor sends now (at `now`): the oldest counted press still
+ * waiting, so a press sent after the next one was counted (a fast double click) keeps its own
+ * count; presses waiting too long are dropped first. One when none waits. Changes `waiting`.
+ */
+export function takeCount(waiting: Counted[], now: number): number {
+  while (waiting.length && now - (waiting[0]?.at ?? now) > PRESS_WAIT_MS) waiting.shift()
+  return waiting.shift()?.count ?? 1
+}

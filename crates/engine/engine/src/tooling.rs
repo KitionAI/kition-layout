@@ -59,8 +59,10 @@ impl Session {
         self.ime_cancel();
         self.end_typing();
         self.tool = kition_layout_tools::create(id);
-        // Leaving the Type tool keeps the text frame selected.
+        // Leaving the Type tool keeps the text frame selected; the Eyedropper keeps the text
+        // selected, to give it the formatting or colour it picks up.
         if id != "type"
+            && id != "eyedropper"
             && let Some(st) = self.active_mut()
             && let Some(t) = st.selection.text.take()
             && let Some(f) = t.frame.or_else(|| st.doc.story(t.story).and_then(|s| s.frames.first().copied()))
@@ -138,6 +140,12 @@ impl Session {
 
     pub fn tool_busy(&self) -> bool {
         self.tool.busy()
+    }
+
+    /// The frame whose placed graphic the page shows whole and translucent now: it is being moved
+    /// or sized inside its frame.
+    pub fn content_ghost(&self) -> Option<kition_layout_doc::ItemId> {
+        self.tool.ghost()
     }
 
     pub fn wants_text(&mut self) -> bool {

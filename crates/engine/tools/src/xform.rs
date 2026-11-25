@@ -1,6 +1,8 @@
 //! Rotate (R), Scale (S) and Shear (O) tools: drag around the selection centre (Alt-click sets
 //! the reference point elsewhere in a later iteration); Eyedropper (I): click an object to apply
-//! its attributes to the selection.
+//! its attributes to the selection, a placed image to colour the selection (text or objects) with
+//! the image's colour under the pointer (Shift: the stroke), or text to give the selected text its
+//! formatting.
 
 use kition_layout_doc::SpreadRef;
 use kition_layout_geom::{Point, Rect};
@@ -258,9 +260,25 @@ impl Tool for EyedropperTool {
         if ev.kind != PointerKind::Down {
             return vec![];
         }
-        let Some((_, id)) = cx.hit(ev.pos) else { return vec![] };
-        if cx.selection.items.is_empty() && cx.selection.text.is_none() {
+        let Some((sr, id)) = cx.hit(ev.pos) else { return vec![] };
+        let text = cx.selection.text.is_some();
+        if cx.selection.items.is_empty() && !text {
             return vec![Action::Exec("select.set".into(), json!({"ids": [id.0]}))];
+        }
+        let Some(it) = cx.doc.item(id) else { return vec![] };
+        let at = cx.layout.to_spread(sr, ev.pos);
+        // A placed image gives its colour under the pointer (Shift: to the stroke), to the selected
+        // text or objects; text gives its formatting to the selected text.
+        if it.graphic().is_some() || (text && it.is_text_frame()) {
+            let mut p = json!({"from": id.0, "point": [at.x, at.y]});
+            if ev.mods.shift && it.graphic().is_some() {
+                p["target"] = json!("stroke");
+            }
+            return vec![Action::Exec("object.matchAttributes".into(), p)];
+        }
+        // Text selected takes nothing from other objects.
+        if text {
+            return vec![];
         }
         vec![Action::Exec("object.matchAttributes".into(), json!({"from": id.0}))]
     }

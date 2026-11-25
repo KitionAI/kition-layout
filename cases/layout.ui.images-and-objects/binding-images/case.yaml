@@ -1,0 +1,23 @@
+format: 1
+id: layout.ui.images-and-objects/binding-images
+feature: layout.ui.images-and-objects
+intent: >-
+  In the binding: the content grabber takes hold of a placed image, the part its frame crops shows
+  faintly with the page while it moves and not after, the image's own handles show and the cursor
+  is the editor's hand; runSteps is one undo step and refuses unknown parameters; the place
+  cursor's queue cycles and drops through placeCycle and placeSkip and reads back in inspect.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/src/lib.rs, bindings/wasm/src/ghost.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, filter: a_graphic_moves_inside_its_frame_with_its_ghost_showing }
+  - cargo-test: { package: kition-layout-kit, filter: steps_and_the_place_queue_through_the_editor_methods }
+  - cargo-test: { package: kition-layout-kit, filter: the_ghost_lies_faintly_over_the_page }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

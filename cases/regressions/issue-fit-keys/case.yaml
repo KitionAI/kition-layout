@@ -1,0 +1,26 @@
+format: 1
+id: regressions/issue-fit-keys
+feature: layout.ui.images-and-objects
+intent: >-
+  The walkthrough found the fitting keys (Cmd+Alt+Shift+C, Cmd+Alt+Shift+E, Cmd+Alt+C) and the Fit
+  buttons leaving a placed image's scale at 25.2 %. Two causes: the Fitting menu rows had no keys
+  at all (a variant row could not carry one), so the keys did nothing; and an image placed without
+  a frame gets a frame its own size, so every fitting rightly has nothing to change (the buttons
+  were not broken). The rows now carry InDesign's keys, and the engine test shows the fittings
+  changing the scale once the frame differs from the image
+  (fitting_a_placed_image_changes_its_scale_once_the_frame_differs, in engine-images).
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings.md (section 6, 2026-11-25); plan 2026-11-25 section 0b
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, --test, --test-name-pattern, "fitting rows have their keys", src/images.test.mjs]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+timeout_s: 120
+since: "2026-11-25"

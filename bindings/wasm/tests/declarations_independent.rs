@@ -51,7 +51,7 @@ fn independent_readings_name_real_unique_commands_and_state_their_dependencies()
     let writes = rows.iter().filter(|r| kition_layout_engine::find_command(r.id).is_some_and(|c| c.journal)).count();
     let registered: std::collections::BTreeSet<_> = kition_layout_engine::command_specs().iter().map(|c| c.id).collect();
     assert_eq!(seen, registered, "every registry handler needs an independent reading");
-    assert_eq!(rows.len(), 461, "re-read new or removed handlers");
+    assert_eq!(rows.len(), 464, "re-read new or removed handlers");
     eprintln!("independently read {} registry handlers, {writes} journaled commands", rows.len());
 }
 
@@ -99,7 +99,7 @@ fn blind_projection_catalogue_has_valid_inputs_and_covers_every_journaled_comman
         }
     }
     // C8-layout-read-3: 66 misc projections written blind from the misc rows.
-    assert_eq!(checks.len(), 412);
+    assert_eq!(checks.len(), 415);
     eprintln!("validated {} blind projection inputs", checks.len());
 }
 
@@ -244,7 +244,7 @@ fn projection_fixtures_execute_and_report_effective_holds() {
         more.len(),
         less.intersection(&more).count()
     );
-    assert_eq!(projected.len(), 330, "the measured command coverage must not shrink");
+    assert_eq!(projected.len(), 333, "the measured command coverage must not shrink");
     assert!(unprojected.is_empty(), "every journaled command has a blind projection: {unprojected:?}");
     assert_eq!(misc_ids.len(), 66);
     assert!(differing <= LEFT.0 && less.len() <= LEFT.1 && more.len() <= LEFT.2, "declarations moved away from the independent probes");

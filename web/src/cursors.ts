@@ -23,6 +23,8 @@ export const DRAWN_CURSORS = {
   /** The loaded text cursor over the frame already linked on its side: a broken link (a click unthreads). */
   unthread: drawn(svg(`${ARROW}<path d='M14.5 18.5a2 2 0 0 1 2-2h0.5M21.5 18.5a2 2 0 0 1-2 2H19' fill='none' stroke='black' stroke-width='1.3'/><path d='M18 14.5v1.5M18 21v1.5M15.5 15l1 1M20.5 22l-1-1' stroke='black'/>`), 2, 2, 'no-drop'),
   loadedGraphic: drawn(svg(`${ARROW}<path d='M13.5 21.5l3-4 2 2 1.5-1.5 1.5 3.5z' fill='black'/><circle cx='19.5' cy='15.5' r='1.2' fill='black'/>`), 2, 2, 'copy'),
+  /** Over a frame's content grabber or its selected graphic (plan stage 6): an open hand takes hold of the graphic. */
+  contentHand: drawn(svg("<path d='M7 12V6.5a1.5 1.5 0 0 1 3 0V11V4.5a1.5 1.5 0 0 1 3 0V11V5.5a1.5 1.5 0 0 1 3 0V12V8.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.5a6 6 0 0 1-4.6-2.2L4 14.5a1.5 1.5 0 0 1 2.3-1.9z' fill='white' stroke='black' stroke-width='1.1' stroke-linejoin='round'/>"), 12, 12, 'grab'),
 }
 
 /**
@@ -30,7 +32,8 @@ export const DRAWN_CURSORS = {
  * engine names one CSS cursor for several of its own (rotate is `grab`, the eyedropper and both
  * loaded cursors are `copy`), so the editor tells them apart by the tool and draws them. The
  * loaded text cursor shows what a click does (plan stage 5): link a frame (`alias`), break the
- * link to the frame already threaded there (`no-drop`), or nothing (`not-allowed`).
+ * link to the frame already threaded there (`no-drop`), or nothing (`not-allowed`); the Selection
+ * tool's `pointer` is the hand over a frame's graphic (stage 6).
  */
 export function drawnCursor(tool: string, cursor: string) {
   if (tool === 'loadedText' && cursor === 'alias') return DRAWN_CURSORS.threadLink
@@ -43,5 +46,7 @@ export function drawnCursor(tool: string, cursor: string) {
   // The selection tools show `grab` only outside a corner handle, to rotate (the Hand tool is the editor's).
   if (cursor === 'grab' && (tool === 'selection' || tool === 'directSelection')) return DRAWN_CURSORS.rotate
   if (cursor === 'default' && tool === 'directSelection') return DRAWN_CURSORS.hollowArrow
+  // The engine's `pointer` with the Selection tool: over a graphic it would take hold of.
+  if (cursor === 'pointer' && tool === 'selection') return DRAWN_CURSORS.contentHand
   return cursor
 }

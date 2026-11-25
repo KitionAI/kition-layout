@@ -3,6 +3,7 @@ import { CommandButton, MenuItem, RibbonButton, RibbonGroup, RibbonMenu, RibbonS
 import type { DocumentInfo } from './layout'
 import type { ListKind } from './lists'
 import { PLACE_TYPES } from './panels/Links'
+import { LOADABLE, loadRequests, rememberThumbnail } from './images'
 
 /**
  * One of the engine's tools by id (the rail draws it too, so it has its own test id). The rail
@@ -21,9 +22,6 @@ function HomeTool({ id, primary, size = 'large' }: { id: string; primary?: boole
  * Layout's Home tab: the layout tasks done most, in every display mode (a drop-down panel in
  * Menus): frames and shapes, placing an image, pages, styles, arranging, and export.
  */
-/** Files the place cursor takes: images (text and other files are placed at once). */
-const LOADABLE = /\.(png|jpe?g|gif|webp|bmp|tiff?|svg)$/i
-
 /**
  * Place: a file the host picks. With one frame selected it goes into that frame; an image
  * otherwise loads the place cursor (the engine's `placeGun`: a click places it at its own size,
@@ -39,10 +37,14 @@ export function usePlaceImage() {
     const info = session.state as DocumentInfo | null
     const file = await pick(t('placePurpose'), PLACE_TYPES)
     if (!file) return
-    const frame = info?.selection.length === 1 && !info.editingText ? info.selection[0] : undefined
+    // With graphics in the place cursor already, another joins them: each click places the next.
+    const adding = tools?.active === 'placeGun' && Boolean(info?.placeQueue.length)
+    const frame = info?.selection.length === 1 && !info.editingText && !adding ? info.selection[0] : undefined
     const source = { base64: base64(file.bytes), name: file.name }
     if (frame == null && LOADABLE.test(file.name) && tools) {
-      await run('place.load', source)
+      const [request] = loadRequests([source], adding)
+      const answer = JSON.parse((await run('place.load', request ?? source)) ?? 'null') as { asset?: number } | null
+      if (answer?.asset != null) rememberThumbnail(answer.asset, file.bytes, file.name)
       tools.select('placeGun')
       return
     }

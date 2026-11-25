@@ -309,6 +309,56 @@ fn hit_byte(s: &Session, frame: ItemId, pt: Point) -> Option<(StoryId, usize, Op
     Some((sid, b, None))
 }
 
+/// The Eyedropper on text (`object.matchAttributes` with `point`, text selected): the paragraph
+/// style and overrides and the character style and overrides of the character at `pt` (spread
+/// coordinates) in `frame` go to the selected text. At a bare caret the character format is kept
+/// for what is typed there next and the paragraph takes the paragraph format.
+pub(crate) fn pick_up_format(s: &mut Session, frame: ItemId, pt: Point) -> Result<Value> {
+    const ID: &str = "object.matchAttributes";
+    let (sid, b, cell) = hit_byte(s, frame, pt).ok_or_else(|| bad(ID, "not a text frame"))?;
+    let (char_format, para_format) = {
+        let st = s.doc()?;
+        let story = st.doc.text_story(sid, cell).ok_or(kition_layout_doc::DocError::NoStory(sid))?;
+        let cf = if story.is_empty() { story.char_format_at(0) } else { story.format_after(b.min(story.len().saturating_sub(1))) }.clone();
+        let pf = story.paras.get(story.para_at(b)).cloned().ok_or_else(|| bad(ID, "no paragraph there"))?;
+        (cf, pf)
+    };
+    let targets = format_targets(s);
+    if targets.is_empty() {
+        return Err(bad(ID, "select the text to apply the formatting to"));
+    }
+    // At a caret: the format of what is typed next (resolved, so it shows in the panel).
+    if let [t] = targets.as_slice()
+        && t.range.is_empty()
+        && let Some(at) = s.doc()?.selection.text
+        && s.doc()?.doc.text_story(t.story, t.cell).is_some_and(|st| !st.is_empty())
+    {
+        let uid = s.doc()?.uid;
+        s.typing_format = Some(TypingFormat { doc: uid, at, attrs: char_format.over.clone(), cleared: vec![] });
+    }
+    s.edit(|d, _| {
+        for t in &targets {
+            let Some(st) = d.text_story_mut(t.story, t.cell) else { continue };
+            if !t.range.is_empty() {
+                st.format_chars(t.range.clone(), |f| {
+                    f.style = char_format.style.clone();
+                    f.over = char_format.over.clone();
+                });
+            } else if st.is_empty()
+                && let Some(run) = st.chars.first_mut()
+            {
+                run.format = char_format.clone();
+                st.rev += 1;
+            }
+            st.format_paras(t.range.clone(), |p| {
+                p.style = para_format.style.clone();
+                p.para = para_format.para.clone();
+            });
+        }
+        Ok(json!({"paragraphStyle": para_format.style, "characterStyle": char_format.style}))
+    })
+}
+
 fn place(s: &mut Session, p: &Value, extend: bool) -> Result<Value> {
     let frame = id_param(p, "frame").ok_or_else(|| bad("text.placeCaret", "missing frame"))?;
     let pt = point_param(p, "point").unwrap_or(Point::ZERO);

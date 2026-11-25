@@ -1,0 +1,26 @@
+format: 1
+id: layout.ui.images-and-objects/engine-images
+feature: layout.ui.images-and-objects
+intent: >-
+  In the engine: a placed image moves and is sized inside its frame and measured there
+  (transform.move, transform.set, transform.info with content), turning it alone is refused; Fit
+  Frame to Content fits one side; the key object is one of the selection and Align aligns to it;
+  object.matchAttributes with a point samples an image's colour into an object's fill or stroke or
+  selected text and picks up a text's formatting; several images wait in the place cursor, cycle
+  and drop; several commands run as one undo step and a failing one leaves nothing;
+  arrange.reorder, layer.duplicate and linkedFile.unembed do their work in one undo step and refuse
+  bad input without a panic; fittings change an image's scale once its frame differs from it.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/src/tests_images.rs, crates/engine/engine/src/cmd/panels.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: tests_images }
+  - cargo-test: { package: kition-layout-engine, filter: cmd::panels }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

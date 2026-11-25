@@ -55,6 +55,7 @@ const ITEMS: &[&str] = &[
     "object.altText",
     "object.transparencyGroup",
     "object.setLayer",
+    "arrange.reorder",
     "frame.fitText",
     "article.new",
     "article.add",
@@ -268,10 +269,12 @@ fn declaration(command: &KitCommand) -> Declaration {
     match id {
         "frame.thread" => parameters.extend([("from", &["Item"][..], false), ("to", &["Item"][..], false)]),
         "object.matchAttributes" => parameters.push(("from", &["Item"], false)),
-        "object.setLayer" => parameters.push(("layer", &["Layer"], false)),
+        "object.setLayer" | "arrange.reorder" => parameters.push(("layer", &["Layer"], false)),
+        // The key object is one of the selected items.
+        "select.set" => parameters.push(("key", &["Item"], false)),
         "edit.findObjects" | "edit.replaceObjects" => parameters.push(("layer", &["Layer"], true)),
         "layout.pages.applyParent" | "layout.pages.insert" => parameters.push(("parent", &["Spread"], true)),
-        "layer.move" | "layer.selectItems" | "layer.set" | "layer.delete" | "layer.others" | "layer.activate" => {
+        "layer.move" | "layer.selectItems" | "layer.set" | "layer.delete" | "layer.others" | "layer.activate" | "layer.duplicate" => {
             targets = Some("id");
             parameters.push(("id", &["Layer"], false));
         }
@@ -284,9 +287,8 @@ fn declaration(command: &KitCommand) -> Declaration {
         "linkedFile.copyTo" => parameters.extend([("asset", &["Asset"][..], false), ("assets", &["Asset"][..], false)]),
         "linkedFile.relinkFolder" => parameters.push(("assets", &["Asset"], false)),
         "data.placeholder.add" => parameters.push(("item", &["Item"], false)),
-        "linkedFile.relink" | "linkedFile.update" | "linkedFile.embed" | "linkedFile.goTo" | "toc.update" | "index.update" | "data.source.update" => {
-            parameters.push(("asset", &["Asset"], false))
-        }
+        "linkedFile.relink" | "linkedFile.update" | "linkedFile.embed" | "linkedFile.unembed" | "linkedFile.goTo" | "toc.update" | "index.update"
+        | "data.source.update" => parameters.push(("asset", &["Asset"], false)),
         _ => {}
     }
     // These ids are story-local or entries in a settings register; a bare number is not a
@@ -325,6 +327,8 @@ fn declaration(command: &KitCommand) -> Declaration {
         "table.moveRow" | "table.moveColumn" => places.extend(["from", "to"]),
         "table.sortRows" => places.push("column"),
         "table.resizeBorder" => places.push("index"),
+        // A place in the layer's stacking order on the spread.
+        "arrange.reorder" => places.push("index"),
         "text.select" => places.extend(["anchor", "focus"]),
         "frame.thread" => places.extend(["page", "at"]),
         "button.set" | "toc.generate" | "index.generate" | "guide.add" | "layout.addGuides" | "file.place" => places.push("page"),

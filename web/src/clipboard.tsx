@@ -12,8 +12,9 @@
  * dropped at its own size; a text file flows into the frame under it, else into a new frame there.
  */
 import { useEffect, useRef, type RefObject } from 'react'
-import { base64, toast, useKitEditor, useReadOnly, type KitCanvasHandle } from '@kition/sdk/editor'
+import { base64, toast, useKitEditor, useKitTools, useReadOnly, type KitCanvasHandle } from '@kition/sdk/editor'
 import { spreadAt, type DocumentInfo, type Item } from './layout'
+import { LOADABLE, loadRequests, rememberThumbnail } from './images'
 import { itemAt } from './view'
 
 /** How long a paste waits for the browser's paste event before it pastes the engine's own copy. */
@@ -201,8 +202,9 @@ export function useSystemClipboard({ info, typing, canvas }: ClipboardOptions) {
 export function useFileDrop(region: RefObject<HTMLElement | null>, info: DocumentInfo | null, canvas: RefObject<KitCanvasHandle | null>) {
   const editor = useKitEditor()
   const readOnly = useReadOnly()
-  const latest = useRef({ editor, info, readOnly })
-  latest.current = { editor, info, readOnly }
+  const tools = useKitTools()
+  const latest = useRef({ editor, info, readOnly, tools })
+  latest.current = { editor, info, readOnly, tools }
   useEffect(() => {
     const element = region.current
     if (!element) return undefined
@@ -215,7 +217,30 @@ export function useFileDrop(region: RefObject<HTMLElement | null>, info: Documen
     const drop = (event: DragEvent) => {
       if (!files(event) || latest.current.readOnly) return
       event.preventDefault()
-      const file = [...(event.dataTransfer?.files ?? [])].find((item) => isImage(item) || TEXT_FILE.test(item.name))
+      const dropped = [...(event.dataTransfer?.files ?? [])]
+      // Several images at once load the place cursor with them all (plan stage 6): each click
+      // places the next, the arrows choose which, Escape drops one.
+      const images = dropped.filter((item) => isImage(item) && LOADABLE.test(item.name))
+      if (images.length > 1 && latest.current.tools) {
+        const { editor: now, info: doc, tools: rail } = latest.current
+        void (async () => {
+          const adding = rail.active === 'placeGun' && Boolean(doc?.placeQueue.length)
+          const sources = await Promise.all(images.map(async (item) => ({ bytes: await item.arrayBuffer(), name: item.name })))
+          const requests = loadRequests(sources.map((source) => ({ base64: base64(source.bytes), name: source.name })), adding)
+          for (const [index, request] of requests.entries()) {
+            const answer = await now.session.run('place.load', request).catch((error: unknown) => {
+              now.report(now.t('commandFailed'), error)
+              return null
+            })
+            const asset = (JSON.parse(answer ?? 'null') as { asset?: number } | null)?.asset
+            const source = sources[index]
+            if (asset != null && source) rememberThumbnail(asset, source.bytes, source.name)
+          }
+          rail.select('placeGun')
+        })()
+        return
+      }
+      const file = dropped.find((item) => isImage(item) || TEXT_FILE.test(item.name))
       const { editor: now, info: doc } = latest.current
       const handle = canvas.current
       const view = handle?.view()

@@ -382,6 +382,7 @@ impl Fixture {
                 | "linkedFile.relinkFolder"
                 | "linkedFile.update"
                 | "linkedFile.embed"
+                | "linkedFile.unembed"
                 | "linkedFile.goTo"
                 | "object.layerOptions"
         ) {

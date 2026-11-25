@@ -2,9 +2,19 @@
 //!
 //! Click selects the frontmost item (Shift toggles), drag moves (Alt duplicates, Shift constrains),
 //! the 8 bounding-box handles resize (Shift keeps proportions, Alt from centre, Cmd scales content),
-//! empty-canvas drags make a marquee, double-clicking a text frame switches to the Type tool.
+//! empty-canvas drags make a marquee, double-clicking a text frame switches to the Type tool and
+//! double-clicking a handle fits the frame to its graphic (corner: both sides, edge: that one). A
+//! click on one of several selected objects makes it the key object for Align; a second click
+//! drops it.
+//!
+//! A placed graphic moves inside its frame: the content grabber (the circle at the middle of the
+//! frame under the pointer or selected) selects and drags it, double-clicking a frame toggles
+//! between the frame and its graphic, and Escape goes back to the frame. With the graphic selected,
+//! its own bounding box and handles show; the handles size the graphic (Shift keeps its
+//! proportions, Alt from its centre) and leave the frame as it is. While the graphic moves or is
+//! sized, the whole of it shows translucent, outside the frame too.
 
-use kition_layout_doc::{ItemId, SpreadRef};
+use kition_layout_doc::{Content, Item, ItemId, SpreadRef};
 use kition_layout_geom::{Affine, Point, Rect, Vec2};
 use serde_json::{Value, json};
 
@@ -16,12 +26,22 @@ enum Drag {
     Pending {
         start: Point,
         hit: bool,
+        /// The drag moves the selected frames' graphics inside them.
+        content: bool,
     },
     Move {
         start: Point,
         origin_spread: SpreadRef,
         bounds0: Option<Rect>,
         exclude: Vec<ItemId>,
+        content: bool,
+    },
+    /// Sizing a selected placed graphic by its own handles (`from`: its box on the spread at the press).
+    ContentResize {
+        id: ItemId,
+        handle: usize,
+        from: Rect,
+        spread: SpreadRef,
     },
     Resize {
         handle: usize,
@@ -102,15 +122,146 @@ pub struct SelectionTool {
     direct: bool,
     drag: Drag,
     hover_handle: Option<usize>,
+    /// Where the pointer rests (canvas): the frame under it shows its content grabber.
+    hover: Option<Point>,
     guides: Vec<Overlay>,
     /// Selected item to toggle if this Shift press never becomes a drag.
     shift_release: Option<u64>,
+    /// One of several selected objects to make (or stop being) the key object if this press never
+    /// becomes a drag.
+    key_release: Option<u64>,
+    /// The count of the last press (the editor's): a counted double click acted on its second
+    /// press, so the editor's own double click event that follows changes nothing.
+    last_clicks: u8,
+    /// The editor's own double click event acted before the second press it belongs to arrived
+    /// (events can come in that order): that press then acts as an ordinary one.
+    event_double: bool,
 }
 
 impl SelectionTool {
     pub fn new(direct: bool) -> Self {
-        Self { direct, drag: Drag::None, hover_handle: None, guides: vec![], shift_release: None }
+        Self {
+            direct,
+            drag: Drag::None,
+            hover_handle: None,
+            hover: None,
+            guides: vec![],
+            shift_release: None,
+            key_release: None,
+            last_clicks: 1,
+            event_double: false,
+        }
     }
+}
+
+/// A frame whose placed graphic moves on its own inside it.
+pub fn holds_content(it: &Item) -> bool {
+    !it.is_group() && matches!(it.content, Content::Graphic(_))
+}
+
+/// Grab radius of the content grabber, in screen pixels.
+const GRABBER_PX: f64 = 9.0;
+
+/// Canvas centre of the content grabber of `id` (the middle of its frame), when it has one. A
+/// frame too small to drag around the grabber has none.
+pub fn grabber_center(cx: &ToolContext, id: ItemId) -> Option<Point> {
+    let it = cx.doc.item(id)?;
+    if it.locked || !holds_content(it) {
+        return None;
+    }
+    let b = cx.item_canvas_xf(id)?.transform_rect_bbox(it.bounds());
+    let min = cx.tol(GRABBER_PX * 4.0);
+    let c = b.center();
+    (b.width() >= min && b.height() >= min && c.x.is_finite() && c.y.is_finite()).then_some(c)
+}
+
+/// The content grabbers on show: the single selected frame's and the frame under the pointer's.
+pub fn grabbers(cx: &ToolContext, hover: Option<Point>) -> Vec<(ItemId, Point)> {
+    let mut ids = Vec::new();
+    if let [one] = cx.selection.items.as_slice()
+        && cx.selection.text.is_none()
+    {
+        ids.push(*one);
+    }
+    if let Some((_, id)) = hover.and_then(|p| cx.hit(p)) {
+        let id = cx.doc.top_level_of(id).unwrap_or(id);
+        if !ids.contains(&id) {
+            ids.push(id);
+        }
+    }
+    ids.into_iter().filter_map(|id| grabber_center(cx, id).map(|c| (id, c))).collect()
+}
+
+/// The frame whose content grabber is under `p` (canvas).
+pub fn grabber_at(cx: &ToolContext, p: Point) -> Option<ItemId> {
+    let r = cx.tol(GRABBER_PX);
+    grabbers(cx, Some(p)).into_iter().find(|(_, c)| (*c - p).hypot() <= r).map(|(id, _)| id)
+}
+
+/// Canvas box of a frame's placed graphic (the whole graphic, outside the frame too).
+pub fn graphic_bounds(cx: &ToolContext, id: ItemId) -> Option<Rect> {
+    let it = cx.doc.item(id)?;
+    let Content::Graphic(g) = &it.content else { return None };
+    let b = (cx.item_canvas_xf(id)? * it.xf * g.xf).transform_rect_bbox(Rect::new(0.0, 0.0, g.size.0, g.size.1));
+    (b.x0.is_finite() && b.y0.is_finite() && b.x1.is_finite() && b.y1.is_finite()).then_some(b)
+}
+
+/// Canvas union of the selected frames' graphics.
+fn content_bounds(cx: &ToolContext) -> Option<Rect> {
+    cx.selection.items.iter().filter_map(|id| graphic_bounds(cx, *id)).reduce(|a, b| a.union(b))
+}
+
+/// Is `p` on the selected content (a frame double-clicked into, or its grabber pressed)? A press
+/// there with the Selection tool moves the graphic, as in InDesign, where the pointer turns into a
+/// hand over it.
+fn on_selected_content(cx: &ToolContext, p: Point) -> bool {
+    cx.selection.content
+        && cx.hit(p).is_some_and(|(_, id)| {
+            let id = cx.doc.top_level_of(id).unwrap_or(id);
+            cx.selection.contains(id) && cx.doc.item(id).is_some_and(holds_content)
+        })
+        && content_bounds(cx).is_some_and(|b| b.contains(p))
+}
+
+/// The selected placed graphic (the content of one graphic frame) and its canvas box.
+pub fn selected_graphic(cx: &ToolContext) -> Option<(ItemId, Rect)> {
+    let [id] = cx.selection.items.as_slice() else { return None };
+    if !cx.selection.content || !cx.doc.item(*id).is_some_and(holds_content) {
+        return None;
+    }
+    Some((*id, graphic_bounds(cx, *id)?))
+}
+
+/// A handle of the selected placed graphic's box under `p` (0 TL … 7 L).
+fn content_handle_at(cx: &ToolContext, p: Point) -> Option<(ItemId, usize)> {
+    let (id, b) = selected_graphic(cx)?;
+    let tol = cx.tol(5.0);
+    handles(b).iter().position(|h| (h.x - p.x).abs() <= tol && (h.y - p.y).abs() <= tol).map(|h| (id, h))
+}
+
+/// Side handles sit on the canvas box; fitting goes by the frame's own axes (a turned frame's
+/// width may run down the screen).
+fn fitting_axis(cx: &ToolContext, handle: usize) -> &'static str {
+    if handle.is_multiple_of(2) {
+        return "both";
+    }
+    let canvas_height = matches!(handle, 1 | 5);
+    let local_width_is_vertical = cx
+        .selection
+        .items
+        .first()
+        .and_then(|id| {
+            let it = cx.doc.item(*id)?;
+            let [a, b, _, _, _, _] = (cx.item_canvas_xf(*id)? * it.xf).as_coeffs();
+            Some(b.abs() > a.abs())
+        })
+        .unwrap_or(false);
+    if canvas_height == local_width_is_vertical { "width" } else { "height" }
+}
+
+/// The selection holds a frame with a placed graphic (the frame itself, not its content).
+fn frame_with_graphic_selected(cx: &ToolContext) -> bool {
+    !cx.selection.content && cx.selection.items.iter().any(|id| cx.doc.item(*id).is_some_and(holds_content))
 }
 
 /// Handle positions (canvas) of a rect: 0 TL, 1 T, 2 TR, 3 R, 4 BR, 5 B, 6 BL, 7 L.
@@ -129,6 +280,10 @@ pub fn handles(r: Rect) -> [Point; 8] {
 }
 
 fn handle_at(cx: &ToolContext, p: Point) -> Option<usize> {
+    // With a placed graphic selected, the handles are the graphic's, not the frame's.
+    if selected_graphic(cx).is_some() {
+        return None;
+    }
     let b = cx.selection_bounds()?;
     let tol = cx.tol(5.0);
     handles(b).iter().position(|h| (h.x - p.x).abs() <= tol && (h.y - p.y).abs() <= tol)
@@ -136,6 +291,9 @@ fn handle_at(cx: &ToolContext, p: Point) -> Option<usize> {
 
 /// Just outside a corner handle of the selection → rotate.
 fn rotate_zone(cx: &ToolContext, p: Point) -> Option<Point> {
+    if selected_graphic(cx).is_some() {
+        return None;
+    }
     let b = cx.selection_bounds()?;
     let inner = cx.tol(5.0);
     let outer = cx.tol(18.0);
@@ -379,10 +537,21 @@ impl Tool for SelectionTool {
         match ev.kind {
             PointerKind::Move => {
                 self.hover_handle = handle_at(cx, p);
+                self.hover = Some(p);
                 vec![]
             }
             PointerKind::Down => {
                 self.shift_release = None;
+                self.key_release = None;
+                self.last_clicks = ev.click_count();
+                let acted = std::mem::take(&mut self.event_double);
+                if !self.direct
+                    && ev.click_count() == 2
+                    && !acted
+                    && let Some(actions) = self.double_press(cx, p)
+                {
+                    return actions;
+                }
                 if self.direct
                     && let Some((id, si, ai, handle)) = anchor_at(cx, p)
                 {
@@ -395,6 +564,17 @@ impl Tool for SelectionTool {
                 {
                     self.drag = Drag::Port { id, side };
                     return vec![];
+                }
+                // The selected placed graphic's own handles size it inside its frame.
+                if !self.direct
+                    && let Some((id, h)) = content_handle_at(cx, p)
+                    && let (Some(loc), Some((_, b))) = (cx.doc.find(id), selected_graphic(cx))
+                {
+                    let turns = cx.layout.slot(loc.spread).map_or(0, |s| s.rotation as usize);
+                    let handle = (h + 8 - 2 * turns) % 8;
+                    let from = cx.layout.xf(loc.spread).inverse().transform_rect_bbox(b);
+                    self.drag = Drag::ContentResize { id, handle, from, spread: loc.spread };
+                    return vec![Action::Begin("Resize Content".into())];
                 }
                 if !self.direct
                     && handle_at(cx, p).is_none()
@@ -414,13 +594,24 @@ impl Tool for SelectionTool {
                         Drag::Resize { handle, start: p, from: cx.layout.xf(loc.spread).inverse().transform_rect_bbox(b), spread: loc.spread };
                     return vec![Action::Begin("Resize".into())];
                 }
+                // The content grabber: select the frame's graphic; a drag moves it.
+                if !self.direct
+                    && !ev.mods.shift
+                    && let Some(id) = grabber_at(cx, p)
+                {
+                    self.drag = Drag::Pending { start: p, hit: true, content: true };
+                    if cx.selection.items == [id] && cx.selection.content {
+                        return vec![];
+                    }
+                    return vec![Action::Exec("select.set".into(), json!({"ids": [id.0], "content": true}))];
+                }
                 // Cmd+Shift-click a parent item on a page: override it there and select the copy.
                 if ev.mods.cmd
                     && ev.mods.shift
                     && cx.hit(p).is_none()
                     && let Some((page, id)) = cx.hit_parent_on_page(p)
                 {
-                    self.drag = Drag::Pending { start: p, hit: true };
+                    self.drag = Drag::Pending { start: p, hit: true, content: false };
                     return vec![Action::Exec("layout.overrideParentItems".into(), json!({"page": page, "ids": [id.0]}))];
                 }
                 match cx.hit(p) {
@@ -436,29 +627,48 @@ impl Tool for SelectionTool {
                             }
                         } else if !cx.selection.contains(id) {
                             out.push(Action::Exec("select.set".into(), json!({"ids": [id.0], "content": self.direct})));
+                        } else if !self.direct && cx.selection.items.len() > 1 {
+                            // A click on one of several selected objects makes it the key object,
+                            // on release so that a drag still moves them all.
+                            self.key_release = Some(id.0);
                         }
-                        self.drag = Drag::Pending { start: p, hit: true };
+                        let content = !self.direct && on_selected_content(cx, p);
+                        self.drag = Drag::Pending { start: p, hit: true, content };
                         let _ = sr;
                         out
                     }
                     None => {
-                        self.drag = Drag::Pending { start: p, hit: false };
+                        self.drag = Drag::Pending { start: p, hit: false, content: false };
                         if ev.mods.shift { vec![] } else { vec![Action::Exec("select.set".into(), json!({"ids": []}))] }
                     }
                 }
             }
             PointerKind::Drag => match self.drag.clone() {
-                Drag::Pending { start, hit } => {
+                Drag::Pending { start, hit, content } => {
                     if (p - start).hypot() < cx.tol(3.0) {
                         return vec![];
                     }
                     self.shift_release = None;
+                    self.key_release = None;
                     if hit && !cx.selection.items.is_empty() {
                         let sr = cx.selection.items.first().and_then(|i| cx.doc.find(*i)).map(|l| l.spread).unwrap_or(SpreadRef::Doc(0));
                         let exclude = cx.selection.items.clone();
-                        self.drag = Drag::Move { start, origin_spread: sr, bounds0: cx.selection_visible_bounds(), exclude };
-                        let label = if ev.mods.alt { "Duplicate" } else { "Move" };
-                        let mut v = vec![Action::Begin(label.into())];
+                        let content = content && cx.selection.items.iter().any(|i| cx.doc.item(*i).is_some_and(holds_content));
+                        let bounds0 = if content { content_bounds(cx) } else { cx.selection_visible_bounds() };
+                        self.drag = Drag::Move { start, origin_spread: sr, bounds0, exclude: exclude.clone(), content };
+                        let mut v = vec![];
+                        // Dragging a selected graphic by its frame (off the graphic) moves the frame.
+                        if !content && cx.selection.content {
+                            v.push(Action::Exec("select.set".into(), json!({"ids": exclude.iter().map(|i| i.0).collect::<Vec<_>>()})));
+                        }
+                        let label = if content {
+                            "Move Content"
+                        } else if ev.mods.alt {
+                            "Duplicate"
+                        } else {
+                            "Move"
+                        };
+                        v.push(Action::Begin(label.into()));
                         v.extend(self.pointer(cx, ev));
                         v
                     } else {
@@ -466,7 +676,22 @@ impl Tool for SelectionTool {
                         vec![]
                     }
                 }
-                Drag::Move { start, origin_spread, bounds0, exclude } => {
+                Drag::Move { start, origin_spread, exclude, content: true, .. } => {
+                    // The graphic moves inside its frame, on its own spread; Shift keeps it level
+                    // or plumb.
+                    let mut d: Vec2 = p - start;
+                    if ev.mods.shift {
+                        if d.x.abs() > d.y.abs() {
+                            d.y = 0.0;
+                        } else {
+                            d.x = 0.0;
+                        }
+                    }
+                    let ds = cx.layout.delta_to_spread(origin_spread, d);
+                    let ids: Vec<u64> = exclude.iter().map(|i| i.0).collect();
+                    vec![Action::Preview("transform.move".into(), json!({"dx": ds.x, "dy": ds.y, "ids": ids, "content": true}))]
+                }
+                Drag::Move { start, origin_spread, bounds0, exclude, content: false } => {
                     let mut d: Vec2 = p - start;
                     let mut screen_x_locked = false;
                     let mut screen_y_locked = false;
@@ -599,6 +824,14 @@ impl Tool for SelectionTool {
                         json!({"from": rect_json(from), "to": rect_json(to), "content": ev.mods.cmd, "distribute": distribute}),
                     )]
                 }
+                Drag::ContentResize { id, handle, from, spread } => {
+                    let to = resize_rect(from, handle, cx.layout.to_spread(spread, p), ev.mods);
+                    let to = Rect::new(to.x0.min(to.x1), to.y0.min(to.y1), to.x0.max(to.x1), to.y0.max(to.y1));
+                    if to.width() < 1e-3 || to.height() < 1e-3 {
+                        return vec![];
+                    }
+                    vec![Action::Preview("transform.set".into(), json!({"ids": [id.0], "content": true, "bounds": rect_json(to)}))]
+                }
                 Drag::Marquee { start, .. } => {
                     self.drag = Drag::Marquee { start, cur: p };
                     vec![]
@@ -692,13 +925,22 @@ impl Tool for SelectionTool {
             PointerKind::Up => {
                 self.guides.clear();
                 let release = self.shift_release.take();
+                let key = self.key_release.take();
                 let d = std::mem::replace(&mut self.drag, Drag::None);
                 match d {
-                    Drag::Move { .. } | Drag::Resize { .. } | Drag::Anchor { .. } | Drag::Rotate { .. } => vec![Action::Commit],
+                    Drag::Move { .. } | Drag::Resize { .. } | Drag::ContentResize { .. } | Drag::Anchor { .. } | Drag::Rotate { .. } => {
+                        vec![Action::Commit]
+                    }
                     Drag::Port { id, side } => vec![Action::Exec("frame.loadText".into(), json!({"frame": id.0, "side": side.as_str()}))],
-                    Drag::Pending { .. } => match release {
-                        Some(id) => vec![Action::Exec("select.toggle".into(), json!({"id": id}))],
-                        None => vec![],
+                    Drag::Pending { .. } => match (release, key) {
+                        (Some(id), _) => vec![Action::Exec("select.toggle".into(), json!({"id": id}))],
+                        (None, Some(id)) => {
+                            // The key object again: no key object.
+                            let key = if cx.selection.key.map(|k| k.0) == Some(id) { Value::Null } else { json!(id) };
+                            let ids: Vec<u64> = cx.selection.items.iter().map(|i| i.0).collect();
+                            vec![Action::Exec("select.set".into(), json!({"ids": ids, "key": key}))]
+                        }
+                        (None, None) => vec![],
                     },
                     Drag::Marquee { start, cur } => {
                         let r = Rect::from_points(start, cur);
@@ -720,6 +962,14 @@ impl Tool for SelectionTool {
                 }
             }
             PointerKind::DoubleClick => {
+                // The editor's own double click after a counted one: its second press acted.
+                if !self.direct
+                    && self.last_clicks < 2
+                    && let Some(actions) = self.double_press(cx, p)
+                {
+                    self.event_double = true;
+                    return actions;
+                }
                 // Double-clicking a port breaks the thread there.
                 if !self.direct
                     && let Some((id, side)) = crate::thread::port_at(cx, p)
@@ -743,9 +993,21 @@ impl Tool for SelectionTool {
 
     fn key(&mut self, cx: &ToolContext, key: ToolKey, mods: Mods) -> Vec<Action> {
         let inc = cx.doc.settings.keyboard_increment * if mods.shift { 10.0 } else { 1.0 };
-        let mv = |dx: f64, dy: f64| vec![Action::Exec("transform.move".into(), json!({"dx": dx, "dy": dy, "copy": mods.alt}))];
+        let content = cx.selection.content && cx.selection.items.iter().any(|i| cx.doc.item(*i).is_some_and(holds_content));
+        // With a graphic selected the arrows move it inside its frame.
+        let mv = |dx: f64, dy: f64| {
+            if content {
+                return vec![Action::Exec("transform.move".into(), json!({"dx": dx, "dy": dy, "content": true}))];
+            }
+            vec![Action::Exec("transform.move".into(), json!({"dx": dx, "dy": dy, "copy": mods.alt}))]
+        };
         if cx.selection.items.is_empty() {
             return vec![];
+        }
+        // Escape from a selected graphic goes back to its frame.
+        if key == ToolKey::Escape && cx.selection.content && !self.direct {
+            let ids: Vec<u64> = cx.selection.items.iter().map(|i| i.0).collect();
+            return vec![Action::Exec("select.set".into(), json!({"ids": ids}))];
         }
         match key {
             ToolKey::Left => mv(-inc, 0.0),
@@ -758,11 +1020,28 @@ impl Tool for SelectionTool {
         }
     }
 
-    fn overlays(&self, _cx: &ToolContext) -> Vec<Overlay> {
+    fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
         match &self.drag {
             Drag::Marquee { start, cur } => vec![Overlay::Marquee(Rect::from_points(*start, *cur))],
             Drag::Move { .. } | Drag::Resize { .. } | Drag::Rotate { .. } | Drag::Anchor { .. } => self.guides.clone(),
+            Drag::ContentResize { .. } => vec![],
+            // At rest the Selection tool shows the content grabbers.
+            Drag::None if !self.direct => grabbers(cx, self.hover)
+                .into_iter()
+                .map(|(id, c)| {
+                    let color = cx.doc.item(id).and_then(|it| cx.doc.layer(it.layer)).map_or(GRABBER_COLOR, |layer| layer.color);
+                    Overlay::Path { path: circle(c, cx.tol(GRABBER_PX - 2.0)), color, dashed: false }
+                })
+                .collect(),
             _ => vec![],
+        }
+    }
+
+    fn ghost(&self) -> Option<ItemId> {
+        match &self.drag {
+            Drag::Move { content: true, exclude, .. } => exclude.first().copied(),
+            Drag::ContentResize { id, .. } => Some(*id),
+            _ => None,
         }
     }
 
@@ -771,14 +1050,19 @@ impl Tool for SelectionTool {
             return Cursor::ArrowHollow;
         }
         match self.drag {
+            Drag::Move { content: true, .. } => return Cursor::HandGrab,
             Drag::Move { .. } => return Cursor::Move,
-            Drag::Resize { handle, .. } => return handle_cursor(handle),
+            Drag::Resize { handle, .. } | Drag::ContentResize { handle, .. } => return handle_cursor(handle),
             Drag::Rotate { .. } => return Cursor::Rotate,
             _ => {}
+        }
+        if let Some((_, h)) = content_handle_at(cx, p) {
+            return handle_cursor(h);
         }
         match handle_at(cx, p) {
             Some(h) => handle_cursor(h),
             None if rotate_zone(cx, p).is_some() => Cursor::Rotate,
+            None if grabber_at(cx, p).is_some() || on_selected_content(cx, p) => Cursor::ContentHand,
             None => Cursor::Arrow,
         }
     }
@@ -786,6 +1070,34 @@ impl Tool for SelectionTool {
     fn busy(&self) -> bool {
         !matches!(self.drag, Drag::None)
     }
+}
+
+impl SelectionTool {
+    /// The second press of a double click (the editor's count, or its own double click event
+    /// when nothing counted): on a handle of a frame holding a graphic, Fit Frame to Content along
+    /// that handle's side (a corner fits both); on a frame with a placed graphic, the frame and
+    /// its graphic trade places as the selection. `None`: the press is an ordinary one.
+    fn double_press(&mut self, cx: &ToolContext, p: Point) -> Option<Vec<Action>> {
+        if let Some(h) = handle_at(cx, p)
+            && frame_with_graphic_selected(cx)
+        {
+            self.drag = Drag::None;
+            return Some(vec![Action::Exec("object.fit".into(), json!({"mode": "fitFrameToContent", "axis": fitting_axis(cx, h)}))]);
+        }
+        let id = cx.hit(p).map(|(_, id)| cx.doc.top_level_of(id).unwrap_or(id)).filter(|id| cx.doc.item(*id).is_some_and(holds_content))?;
+        self.drag = Drag::None;
+        let content = !(cx.selection.content && cx.selection.contains(id));
+        Some(vec![Action::Exec("select.set".into(), json!({"ids": [id.0], "content": content}))])
+    }
+}
+
+/// The content grabber's colour when its layer has none to give.
+const GRABBER_COLOR: [u8; 3] = [79, 153, 255];
+
+/// A circle of radius `r` around `c`, as a path.
+fn circle(c: Point, r: f64) -> kition_layout_geom::BezPath {
+    use kition_layout_geom::Shape;
+    kition_layout_geom::kurbo::Circle::new(c, r.max(0.0)).to_path(0.1)
 }
 
 fn handle_cursor(h: usize) -> Cursor {

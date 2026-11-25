@@ -80,7 +80,7 @@ export function contextRows(spot: Spot): ContextRow[] {
       case 'page':
         return rows('layout.pages.insert', 'layout.pages.move', 'layout.pages.duplicateSpread', 'layout.pages.delete', '-', 'layout.pages.applyParent', 'layout.marginsAndColumns', '-', 'kit:view.fitPage', 'kit:view.fitSpread')
       case 'layer':
-        return [row('layer.new'), row('layer.selectItems', { id: spot.layer }), '-', row('layer.delete', { id: spot.layer }), row('layer.deleteUnused')]
+        return [row('layer.new'), row('layer.duplicate', { id: spot.layer }), row('layer.selectItems', { id: spot.layer }), '-', row('layer.delete', { id: spot.layer }), row('layer.deleteUnused')]
     }
   })()
   return out.filter((entry, index) => entry !== '-' || (index > 0 && index < out.length - 1 && out[index - 1] !== '-'))

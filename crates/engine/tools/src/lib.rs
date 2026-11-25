@@ -332,6 +332,9 @@ pub enum Overlay {
         b: Point,
         label: String,
     },
+    /// The whole placed graphic of a frame, outside the frame too, shown translucent while it is
+    /// moved or sized inside the frame (the editor draws it with the page).
+    ContentGhost(ItemId),
 }
 
 /// Correction from a snap, in spread coordinates for `delta`.
@@ -371,6 +374,8 @@ pub enum Cursor {
     ThreadLink,
     /// The loaded text cursor over the frame already linked on its side: a click breaks the link.
     Unthread,
+    /// Over a frame's content grabber or its selected content: a press takes hold of the content.
+    ContentHand,
 }
 
 pub trait Tool: Send {
@@ -405,6 +410,11 @@ pub trait Tool: Send {
     /// Marked text is showing.
     fn composing(&self) -> bool {
         false
+    }
+    /// The frame whose placed graphic shows whole and translucent now (moved or sized inside its
+    /// frame), for the page to draw.
+    fn ghost(&self) -> Option<ItemId> {
+        None
     }
     /// Where the input method's candidate window goes: the caret line (top, bottom) in canvas
     /// coordinates, or the marked text's when composing.
@@ -468,5 +478,7 @@ pub(crate) fn spread_json(r: SpreadRef) -> Value {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_content;
 #[cfg(test)]
 mod tests_text;

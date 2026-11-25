@@ -23,11 +23,11 @@ type Entry =
   | `>${string}`
   | '<'
   | { cmd: string; label?: string }
-  | { cmd: string; variant: string; label: string; params: Record<string, unknown> }
+  | { cmd: string; variant: string; label: string; params: Record<string, unknown>; shortcut?: string }
   | { kit: string; label: string; shortcut?: string }
 
 const c = (cmd: string, label?: string): Entry => ({ cmd, label })
-const v = (cmd: string, variant: string, label: string, params: Record<string, unknown>): Entry => ({ cmd, variant, label, params })
+const v = (cmd: string, variant: string, label: string, params: Record<string, unknown>, shortcut?: string): Entry => ({ cmd, variant, label, params, shortcut })
 const k = (kit: string, label: string, shortcut?: string): Entry => ({ kit, label, shortcut })
 /** A view option's checked row (plan stage 3), with its key. */
 const toggle = (key: ViewToggle): Entry => {
@@ -307,12 +307,13 @@ const MENUS: ReadonlyArray<readonly [string, readonly Entry[]]> = [
       c('object.primaryTextFrame'),
       '-',
       '>Fitting',
-      v('object.fit', 'fillProportionally', 'Fill Frame Proportionally', { mode: 'fillProportionally' }),
-      v('object.fit', 'fitProportionally', 'Fit Content Proportionally', { mode: 'fitProportionally' }),
+      // InDesign's keys (plan 2026-11-25, 0b: the walkthrough found them doing nothing).
+      v('object.fit', 'fillProportionally', 'Fill Frame Proportionally', { mode: 'fillProportionally' }, 'Cmd+Alt+Shift+C'),
+      v('object.fit', 'fitProportionally', 'Fit Content Proportionally', { mode: 'fitProportionally' }, 'Cmd+Alt+Shift+E'),
       '-',
-      v('object.fit', 'fitFrameToContent', 'Fit Frame to Content', { mode: 'fitFrameToContent' }),
-      v('object.fit', 'fitContentToFrame', 'Fit Content to Frame', { mode: 'fitContentToFrame' }),
-      v('object.fit', 'centerContent', 'Center Content', { mode: 'centerContent' }),
+      v('object.fit', 'fitFrameToContent', 'Fit Frame to Content', { mode: 'fitFrameToContent' }, 'Cmd+Alt+C'),
+      v('object.fit', 'fitContentToFrame', 'Fit Content to Frame', { mode: 'fitContentToFrame' }, 'Cmd+Alt+E'),
+      v('object.fit', 'centerContent', 'Center Content', { mode: 'centerContent' }, 'Cmd+Shift+E'),
       c('frame.fitText'),
       '-',
       c('object.fittingOptions'),
@@ -486,6 +487,11 @@ export const VARIANT_LABELS: ReadonlyMap<string, string> = new Map(
   MENUS.flatMap(([, entries]) => entries.flatMap((entry) => (typeof entry === 'object' && 'variant' in entry ? [[`${entry.cmd}${VARIANT}${entry.variant}`, entry.label] as const] : []))),
 )
 
+/** The variant rows with a key of their own (Cmd+Alt+C Fit Frame to Content): [key, catalog command]. */
+export const VARIANT_KEYS: ReadonlyArray<readonly [string, string]> = MENUS.flatMap(([, entries]) =>
+  entries.flatMap((entry) => (typeof entry === 'object' && 'variant' in entry && entry.shortcut ? [[entry.shortcut, `${entry.cmd}${VARIANT}${entry.variant}`] as const] : [])),
+)
+
 /** The engine commands the catalog lists (each variant's too). */
 export const CATALOG_COMMANDS: ReadonlySet<string> = new Set(MENUS.flatMap(([, entries]) => entries.flatMap((entry) => (typeof entry === 'object' && 'cmd' in entry ? [entry.cmd] : []))))
 
@@ -507,7 +513,7 @@ export function layoutMenus(commands: readonly CatalogCommand[], asks: (command:
       else if (typeof entry === 'string') path.push(entry.slice(1))
       else if ('kit' in entry) rows.push({ path: [...path], label: entry.label, shortcut: entry.shortcut ?? null, command: `kit:${entry.kit}` })
       else if (!byId.has(entry.cmd)) continue
-      else if ('variant' in entry) rows.push({ path: [...path], label: entry.label, shortcut: null, command: `${entry.cmd}${VARIANT}${entry.variant}` })
+      else if ('variant' in entry) rows.push({ path: [...path], label: entry.label, shortcut: entry.shortcut ?? null, command: `${entry.cmd}${VARIANT}${entry.variant}` })
       else {
         const label = entry.label ?? byId.get(entry.cmd)?.title ?? entry.cmd
         rows.push({ path: [...path], label: asks(entry.cmd) ? `${label}…` : label, shortcut: null, command: entry.cmd })
