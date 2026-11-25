@@ -24,8 +24,12 @@ export type OwnDialog = 'newDocument' | 'goToPage' | 'polygon' | 'sample' | 'exp
  * command takes from where the person is (the spread in view). One dialog is open at a time.
  */
 export type Dialogs = {
-  /** Runs a catalog command (an engine id or a variant row) as a click does. */
-  invoke: (command: string) => void
+  /**
+   * Runs a catalog command (an engine id or a variant row) as a click does; a right-click menu
+   * says where it was opened (`place`: a page in the Pages panel) and the values of its own row
+   * (`params`: the layer it was opened on).
+   */
+  invoke: (command: string, options?: InvokeOptions) => void
   /** Opens `command`'s dialog (starting from `values`); false when it has none. */
   open: (command: string, values?: Record<string, unknown>) => boolean
   /** Whether `command` opens a dialog. */
@@ -38,7 +42,10 @@ export type Dialogs = {
   place: () => void
 }
 
-type Shown = { kind: DialogKind; command: KitCommand; values?: Record<string, unknown> } | { kind: OwnDialog } | { kind: 'frameSize'; request: FrameSizeRequest }
+/** Where a run comes from, when not the page in view, and values of its own. */
+export type InvokeOptions = { place?: Place; params?: Record<string, unknown> }
+
+type Shown = ({ kind: DialogKind; command: KitCommand; values?: Record<string, unknown> } | { kind: OwnDialog } | { kind: 'frameSize'; request: FrameSizeRequest }) & { place?: Place }
 type Open = Shown & { serial: number }
 
 /** The selection as the menu rules read it. */
@@ -99,23 +106,25 @@ export function LayoutDialogs({ api, info, place, onShowPage }: { api: RefObject
         return null
       }
     }
-    const openDialog: Dialogs['open'] = (id, values) => {
-      const { editor: now, ui: uiNow, open: current, info: infoNow, place: where } = latest.current
+    const openDialog = (id: string, values?: Record<string, unknown>, at?: Place) => {
+      const { editor: now, ui: uiNow, open: current, info: infoNow, place: inView } = latest.current
+      const where = at ?? inView
       const kind = dialogFor(id)
       const command = now.byId.get(id)
       if (!kind || !command) return false
       if (current || !now.enabled(id) || uiNow.state(`command:${id}`, command.menu).denied) return true
       if (contextReason(id, menuContext(infoNow))) return true
-      show({ kind, command, values: { ...placeValues(id, where), ...values } })
+      show({ kind, command, values: { ...placeValues(id, where), ...values }, place: where })
       return true
     }
     api.current = {
       open: openDialog,
-      invoke: (id) => {
-        const { editor: now, info: infoNow, place: where } = latest.current
+      invoke: (id, options = {}) => {
+        const { editor: now, info: infoNow } = latest.current
+        const where = options.place ?? latest.current.place
         const variant = VARIANTS.get(id)
         const command = variant?.command ?? engineCommandOf(id) ?? id
-        if (!variant && openDialog(command)) return
+        if (!variant && openDialog(command, options.params, where)) return
         const reason = contextReason(command, menuContext(infoNow))
         if (reason) {
           toast('info', now.t(`hint.${reason}`))
@@ -131,7 +140,7 @@ export function LayoutDialogs({ api, info, place, onShowPage }: { api: RefObject
             })
           return
         }
-        const params = { ...placeParams(command, where), ...variant?.params }
+        const params = { ...placeParams(command, where), ...variant?.params, ...options.params }
         if (command === 'table.convertFromText') {
           void run(command, params).then((answer) => {
             // The caret goes into the new table's first cell, so typing goes on there.
@@ -171,7 +180,7 @@ export function LayoutDialogs({ api, info, place, onShowPage }: { api: RefObject
 
   if (!open || !info) return null
   const close = () => setOpen(null)
-  const page = latest.current.place.page
+  const page = (open.place ?? latest.current.place).page
   const dialog = ((): ReactNode => {
     switch (open.kind) {
       case 'newDocument':
@@ -205,7 +214,7 @@ export function LayoutDialogs({ api, info, place, onShowPage }: { api: RefObject
       case 'findChange':
         return <FindChangeDialog onClose={close} />
       case 'params':
-        return <ParamsDialog command={open.command} info={info} values={open.values} fixed={placeParams(open.command.id, latest.current.place)} onClose={close} />
+        return <ParamsDialog command={open.command} info={info} values={open.values} fixed={placeParams(open.command.id, open.place ?? latest.current.place)} onClose={close} />
     }
   })()
   // A new dialog (its serial) starts from its own values, never the last one's.

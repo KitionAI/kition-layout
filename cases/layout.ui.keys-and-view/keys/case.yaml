@@ -1,0 +1,28 @@
+format: 1
+id: layout.ui.keys-and-view/keys
+feature: layout.ui.keys-and-view
+intent: >-
+  A person at the keyboard: T picks the Type tool before any click; an arrow nudges the selected object by the
+  keyboard increment and Shift+arrow ten times as far, each one undo step; Alt+arrow nudges a copy and Delete
+  deletes it; typing in a frame, Cmd+Left goes to the line's start, and one Undo after a pause takes back the
+  last word, not a letter; Cmd+1 is 100%, Cmd+0 fits the spread rather than the pasteboard, Shift+Page Down
+  shows the next page and Cmd+Shift+Page Up the first; a Cmd+wheel notch zooms by at most 1.2 times; the Zoom
+  tool's drag zooms into its area; a double click on the Zoom tool sets 100% and on the Hand tool fits the
+  spread; the status bar's zoom takes a typed 150%.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/keys.mjs (plan 2026-11-25, stage 2)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/keys.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-25"

@@ -197,15 +197,38 @@ fn cursor_css(cursor: Cursor) -> String {
         Cursor::ResizeNwSe => "nwse-resize",
         Cursor::ResizeNeSw => "nesw-resize",
         Cursor::Text => "text",
-        Cursor::Hand | Cursor::Rotate => "grab",
+        Cursor::Hand => "grab",
         Cursor::HandGrab => "grabbing",
         Cursor::ZoomIn => "zoom-in",
         Cursor::ZoomOut => "zoom-out",
-        Cursor::Eyedropper | Cursor::LoadedText | Cursor::LoadedGraphic => "copy",
         Cursor::NotAllowed => "not-allowed",
+        // Drawn cursors: an SVG image with its hot spot, and the CSS cursor where none loads.
+        Cursor::Rotate => return drawn(ROTATE, (12, 12), "grab"),
+        Cursor::ArrowHollow => return drawn(ARROW_HOLLOW, (3, 2), "default"),
+        Cursor::Eyedropper => return drawn(EYEDROPPER, (3, 21), "copy"),
+        Cursor::LoadedText => return drawn(LOADED_TEXT, (2, 2), "copy"),
+        Cursor::LoadedGraphic => return drawn(LOADED_GRAPHIC, (2, 2), "copy"),
         _ => "default",
     }
     .to_owned()
+}
+
+/// The rotate cursor: a curved arrow (24 by 24 SVG; the editor's own drawing).
+const ROTATE: &str = "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><path d='M6 15a7 7 0 1 0 2.5-9' fill='none' stroke='white' stroke-width='4'/><path d='M6 15a7 7 0 1 0 2.5-9' fill='none' stroke='black' stroke-width='1.6'/><path d='M3.5 3.5l7 1.5-4.5 4.5z' fill='black' stroke='white' stroke-width='1'/></svg>";
+/// The Direct Selection tool's hollow arrow.
+const ARROW_HOLLOW: &str = "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><path d='M3 2v17l4.5-4.5 3 6.5 2.6-1.1-3-6.4H16z' fill='white' stroke='black' stroke-width='1.2' stroke-linejoin='round'/></svg>";
+/// The eyedropper: its tip is the hot spot.
+const EYEDROPPER: &str = "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><path d='M3 21l1.5-4.5 9-9 3 3-9 9z' fill='white' stroke='black' stroke-width='1.2' stroke-linejoin='round'/><path d='M12.5 6.5l2.5-2.5a2.1 2.1 0 0 1 3 0l2 2a2.1 2.1 0 0 1 0 3l-2.5 2.5z' fill='black' stroke='white' stroke-width='0.8'/></svg>";
+/// The loaded text cursor: an arrow and lines of text.
+const LOADED_TEXT: &str = "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><path d='M2 2v13l3.5-3.5 2.5 5 2-0.9-2.4-4.9H12z' fill='black' stroke='white' stroke-width='1' stroke-linejoin='round'/><rect x='12.5' y='12.5' width='10' height='10' fill='white' stroke='black'/><path d='M14.5 15.5h6M14.5 17.5h6M14.5 19.5h4' stroke='black'/></svg>";
+/// The loaded graphic (place) cursor: an arrow and a picture.
+const LOADED_GRAPHIC: &str = "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><path d='M2 2v13l3.5-3.5 2.5 5 2-0.9-2.4-4.9H12z' fill='black' stroke='white' stroke-width='1' stroke-linejoin='round'/><rect x='12.5' y='12.5' width='10' height='10' fill='white' stroke='black'/><path d='M13.5 21.5l3-4 2 2 1.5-1.5 1.5 3.5z' fill='black'/><circle cx='19.5' cy='15.5' r='1.2' fill='black'/></svg>";
+
+/// A CSS cursor from an SVG drawing (`<` and `>` escaped for the data URL), its hot spot, and the
+/// cursor to use where the image does not load.
+fn drawn(svg: &str, (x, y): (u8, u8), fallback: &str) -> String {
+    let data = svg.replace('<', "%3C").replace('>', "%3E");
+    format!("url(\"data:image/svg+xml,{data}\") {x} {y}, {fallback}")
 }
 
 fn key_in(key: &str) -> Option<ToolKey> {
@@ -597,7 +620,8 @@ impl KitTools for LayoutDocument {
     fn text(&mut self, text: &str, zoom: f64) -> Result<ToolResponse, String> {
         let before = self.session.tool_id();
         if self.session.wants_text() {
-            self.session.execute("text.insert", &json!({ "text": text })).map_err(engine_error)?;
+            // Typing joins one undo step per word (the editor ends it at a pause: `endTyping`).
+            self.session.type_text(text).map_err(engine_error)?;
         }
         Ok(self.respond(before, None, zoom))
     }
@@ -619,6 +643,11 @@ pub fn add_font(bytes: &[u8]) -> usize {
 }
 
 impl LayoutDocument {
+    /// Ends the typing in progress: the next text typed (`toolText`) is a new undo step.
+    pub fn end_typing(&mut self) {
+        self.session.end_typing();
+    }
+
     /// The canvas around the spreads in `#rrggbb` (the editor's canvas color).
     pub fn set_backdrop(&mut self, color: &str) -> Result<(), String> {
         let hex = color.trim().trim_start_matches('#');
@@ -689,6 +718,13 @@ pub mod web {
 
         pub fn redo(&mut self) -> Result<String, JsError> {
             self.0.redo().map(|(done, damage)| serde_json::json!({ "done": done, "damage": damage }).to_string()).map_err(error)
+        }
+
+        /// Ends the typing in progress, so the next text typed is a new undo step: the editor
+        /// calls it when the person pauses.
+        #[wasm_bindgen(js_name = endTyping)]
+        pub fn end_typing(&mut self) {
+            self.0.end_typing();
         }
 
         #[wasm_bindgen(js_name = canUndo)]
@@ -816,6 +852,23 @@ kition_kit::export_kit_tools!(LayoutDocument as "LayoutDocument");
 mod tests {
     use super::*;
     use kition_kit::testing::check_contract;
+
+    #[test]
+    fn the_drawn_cursors_are_svg_images_with_a_fallback() {
+        for (cursor, fallback) in [
+            (Cursor::Rotate, "grab"),
+            (Cursor::ArrowHollow, "default"),
+            (Cursor::Eyedropper, "copy"),
+            (Cursor::LoadedText, "copy"),
+            (Cursor::LoadedGraphic, "copy"),
+        ] {
+            let css = cursor_css(cursor);
+            assert!(css.starts_with("url(\"data:image/svg+xml,%3Csvg "), "{css}");
+            assert!(css.ends_with(&format!(", {fallback}")), "{css}");
+            assert!(!css.contains(['<', '>', '#']), "a data URL without characters to escape: {css}");
+        }
+        assert_eq!(cursor_css(Cursor::Text), "text");
+    }
 
     /// A Letter page with a red rectangle near its top-left.
     fn fixture() -> Vec<u8> {

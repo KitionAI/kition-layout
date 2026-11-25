@@ -278,6 +278,10 @@ pub struct Session {
     /// change), checked before every command however it arrives: directly, as a batch's step, or
     /// as a step of `script.run` (the kit's own list: commands that name files or start programs).
     pub agent_gate: Option<fn(&str) -> std::result::Result<(), String>>,
+    /// Typing in progress: its text joins one undo step ([`Session::type_text`]).
+    pub(crate) typing: Option<replica::Typing>,
+    /// Whether the running command is [`Session::type_text`]'s insert (which keeps the typing open).
+    pub(crate) typing_now: bool,
 }
 
 impl Default for Session {
@@ -311,6 +315,8 @@ impl Session {
             depth: 0,
             host_files: None,
             agent_gate: None,
+            typing: None,
+            typing_now: false,
         }
     }
 
@@ -422,6 +428,11 @@ impl Session {
         let r = self.guarded(id, |s| s.execute_unguarded(id, params));
         self.depth = self.depth.saturating_sub(1);
         if self.depth == 0 {
+            // Any other edit ends the typing before it is written: it is a step of its own (a
+            // query, which changes nothing, leaves the typing going).
+            if !self.typing_now && self.typing.is_some() && self.docs.iter().any(DocState::unsynced) {
+                self.end_typing();
+            }
             // Every edit a person makes is theirs to undo: a command marked not undoable that
             // changed the document anyway (Tab in a table's last cell adds a row) is a step of its
             // own. File commands' bookkeeping (a save refreshing relative paths) is not.

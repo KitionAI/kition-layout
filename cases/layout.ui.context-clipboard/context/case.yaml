@@ -1,0 +1,28 @@
+format: 1
+id: layout.ui.context-clipboard/context
+feature: layout.ui.context-clipboard
+intent: >-
+  A person right-clicks and pastes, in Chinese: out of text, Cmd+V makes a text frame of text copied
+  elsewhere; a right-click on an object selects it and its menu's Rotate 90° turns it; on the pasteboard the
+  menu sets 100% and hides and shows the rulers; a ruler, a page in Pages (Insert Pages… asks first), a layer
+  and the text being typed each open their own menu; Cmd+C puts typed text on the system clipboard and Cmd+V
+  pastes text from it into the text; Cmd+V places an image from it; an image dropped on an empty frame fills
+  it and elsewhere lands at the drop point; Place… loads the place cursor and a click puts the image down;
+  the development host's Place… offers the computer's files.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/context.mjs (plan 2026-11-25, stage 2)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/context.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 180
+since: "2026-11-25"

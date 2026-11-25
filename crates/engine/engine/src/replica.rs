@@ -225,6 +225,11 @@ impl DocState {
         self.link.labels(UndoScope::Person).undo.len()
     }
 
+    /// Whether the document changed since the replica last saw it (an edit not written yet).
+    pub(crate) fn unsynced(&self) -> bool {
+        !Arc::ptr_eq(&self.link.synced, &self.doc)
+    }
+
     /// Writes what the document changed since the replica last saw it, as one transaction of
     /// `origin` when `undoable` (labelled `label` in the history), else of the system. Nothing is
     /// written during a live interaction or a data-merge preview (neither is the document's
@@ -412,7 +417,52 @@ pub fn klayout_over(existing: Option<&[u8]>, doc: &Document) -> Result<Vec<u8>> 
     kition_layout_kdm::save_file(&kdm, Some(&base)).map(|saved| saved.bytes).map_err(kdm_error)
 }
 
+/// Typing in progress ([`Session::type_text`]): the document whose replica holds the open undo
+/// group, and whether the text typed last ended in white space (the next word starts a new step).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Typing {
+    uid: u64,
+    after_space: bool,
+}
+
 impl Session {
+    /// Types `text` at the caret (`text.insert`, as the Type tool does) as part of one undo step
+    /// with the text typed just before: a word and the white space after it. The next word, a
+    /// pause ([`Session::end_typing`]), any other edit, a click, a key, a tool change or an undo
+    /// ends the step. Without a replica (or during a live gesture) each insert is a step of its own.
+    pub fn type_text(&mut self, text: &str) -> Result<serde_json::Value> {
+        let starts_word = text.chars().next().is_some_and(|c| !c.is_whitespace());
+        let uid = self.active().map(|st| st.uid);
+        let joins = matches!(self.typing, Some(typing) if Some(typing.uid) == uid && !(typing.after_space && starts_word));
+        if !joins {
+            self.end_typing();
+            let origin = self.origin();
+            if let (Some(uid), Some(st)) = (uid, self.active_mut())
+                && st.interaction.is_none()
+                && let Ok(kdm) = st.ensure_kdm(&origin)
+                && kdm.begin_undo_group(&origin.principal).is_ok()
+            {
+                self.typing = Some(Typing { uid, after_space: false });
+            }
+        }
+        self.typing_now = true;
+        let result = self.execute("text.insert", &serde_json::json!({ "text": text }));
+        self.typing_now = false;
+        match (&result, self.typing.as_mut()) {
+            (Ok(_), Some(typing)) => typing.after_space = text.chars().last().is_some_and(char::is_whitespace),
+            _ => self.end_typing(),
+        }
+        result
+    }
+
+    /// Ends the typing in progress: what is typed next is a new undo step.
+    pub fn end_typing(&mut self) {
+        let Some(typing) = self.typing.take() else { return };
+        if let Some(kdm) = self.docs.iter_mut().find(|st| st.uid == typing.uid).and_then(|st| st.link.kdm.as_mut()) {
+            kdm.end_undo_group();
+        }
+    }
+
     /// Who the running (or next) command acts for: the origin of [`Session::execute_as`], or the
     /// local person.
     pub fn origin(&self) -> Origin {
@@ -442,6 +492,7 @@ impl Session {
     /// Edit › Undo (`undo`) or Redo on the active document's replica. Answers the step's label.
     /// In `scope` (engine rule E14a), else the caller's (KitModel 1.1 M12a).
     pub fn undo_redo(&mut self, undo: bool, scope: Option<UndoScope>) -> Result<Option<String>> {
+        self.end_typing();
         self.cancel_interaction();
         self.stop_data_preview();
         let origin = self.origin();

@@ -1,0 +1,25 @@
+format: 1
+id: layout.ui.keys-and-view/view-geometry
+feature: layout.ui.keys-and-view
+intent: >-
+  The view's commands and the right-click menus without a browser: a page, a spread and the selection are
+  measured in document pixels; Fit Page, Fit Spread, Fit Selection, 100%, 200% and the page and spread steps
+  stay within the document; the keys are InDesign's, none twice; a wheel notch zooms by at most 1.2 times and
+  keeps the point under the pointer; a right-click finds the topmost unlocked object; each place's menu
+  offers its rows (variant rows are the menu bar's, no stray separators); the View menu lists every view
+  action with its key and a Chinese name.
+layer: gate
+source:
+  kind: probe
+  from: web/src/view.test.mjs (plan 2026-11-25, stage 2)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, --test, src/view.test.mjs]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+timeout_s: 60
+since: "2026-11-25"

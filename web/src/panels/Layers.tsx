@@ -2,6 +2,7 @@ import { useMemo, useState, type MouseEvent } from 'react'
 import { ArrowDownIcon as ArrowDown, ArrowUpIcon as ArrowUp, ChevronDownIcon as ChevronDown, ChevronRightIcon as ChevronRight, CopyIcon as Copy, EyeIcon as Eye, EyeOffIcon as EyeOff, GroupIcon as Group, LockIcon as Lock, LockOpenIcon as LockOpen, PlusIcon as Plus, TrashIcon as Trash, UngroupIcon as Ungroup } from '@kition/tessera/icons/react'
 import { IconButton, PanelFooter, PanelSection, RenameField, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import { flatten, type DocumentInfo, type Item, type Layer, type Spread } from '../layout'
+import { useMenuOpener } from '../menus/ContextMenus'
 
 /** Every row is this tall, so the list draws only the rows in view (thousands of objects). */
 export const ROW = 26
@@ -43,6 +44,20 @@ export function LayersSection({ info, spread }: { info: DocumentInfo; spread: Sp
   const first = Math.max(0, Math.floor(scroll / ROW) - OVERSCAN)
   const last = Math.min(rows.length, Math.ceil((scroll + VIEW_ROWS * ROW) / ROW) + OVERSCAN)
   const activeIndex = info.layers.findIndex((layer) => layer.id === info.activeLayer)
+  const openMenu = useMenuOpener()
+  /** A right-click on an object's row selects it (unless it is selected) and opens the object menu. */
+  const objectMenu = (item: Item) => (event: MouseEvent) => {
+    if (!openMenu) return
+    event.preventDefault()
+    const chosen = selected.has(item.id)
+    if (!chosen) void run('selection.set', { ids: [item.id] })
+    openMenu({ kind: 'object', textFrame: item.story != null, image: item.asset != null, group: item.kind === '<group>', count: chosen ? info.selection.length : 1 }, event.clientX, event.clientY)
+  }
+  const layerMenu = (layer: Layer) => (event: MouseEvent) => {
+    if (!openMenu) return
+    event.preventDefault()
+    openMenu({ kind: 'layer', layer: layer.id }, event.clientX, event.clientY)
+  }
   const pick = (event: MouseEvent, id: number) => void run(event.shiftKey ? 'selection.toggle' : 'selection.set', event.shiftKey ? { id } : { ids: [id] })
   const finishRename = (commit: boolean) => {
     const current = renaming
@@ -58,7 +73,7 @@ export function LayersSection({ info, spread }: { info: DocumentInfo; spread: Sp
       const { layer } = entry
       const open = !closed.has(layer.id)
       return (
-        <div key={`layer-${layer.id}`} className="layout-row layout-layer-row" style={{ top }} data-active={layer.id === info.activeLayer} data-testid={`layout-layer-${layer.id}`}>
+        <div key={`layer-${layer.id}`} className="layout-row layout-layer-row" style={{ top }} data-active={layer.id === info.activeLayer} onContextMenu={layerMenu(layer)} data-testid={`layout-layer-${layer.id}`}>
           <IconButton icon={layer.visible ? Eye : EyeOff} label={layer.visible ? t('hideLayer') : t('showLayer')} pressed={!layer.visible} disabled={readOnly} onClick={() => void run('layer.set', { id: layer.id, visible: !layer.visible })} data-testid={`layout-layer-visibility-${layer.id}`} />
           <IconButton icon={layer.locked ? Lock : LockOpen} label={layer.locked ? t('unlockLayer') : t('lockLayer')} pressed={layer.locked} disabled={readOnly} onClick={() => void run('layer.set', { id: layer.id, locked: !layer.locked })} data-testid={`layout-layer-lock-${layer.id}`} />
           <button
@@ -90,7 +105,7 @@ export function LayersSection({ info, spread }: { info: DocumentInfo; spread: Sp
     const { item, depth } = entry
     const name = item.name || p(item.kind)
     return (
-      <div key={`item-${item.id}`} className="layout-row layout-item-row" style={{ top }} data-selected={selected.has(item.id)} data-testid={`layout-object-${item.id}`}>
+      <div key={`item-${item.id}`} className="layout-row layout-item-row" style={{ top }} data-selected={selected.has(item.id)} onContextMenu={objectMenu(item)} data-testid={`layout-object-${item.id}`}>
         <IconButton icon={item.hidden ? EyeOff : Eye} label={item.hidden ? t('showObject') : t('hideObject')} pressed={item.hidden} disabled={readOnly} onClick={() => void run('object.setFlags', { ids: [item.id], hidden: !item.hidden })} data-testid={`layout-object-visibility-${item.id}`} />
         <IconButton icon={item.locked ? Lock : LockOpen} label={item.locked ? t('unlockObject') : t('lockObject')} pressed={item.locked} disabled={readOnly} onClick={() => void run('object.setFlags', { ids: [item.id], locked: !item.locked })} data-testid={`layout-object-lock-${item.id}`} />
         <span style={{ width: 14 + depth * 12, flex: 'none' }} aria-hidden="true" />

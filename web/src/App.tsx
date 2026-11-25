@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import {
   EditorFrame,
   EngineToolRail,
   HAND_TOOL,
   KitDocumentCanvas,
   KitEditorProvider,
-  ZOOM_TOOL,
   createKitStrings,
+  shortcutMatches,
   useEngineTools,
   useKitEditorState,
   useKitSession,
@@ -28,9 +28,18 @@ import { CanvasScrollbars, createViewStore } from './CanvasScrollbars'
 import { RULER, Ruler, rulerOrigin } from './Rulers'
 import { LayoutDialogs, type Dialogs, type OwnDialog } from './dialogs/DialogHost'
 import { MenuHints, layoutMenuTabs, menuEnabled, menuKey } from './menus/layoutMenus'
+import { LayoutContextMenu, MenuOpenerProvider, useCanvasContextMenu, type MenuOpener, type OpenMenu } from './menus/ContextMenus'
+import { LAYOUT_ZOOM_TOOL, useBlinkingCaret, useCanvasWheel, useEngineModifiers, useFocusOnOpen, usePanelEnterReturnsFocus, useViewToolDoubleClicks } from './canvasInput'
+import { useFileDrop, useSystemClipboard } from './clipboard'
+import { VIEW_ACTIONS, VIEW_KEY_ALIASES, viewMove, type ViewAction } from './view'
+import { ZoomEntry } from './ZoomEntry'
+import type { DocumentInfo } from './layout'
 
-/** The view tools are the host's; the engine's other tools run in the engine. */
-const HOST_TOOLS = { hand: HAND_TOOL, zoom: ZOOM_TOOL }
+/** The view tools are the host's (the Zoom tool's drag zooms into its area); the engine's other tools run in the engine. */
+const HOST_TOOLS = { hand: HAND_TOOL, zoom: LAYOUT_ZOOM_TOOL }
+const ARROWS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'])
+/** The view actions' keys, with their aliases. */
+const VIEW_KEYS: ReadonlyArray<readonly [string, ViewAction]> = [...VIEW_ACTIONS.map(([action, , shortcut]) => [shortcut, action] as const), ...VIEW_KEY_ALIASES]
 const HIDDEN = new Set(HIDDEN_TOOLS)
 /** The tools a double click on their button sets up (the number of sides). */
 const POLYGON_TOOLS = ['tool:polygon', 'tool:polygonFrame']
@@ -46,8 +55,23 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   const editor = useMemo(() => ({ ...own, enabled: menuEnabled(own.enabled, state) }), [own, state])
   // Every person's run goes through the dialog host (plan 2026-11-25, stage 1).
   const dialogs = useRef<Dialogs | null>(null)
-  const tools = useEngineTools(session.tool, doc != null, change, { initial: 'selection', hostTools: HOST_TOOLS, hidden: HIDDEN, onDialog: (name, params) => dialogs.current?.engine(name, params) })
+  // The text caret blinks (an engine overlay the editor hides every other moment).
+  const drawOverlay = useBlinkingCaret(change.revision)
+  const tools = useEngineTools(session.tool, doc != null, change, { initial: 'selection', hostTools: HOST_TOOLS, hidden: HIDDEN, onDialog: (name, params) => dialogs.current?.engine(name, params), drawOverlay })
   const canvas = useRef<KitCanvasHandle>(null)
+  // Space and Ctrl reach the engine's tools, a modifier pressed mid-drag acts at once, a pause ends typing's undo step.
+  useEngineModifiers(session.doc)
+  const typing = useRef<() => boolean>(() => false)
+  typing.current = () => tools.wantsText
+  useCanvasWheel(canvas, () => typing.current())
+  useFocusOnOpen(doc != null)
+  usePanelEnterReturnsFocus(() => typing.current())
+  const [rulers, setRulers] = useState(true)
+  const rulersShown = useRef(rulers)
+  rulersShown.current = rulers
+  const workspace = useRef<HTMLDivElement>(null)
+  const [menu, setMenu] = useState<OpenMenu | null>(null)
+  const openMenu = useMemo<MenuOpener>(() => (spot, x, y) => setMenu({ spot, x, y }), [])
   useEngineBackdrop(doc, canvas)
   const viewMemory = useRef<RasterView | null>(null)
   const [view, setView] = useState<KitCanvasView | null>(null)
@@ -64,9 +88,63 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   const { commands } = editor
   const showDialog = (name: OwnDialog) => dialogs.current?.show(name)
   const invoke = (command: string) => dialogs.current?.invoke(command)
+  /** Moves the view as a View row asks (`view.ts`): fit an area, set a zoom, or fit the pasteboard. */
+  const viewAction = (action: ViewAction) => {
+    const handle = canvas.current
+    const move = state && handle ? viewMove(action, state, pageInView) : null
+    if (!handle || !move) return
+    if ('area' in move) handle.show(move.area)
+    else if ('zoom' in move) handle.zoomTo(move.zoom)
+    else handle.fit()
+  }
+  const viewActions = useRef(viewAction)
+  viewActions.current = viewAction
+  // The frame's Fit (the status bar's button, Cmd+0) fits the spread in view, not the whole pasteboard.
+  const frameCanvas = useMemo<RefObject<KitCanvasHandle | null>>(
+    () => ({
+      get current() {
+        const handle = canvas.current
+        return handle ? { ...handle, fit: () => viewActions.current('fitSpread') } : null
+      },
+    }),
+    [],
+  )
+  useViewToolDoubleClicks(() => viewActions.current('fitSpread'), () => viewActions.current('actualSize'))
   const runKit = (command: string) => {
     if (command === 'kit:file.place') dialogs.current?.place()
     else if (command === 'kit:layout.goToPage') showDialog('goToPage')
+    else if (command === 'kit:view.rulers') setRulers((shown) => !shown)
+    else if (command.startsWith('kit:view.')) viewActions.current(command.slice('kit:view.'.length) as ViewAction)
+  }
+  /**
+   * The keys the frame does not give the engine's tools while they are idle (plan stage 2): an
+   * arrow nudges the selection (Shift ten times, Alt a copy), Cmd+arrow moves the caret to a line's
+   * or story's end while typing; the view's keys; Escape puts the place cursor down.
+   */
+  const canvasKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    const command = event.metaKey || event.ctrlKey
+    const view = VIEW_KEYS.find(([shortcut]) => shortcutMatches(shortcut, event, undefined, true))
+    if (view) {
+      viewActions.current(view[1])
+      return true
+    }
+    if (ARROWS.has(event.key) && tools.active !== 'hand' && tools.active !== 'zoom') {
+      const zoomNow = canvas.current?.view()?.zoom ?? zoom
+      const mods = (cmd: boolean) => JSON.stringify({ shift: event.shiftKey, alt: event.altKey, command: cmd, control: false, space: false })
+      if (tools.wantsText) {
+        if (!command) return false
+        void session.tool('toolKey', [event.key, mods(true), zoomNow], true)
+        return true
+      }
+      if (command || !state?.selected || host.readOnly) return false
+      void session.tool('toolKey', [event.key, mods(false), zoomNow], true)
+      return true
+    }
+    if (event.key === 'Escape' && tools.active === 'placeGun') {
+      tools.select('selection')
+      return true
+    }
+    return false
   }
   // The page in view (0-based) and its spread: what page commands act on.
   const place = { page: pageInView, spread: spread?.index ?? 0 }
@@ -87,6 +165,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
         phrase,
         onCommand: invoke,
         onKitCommand: runKit,
+        checked: (command) => (command === 'kit:view.rulers' ? rulersShown.current : undefined),
         // The editor's own dialogs stand for these commands, at the top of File.
         before: {
           File: [
@@ -105,14 +184,16 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
 
   return (
     <KitEditorProvider editor={editor} tools={tools}>
+      <MenuOpenerProvider value={openMenu}>
       <EditorFrame
         tabs={tabs}
         defaultTab="home"
-        canvas={canvas}
+        canvas={frameCanvas}
         zoom={zoom}
         onKeyDown={(event) => {
           // The key of a row that asks first opens its dialog; a `kit:` row's key runs it.
           if (dialogs.current && menuKey(event, { commands, enabled: editor.enabled, dialogs: dialogs.current, onKitCommand: runKit })) return true
+          if (canvasKey(event)) return true
           // Escape a busy tool did not take clears the selection; taken (default prevented) only
           // then, so in Focus an Escape with nothing to cancel still leaves Focus (KitPointer 4.4).
           if (event.key !== 'Escape' || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || !state?.selected) return false
@@ -128,15 +209,15 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
         rail={<EngineToolRail hidden={HIDDEN_TOOLS} />}
         panels={state ? <SidePanel info={state} spread={spread} onShow={(next) => canvas.current?.show(next.area)} onSetup={() => showDialog('documentSetup')} /> : null}
       >
-        <div className="kui-row" data-testid="layout-workspace" data-view={view ? `${view.zoom} ${view.x} ${view.y}` : undefined}>
-          <CanvasFrame rulers={(
+        <div ref={workspace} className="kui-row" data-testid="layout-workspace" data-view={view ? `${view.zoom} ${view.x} ${view.y}` : undefined}>
+          <CanvasFrame showRulers={rulers} rulers={(
             <>
               <span className="layout-ruler-corner" aria-hidden="true" />
               {state ? <Ruler axis="x" info={state} view={view} onGuide={addGuide} /> : <span />}
               {state ? <Ruler axis="y" info={state} view={view} onGuide={addGuide} /> : <span />}
             </>
           )}>
-            <KitDocumentCanvas canvas={canvas} viewMemory={viewMemory} initialArea={state?.spreads[0]?.area ?? null} panBounds={panBounds} framed={false} onView={(next) => {
+            <KitDocumentCanvas canvas={canvas} viewMemory={viewMemory} initialArea={state?.spreads[0]?.area ?? null} panBounds={panBounds} framed={false} animated={Boolean(state?.editingText)} onView={(next) => {
               setView(next)
               views.set(next)
             }}>
@@ -148,7 +229,11 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
         <LayoutDialogs api={dialogs} info={state} place={place} onShowPage={showPage} />
         <MenuHints info={state} />
         <PolygonDoubleClick onOpen={() => showDialog('polygon')} />
+        <CanvasShims info={state} canvas={canvas} workspace={workspace} typing={() => typing.current()} onOpen={openMenu} spread={() => spread?.index ?? 0} />
+        <LayoutContextMenu menu={menu} info={state} onClose={() => setMenu(null)} dialogs={dialogs} onView={(action) => viewActions.current(action)} rulers={rulers} onRulers={() => setRulers((shown) => !shown)} />
+        <ZoomEntry canvas={canvas} zoom={zoom} />
       </EditorFrame>
+      </MenuOpenerProvider>
     </KitEditorProvider>
   )
 }
@@ -169,15 +254,26 @@ function PolygonDoubleClick({ onOpen }: { onOpen: () => void }) {
 }
 
 /**
- * The canvas with its rulers along the top and left. Focus shows the canvas alone: the rulers are
- * kit chrome, so they and their grid tracks are left out there.
+ * What the editor adds to the canvas inside the editor's provider (plan stage 2): the right-click
+ * menus, the system clipboard, and files dropped on the canvas.
  */
-function CanvasFrame({ rulers, children }: { rulers: ReactNode; children: ReactNode }) {
-  const focus = useFrameMode() === 'focus'
-  const track = focus ? 'minmax(0, 1fr)' : `${RULER}px minmax(0, 1fr)`
+function CanvasShims({ info, canvas, workspace, typing, onOpen, spread }: { info: DocumentInfo | null; canvas: RefObject<KitCanvasHandle | null>; workspace: RefObject<HTMLDivElement | null>; typing: () => boolean; onOpen: MenuOpener; spread: () => number }) {
+  useCanvasContextMenu({ info, canvas, onOpen, spread })
+  useSystemClipboard({ info, typing, canvas })
+  useFileDrop(workspace, info, canvas)
+  return null
+}
+
+/**
+ * The canvas with its rulers along the top and left. Focus shows the canvas alone: the rulers are
+ * kit chrome, so they and their grid tracks are left out there, as when the person hides them.
+ */
+function CanvasFrame({ rulers, showRulers, children }: { rulers: ReactNode; showRulers: boolean; children: ReactNode }) {
+  const hidden = useFrameMode() === 'focus' || !showRulers
+  const track = hidden ? 'minmax(0, 1fr)' : `${RULER}px minmax(0, 1fr)`
   return (
     <div className="layout-canvas-frame" style={{ gridTemplateColumns: track, gridTemplateRows: track }}>
-      {focus ? null : rulers}
+      {hidden ? null : rulers}
       {children}
     </div>
   )

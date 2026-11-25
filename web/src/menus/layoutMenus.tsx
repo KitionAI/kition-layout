@@ -16,7 +16,7 @@ export const LAYOUT_PRIMARY: Record<string, readonly string[]> = {
   Type: ['footnote.insert', 'type.createOutlines', 'type.changeCase|upper', 'list.define', 'type.fillWithPlaceholder'],
   Object: ['object.group', 'object.ungroup', 'object.bringForward', 'object.sendBackward', 'object.fit|fitProportionally', 'object.textFrameOptions', 'object.dropShadow', 'object.lock'],
   Table: ['table.insert', 'table.insertRowBelow', 'table.insertColumnRight', 'table.deleteRow', 'table.deleteColumn', 'table.merge', 'table.unmerge', 'table.convertFromText'],
-  View: ['guide.deleteAll', 'view.showTextThreads'],
+  View: ['kit:view.fitPage', 'kit:view.fitSpread', 'kit:view.actualSize', 'kit:view.rulers', 'view.showTextThreads', 'guide.deleteAll'],
 }
 
 /**
@@ -25,8 +25,8 @@ export const LAYOUT_PRIMARY: Record<string, readonly string[]> = {
  * with its values), a `kit:` row through `onKitCommand`, and the editor's own actions at the top
  * of a menu (`before`).
  */
-export function layoutMenuTabs({ commands, phrase, before, onCommand, onKitCommand }: { commands: readonly KitCommand[]; phrase: Phrases; before: Readonly<Record<string, readonly MenuAction[]>>; onCommand: (command: string) => void; onKitCommand: (command: string) => void }): FrameTab[] {
-  return catalogTabs(layoutMenus(commands, asks), { phrase, view: VIEW_MENUS, before, primary: LAYOUT_PRIMARY, onCommand, onKitCommand })
+export function layoutMenuTabs({ commands, phrase, before, onCommand, onKitCommand, checked }: { commands: readonly KitCommand[]; phrase: Phrases; before: Readonly<Record<string, readonly MenuAction[]>>; onCommand: (command: string) => void; onKitCommand: (command: string) => void; checked?: (command: string) => boolean | undefined }): FrameTab[] {
+  return catalogTabs(layoutMenus(commands, asks), { phrase, view: VIEW_MENUS, before, primary: LAYOUT_PRIMARY, onCommand, onKitCommand, checked })
 }
 
 /**

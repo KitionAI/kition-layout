@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { ArrowDownIcon as ArrowDown, ArrowUpIcon as ArrowUp, CopyIcon as Copy, PlusIcon as Plus, Settings2Icon as Settings2, TrashIcon as Trash } from '@kition/tessera/icons/react'
 import { Choice, IconButton, PanelFooter, PanelSection, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import type { DocumentInfo, Spread } from '../layout'
+import { useMenuOpener } from '../menus/ContextMenus'
 
 const THUMB = 92
 
@@ -42,6 +43,14 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
   const { run, phrase: p, t } = useKitEditor()
   const readOnly = useReadOnly()
   const [chosen, setChosen] = useState(0)
+  const openMenu = useMenuOpener()
+  /** A right-click on a page (or a spread's first page) chooses it and opens the page menu. */
+  const pageMenu = (index: number) => (event: MouseEvent<HTMLElement>) => {
+    if (!openMenu) return
+    event.preventDefault()
+    setChosen(index)
+    openMenu({ kind: 'page', page: index }, event.clientX, event.clientY)
+  }
   const page = Math.min(chosen, Math.max(0, info.pageCount - 1))
   const spreadOf = info.spreads.find((spread) => spread.pages.some((item) => item.index === page))
   const parentOf = spreadOf?.pages.find((item) => item.index === page)?.parent ?? null
@@ -59,12 +68,12 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
       <div className="layout-spreads">
         {info.spreads.map((spread) => (
           <div key={spread.index} className="layout-spread-cell">
-            <button type="button" className="layout-spread" onClick={() => onShow(spread)} data-testid={`layout-spread-${spread.index}`}>
+            <button type="button" className="layout-spread" onClick={() => onShow(spread)} onContextMenu={pageMenu(spread.pages[0]?.index ?? 0)} data-testid={`layout-spread-${spread.index}`}>
               <SpreadThumb spread={spread} />
             </button>
             <span className="layout-page-names">
               {spread.pages.map((item) => (
-                <button key={item.index} type="button" className="layout-page-name" data-active={item.index === page} onClick={() => setChosen(item.index)} data-testid={`layout-page-${item.index}`}>
+                <button key={item.index} type="button" className="layout-page-name" data-active={item.index === page} onClick={() => setChosen(item.index)} onContextMenu={pageMenu(item.index)} data-testid={`layout-page-${item.index}`}>
                   {item.name}
                 </button>
               ))}

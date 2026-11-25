@@ -562,3 +562,69 @@ fn commands_take_non_object_params_without_panicking() {
         assert!(r.is_ok(), "{p}: {r:?}");
     }
 }
+
+#[test]
+fn typing_undoes_a_word_at_a_time() {
+    let mut s = session();
+    let r = s.execute("frame.create", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
+    let sid = r["story"].as_u64().unwrap();
+    let text = |s: &mut Session| s.execute("story.get", &json!({"story": sid})).unwrap()["text"].as_str().unwrap().to_owned();
+    let steps = |s: &Session| s.doc().unwrap().undo_steps();
+    let before = steps(&s);
+    for typed in ["H", "e", "l", "l", "o", " ", "w", "o", "r", "l", "d"] {
+        s.type_text(typed).unwrap();
+        // The editor's panels ask the engine between keys: a query leaves the typing going.
+        s.execute("story.get", &json!({"story": sid})).unwrap();
+    }
+    assert_eq!(text(&mut s), "Hello world");
+    assert_eq!(steps(&s), before + 2, "a word and its space, then the next word");
+    // A pause ends the word: what follows is a step of its own.
+    s.end_typing();
+    s.type_text("!").unwrap();
+    assert_eq!(steps(&s), before + 3);
+    // Another edit ends it too.
+    s.type_text("?").unwrap();
+    s.execute("text.insert", &json!({"text": "."})).unwrap();
+    s.type_text("!").unwrap();
+    assert_eq!(steps(&s), before + 5, "\"!?\" is one step, the insert and the last \"!\" one each");
+    assert_eq!(text(&mut s), "Hello world!?.!");
+    for _ in 0..2 {
+        s.execute("edit.undo", &json!({})).unwrap();
+    }
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(text(&mut s), "Hello world");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(text(&mut s), "Hello ");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(text(&mut s), "");
+    // Redo brings the words back one at a time.
+    s.execute("edit.redo", &json!({})).unwrap();
+    assert_eq!(text(&mut s), "Hello ");
+    // Typing after an undo starts afresh, as one step.
+    s.type_text("a").unwrap();
+    s.type_text("b").unwrap();
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(text(&mut s), "Hello ");
+}
+
+#[test]
+fn cmd_arrows_move_the_caret_to_the_line_and_story_ends() {
+    let mut s = session();
+    let r = s.execute("frame.create", &json!({"rect": [36, 36, 300, 200], "content": "text"})).unwrap();
+    let sid = r["story"].as_u64().unwrap();
+    s.set_tool("type");
+    s.type_text("Hello world").unwrap();
+    let cmd = kition_layout_tools::Mods { cmd: true, ..Default::default() };
+    let text = |s: &mut Session| s.execute("story.get", &json!({"story": sid})).unwrap()["text"].as_str().unwrap().to_owned();
+    s.tool_key(kition_layout_tools::ToolKey::Left, cmd, ViewInfo::default()).unwrap();
+    s.type_text("[").unwrap();
+    assert_eq!(text(&mut s), "[Hello world");
+    s.tool_key(kition_layout_tools::ToolKey::Right, cmd, ViewInfo::default()).unwrap();
+    s.type_text("]").unwrap();
+    assert_eq!(text(&mut s), "[Hello world]");
+    s.tool_key(kition_layout_tools::ToolKey::Up, cmd, ViewInfo::default()).unwrap();
+    s.type_text("^").unwrap();
+    s.tool_key(kition_layout_tools::ToolKey::Down, cmd, ViewInfo::default()).unwrap();
+    s.type_text("$").unwrap();
+    assert_eq!(text(&mut s), "^[Hello world]$");
+}

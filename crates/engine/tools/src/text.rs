@@ -126,10 +126,13 @@ impl Tool for TypeTool {
         if cx.selection.text.is_none() {
             return vec![];
         }
-        let mv = |dir: &str| {
-            vec![Action::Exec("text.move".into(), json!({"dir": dir, "extend": mods.shift, "word": mods.alt || mods.ctrl, "far": mods.cmd}))]
-        };
+        let mv = |dir: &str| vec![Action::Exec("text.move".into(), json!({"dir": dir, "extend": mods.shift, "word": mods.alt || mods.ctrl}))];
         match key {
+            // Cmd with an arrow goes to the line's start or end, or the story's.
+            ToolKey::Left if mods.cmd => mv("lineStart"),
+            ToolKey::Right if mods.cmd => mv("lineEnd"),
+            ToolKey::Up if mods.cmd => mv("storyStart"),
+            ToolKey::Down if mods.cmd => mv("storyEnd"),
             ToolKey::Left => mv("left"),
             ToolKey::Right => mv("right"),
             ToolKey::Up => mv("up"),

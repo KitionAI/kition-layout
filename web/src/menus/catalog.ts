@@ -1,4 +1,5 @@
 import type { MenuRow } from '@kition/sdk/editor'
+import { VIEW_ACTIONS } from '../view.ts'
 
 /**
  * Layout's menus (plan 2026-11-25, stage 1): the reference application's menu tables, in its
@@ -412,7 +413,20 @@ const MENUS: ReadonlyArray<readonly [string, readonly Entry[]]> = [
       c('table.sortRows'),
     ],
   ],
-  ['View', [c('view.showTextThreads'), '-', c('guide.deleteAll')]],
+  [
+    'View',
+    [
+      // The view's own actions (plan stage 2), each with its key (`view.ts`).
+      ...VIEW_ACTIONS.slice(0, 6).map(([action, label, shortcut]) => k(`view.${action}`, label, shortcut)),
+      '-',
+      ...VIEW_ACTIONS.slice(6).map(([action, label, shortcut]) => k(`view.${action}`, label, shortcut)),
+      '-',
+      k('view.rulers', 'Rulers'),
+      c('view.showTextThreads'),
+      '-',
+      c('guide.deleteAll'),
+    ],
+  ],
   ['Help', [c('file.newSample')]],
 ]
 
@@ -429,6 +443,11 @@ export function engineCommandOf(command: string): string | null {
 /** Every variant row's command and values, by its catalog command (`object.align|left`). */
 export const VARIANTS: ReadonlyMap<string, Variant> = new Map(
   MENUS.flatMap(([, entries]) => entries.flatMap((entry) => (typeof entry === 'object' && 'variant' in entry ? [[`${entry.cmd}${VARIANT}${entry.variant}`, { command: entry.cmd, params: entry.params }] as const] : []))),
+)
+
+/** Every variant row's English label, by its catalog command (`object.align|left`: "Align Left Edges"). */
+export const VARIANT_LABELS: ReadonlyMap<string, string> = new Map(
+  MENUS.flatMap(([, entries]) => entries.flatMap((entry) => (typeof entry === 'object' && 'variant' in entry ? [[`${entry.cmd}${VARIANT}${entry.variant}`, entry.label] as const] : []))),
 )
 
 /** The engine commands the catalog lists (each variant's too). */

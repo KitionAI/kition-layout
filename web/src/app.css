@@ -513,3 +513,26 @@
   color: var(--kit-danger);
   font-size: 12px;
 }
+
+/* Stage 2 (plan 2026-11-25): the field a paste lands in out of text, and the typed zoom. */
+.layout-paste-catcher {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+  resize: none;
+  overflow: hidden;
+}
+
+.layout-zoom-entry {
+  position: fixed;
+  z-index: 20;
+  box-sizing: border-box;
+  font-size: 12px;
+  text-align: right;
+}

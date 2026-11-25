@@ -20,19 +20,32 @@ function HomeTool({ id, primary, size = 'large' }: { id: string; primary?: boole
  * Layout's Home tab: the layout tasks done most, in every display mode (a drop-down panel in
  * Menus): frames and shapes, placing an image, pages, styles, arranging, and export.
  */
+/** Files the place cursor takes: images (text and other files are placed at once). */
+const LOADABLE = /\.(png|jpe?g|gif|webp|bmp|tiff?|svg)$/i
+
 /**
- * Place: an image the host picks, into the one selected frame, else onto the page (as the Links
- * panel's Place). `can` is false where the host picks no files.
+ * Place: a file the host picks. With one frame selected it goes into that frame; an image
+ * otherwise loads the place cursor (the engine's `placeGun`: a click places it at its own size,
+ * a drag draws a frame of its proportions, a click on an empty frame fills it; Escape puts it
+ * down); other files are placed at once (text into a new frame). `can` is false where the host
+ * picks no files.
  */
 export function usePlaceImage() {
   const { run, t, session } = useKitEditor()
+  const tools = useKitTools()
   const { can, pick } = useHostPick()
   const place = async () => {
     const info = session.state as DocumentInfo | null
     const file = await pick(t('placePurpose'), PLACE_TYPES)
     if (!file) return
-    const frame = info?.selection.length === 1 ? info.selection[0] : undefined
-    await run('file.place', { base64: base64(file.bytes), name: file.name, ...(frame != null ? { frame } : {}) })
+    const frame = info?.selection.length === 1 && !info.editingText ? info.selection[0] : undefined
+    const source = { base64: base64(file.bytes), name: file.name }
+    if (frame == null && LOADABLE.test(file.name) && tools) {
+      await run('place.load', source)
+      tools.select('placeGun')
+      return
+    }
+    await run('file.place', { ...source, ...(frame != null ? { frame } : {}) })
   }
   return { can, place }
 }

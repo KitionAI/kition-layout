@@ -56,6 +56,7 @@ impl Session {
         if self.tool.id() == id {
             return;
         }
+        self.end_typing();
         self.tool = kition_layout_tools::create(id);
         // Leaving the Type tool keeps the text frame selected.
         if id != "type"
@@ -96,11 +97,16 @@ impl Session {
     }
 
     pub fn pointer(&mut self, ev: &PointerEvent, view: ViewInfo) -> Result<()> {
+        // A press (moving the caret, choosing something else) ends the typing; hovering does not.
+        if matches!(ev.kind, kition_layout_tools::PointerKind::Down | kition_layout_tools::PointerKind::DoubleClick) {
+            self.end_typing();
+        }
         let actions = self.with_ctx(view, |t, cx| t.pointer(cx, ev)).unwrap_or_default();
         self.run_actions(actions)
     }
 
     pub fn tool_key(&mut self, key: ToolKey, mods: Mods, view: ViewInfo) -> Result<bool> {
+        self.end_typing();
         let actions = self.with_ctx(view, |t, cx| t.key(cx, key, mods)).unwrap_or_default();
         let handled = !actions.is_empty();
         self.run_actions(actions)?;

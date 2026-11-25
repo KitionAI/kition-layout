@@ -500,6 +500,24 @@ features:
     gap: "Dialogs do not preview live: the engine keeps an undone step for Redo, so a preview taken back on Cancel would come back with Redo (the engine's interaction preview is not a command yet). Text Frame Options cannot show a frame's gutter, insets or justification (the engine reports only its columns). The View and Window menus wait for stages 2 and 3; 58 engine menu commands are left out with their reasons (web/src/menus/hidden.ts)."
     cases: [layout.ui.dialogs/menu-dialogs, layout.ui.dialogs/menu-rows]
     since: "2026-11-25"
+  - id: layout.ui.keys-and-view
+    title: "The keyboard and the view by hand: the editor has the keyboard when it opens; an arrow nudges the selection by the keyboard increment (Shift ten times, Alt a copy), Delete deletes; Cmd+arrow goes to the line's or story's start or end while typing; typing undoes a word at a time (a pause, a click, a key or another edit ends the step); Enter in a panel's field gives the keys back to the canvas; View › Fit Page (Cmd+Alt+0), Fit Spread (Cmd+0 and the status bar's Fit), Actual Size (Cmd+1), 200% (Cmd+2), Fit Selection, Entire Pasteboard, first, previous, next and last page (Page Up and Down with Shift and Cmd) and spread (Page Up, Page Down), Rulers on and off; Cmd/Ctrl or Alt with the wheel zooms about the pointer by at most 1.2 times a notch, Shift scrolls sideways, Alt-drag pans while typing; the Zoom tool's drag zooms into its area; a double click on the Hand tool fits the spread and on the Zoom tool sets 100%; the status bar's zoom takes a typed percentage; Space and Ctrl reach the engine's tools and a modifier pressed mid-drag acts at once; drawn cursors for rotate, the hollow arrow, the eyedropper and the loaded text and place cursors; the text caret blinks"
+    dimension: [function]
+    priority: P0
+    status: has
+    paths: [web/src/canvasInput.tsx, web/src/view.ts, web/src/ZoomEntry.tsx, web/src/App.tsx, web/src/menus/catalog.ts, web/tests/keys.mjs, web/src/view.test.mjs, crates/engine/engine/src/replica.rs, crates/engine/tools/src/text.rs, bindings/wasm/src/lib.rs]
+    gap: "Kit-editor gives the engine's tools no idle keys, no Space or Ctrl, no modifier change mid-drag, a fast wheel zoom and no typed zoom: the editor shims them with its own listeners until kition-sdk does (plan 2026-11-25 section 9). The cursor does not follow a held modifier (Alt for a copy), the Zoom tool's drag is a marquee (no scrubby zoom), Power Zoom and Cmd+Space are not done, the units and the guides' keys wait for stage 3."
+    cases: [layout.ui.keys-and-view/keys, layout.ui.keys-and-view/view-geometry, layout.ui.keys-and-view/engine-keys]
+    since: "2026-11-25"
+  - id: layout.ui.context-clipboard
+    title: "Right-click menus, the system clipboard and dropped files: a right-click on an object (selected first), in the text being typed, on the pasteboard, a ruler, a page in Pages, an object or layer in Layers opens its menu (cut, copy, paste, transform, arrange, fitting, text frame options, effects, lock, group; the special characters; the view and the rulers; the page and layer commands), each row run as the menu bar runs it; Cmd+C and Cmd+X in text put the text on the system clipboard, Cmd+V pastes its text into the text or as a new text frame and its image as a placed image; an image dropped on an empty frame fills it, elsewhere it lands where it was dropped, a text file flows into the frame under it or a new one; Place… loads the place cursor (a click places at its own size, a drag draws a frame of its proportions, a click on an empty frame fills it, Escape puts it down); standalone, the development host's picker offers the computer's files"
+    dimension: [function]
+    priority: P0
+    status: has
+    paths: [web/src/menus/ContextMenus.tsx, web/src/menus/contextRows.ts, web/src/clipboard.tsx, web/src/HomeTab.tsx, web/src/dialogs/DialogHost.tsx, web/src/panels/Pages.tsx, web/src/panels/Layers.tsx, web/tests/context.mjs, web/src/view.test.mjs]
+    gap: "A right-click in text keeps the caret or selection where it is (it does not move the caret to the click). Out of text, Paste takes the engine's own copied objects before text copied elsewhere; objects copied here are not on the system clipboard. Placing several files at once, the place cursor's thumbnail and a dropped text file loading the text cursor are not done. Playwright's WebKit grants no clipboard access, so the clipboard steps run in Chromium only."
+    cases: [layout.ui.context-clipboard/context]
+    since: "2026-11-25"
   - id: layout.file.new-document
     title: "File › New… makes a new layout beside the open one: a size preset or a size in millimetres, centimetres, inches, points or pixels, orientation, pages, facing pages, columns and gutter, four margins (linked or each its own) and bleed, written through the host"
     dimension: [function]
