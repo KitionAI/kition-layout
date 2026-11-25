@@ -74,7 +74,7 @@ fn inspect_answers_the_same_ids_after_save_and_reopen() {
     let want = inspected(&doc);
     let bytes = doc.save(None).unwrap();
     doc.mark_saved();
-    let mut again = LayoutDocument::open("basic.klayout", &bytes).unwrap();
+    let again = LayoutDocument::open("basic.klayout", &bytes).unwrap();
     assert_eq!(inspected(&again), want);
     let twice = LayoutDocument::open("basic.klayout", &again.save(None).unwrap()).unwrap();
     assert_eq!(inspected(&twice), want);
@@ -142,7 +142,7 @@ fn an_item_made_through_the_object_model_keeps_its_id() {
 #[test]
 fn two_imports_of_one_idml_file_answer_the_same_ids() {
     let idml = made().save(Some("made.idml")).unwrap();
-    let mut one = LayoutDocument::open("made.idml", &idml).unwrap();
+    let one = LayoutDocument::open("made.idml", &idml).unwrap();
     let two = LayoutDocument::open("made.idml", &idml).unwrap();
     assert_eq!(inspected(&one), inspected(&two));
     let saved = LayoutDocument::open("made.klayout", &one.save(None).unwrap()).unwrap();
