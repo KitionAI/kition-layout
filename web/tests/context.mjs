@@ -215,6 +215,10 @@ try {
   const before = (await items()).length
   await page.keyboard.press('ControlOrMeta+d')
   step('Place… loads the place cursor', await until(async () => (await details()).tool === 'placeGun'), (await details()).tool)
+  const spotBefore = await toScreen(box[0] + 100, 120)
+  await page.mouse.move(spotBefore.x, spotBefore.y)
+  const cursorShown = () => kit.getByTestId('kit-canvas-surface').evaluate((element) => element.style.cursor)
+  step('the place cursor is drawn', await until(async () => (await cursorShown()).includes('data:image/svg+xml')), await cursorShown())
   const spot = await toScreen(box[0] + 100, 120)
   await page.mouse.click(spot.x, spot.y)
   step('a click puts the image down there', await until(async () => (await items()).length === before + 1 && (await details()).tool === 'selection'), `${(await items()).length} objects, tool ${(await details()).tool}`)

@@ -4,18 +4,16 @@ feature: layout.ui.keys-and-view
 intent: >-
   In the engine: typed text is one undo step per word and the space after it (a pause, any other edit, a
   click, a key, a tool change or an undo ends the step; redo brings the words back one at a time); Cmd with
-  the arrows moves the caret to the line's start and end and the story's start and end; the drawn cursors are
-  SVG images with a CSS fallback.
+  the arrows moves the caret to the line's start and end and the story's start and end.
 layer: gate
 source:
   kind: synthetic
-  from: crates/engine/engine/src/tests.rs (typing_undoes_a_word_at_a_time, cmd_arrows_move_the_caret_to_the_line_and_story_ends), bindings/wasm/src/lib.rs (the_drawn_cursors_are_svg_images_with_a_fallback)
+  from: crates/engine/engine/src/tests.rs (typing_undoes_a_word_at_a_time, cmd_arrows_move_the_caret_to_the_line_and_story_ends)
   license: Apache-2.0
 input: []
 steps:
   - cargo-test: { package: kition-layout-engine, filter: typing_undoes_a_word_at_a_time }
   - cargo-test: { package: kition-layout-engine, filter: cmd_arrows_move_the_caret_to_the_line_and_story_ends }
-  - cargo-test: { package: kition-layout-kit, filter: the_drawn_cursors_are_svg_images_with_a_fallback }
 expected:
   - actual: out:cargo-test
     compare: exit

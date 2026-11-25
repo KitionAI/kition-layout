@@ -505,7 +505,7 @@ features:
     dimension: [function]
     priority: P0
     status: has
-    paths: [web/src/canvasInput.tsx, web/src/view.ts, web/src/ZoomEntry.tsx, web/src/App.tsx, web/src/menus/catalog.ts, web/tests/keys.mjs, web/src/view.test.mjs, crates/engine/engine/src/replica.rs, crates/engine/tools/src/text.rs, bindings/wasm/src/lib.rs]
+    paths: [web/src/canvasInput.tsx, web/src/cursors.ts, web/src/view.ts, web/src/ZoomEntry.tsx, web/src/App.tsx, web/src/menus/catalog.ts, web/tests/keys.mjs, web/src/view.test.mjs, crates/engine/engine/src/replica.rs, crates/engine/tools/src/text.rs, bindings/wasm/src/lib.rs]
     gap: "Kit-editor gives the engine's tools no idle keys, no Space or Ctrl, no modifier change mid-drag, a fast wheel zoom and no typed zoom: the editor shims them with its own listeners until kition-sdk does (plan 2026-11-25 section 9). The cursor does not follow a held modifier (Alt for a copy), the Zoom tool's drag is a marquee (no scrubby zoom), Power Zoom and Cmd+Space are not done, the units and the guides' keys wait for stage 3."
     cases: [layout.ui.keys-and-view/keys, layout.ui.keys-and-view/view-geometry, layout.ui.keys-and-view/engine-keys]
     since: "2026-11-25"

@@ -7,7 +7,8 @@ intent: >-
   stay within the document; the keys are InDesign's, none twice; a wheel notch zooms by at most 1.2 times and
   keeps the point under the pointer; a right-click finds the topmost unlocked object; each place's menu
   offers its rows (variant rows are the menu bar's, no stray separators); the View menu lists every view
-  action with its key and a Chinese name.
+  action with its key and a Chinese name; the engine's shared CSS cursors are drawn by the active tool (rotate,
+  the hollow arrow, the eyedropper, the loaded text and place cursors) as SVG data URLs with a fallback.
 layer: gate
 source:
   kind: probe

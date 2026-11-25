@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { VIEW_ACTIONS, itemAt, pageArea, selectionArea, stepPage, viewMove, wheelZoomFactor, zoomAbout } from './view.ts'
 import { contextRows } from './menus/contextRows.ts'
+import { DRAWN_CURSORS, drawnCursor } from './cursors.ts'
 import { VARIANTS, layoutMenus } from './menus/catalog.ts'
 import { asks } from './dialogs/routes.ts'
 import { PHRASES, withEllipsis } from './strings.ts'
@@ -130,4 +131,18 @@ test('the View menu lists the view actions, each in Chinese', () => {
     assert.notEqual(phrase(label), label, `${label} has a Chinese name`)
   }
   assert.ok(rows.some((row) => row.command === 'kit:view.rulers'))
+})
+
+test('the engine\'s shared cursors are drawn by the active tool', () => {
+  assert.equal(drawnCursor('loadedText', 'copy'), DRAWN_CURSORS.loadedText)
+  assert.equal(drawnCursor('placeGun', 'copy'), DRAWN_CURSORS.loadedGraphic)
+  assert.equal(drawnCursor('eyedropper', 'copy'), DRAWN_CURSORS.eyedropper)
+  assert.equal(drawnCursor('selection', 'grab'), DRAWN_CURSORS.rotate)
+  assert.equal(drawnCursor('directSelection', 'default'), DRAWN_CURSORS.hollowArrow)
+  assert.equal(drawnCursor('selection', 'default'), 'default')
+  assert.equal(drawnCursor('hand', 'grab'), 'grab')
+  assert.equal(drawnCursor('type', 'text'), 'text')
+  for (const [name, css] of Object.entries(DRAWN_CURSORS)) {
+    assert.match(css, /^url\("data:image\/svg\+xml,%3Csvg [^"<>#]*"\) \d+ \d+, [a-z-]+$/, name)
+  }
 })

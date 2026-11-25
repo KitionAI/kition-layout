@@ -33,6 +33,7 @@ import { LAYOUT_ZOOM_TOOL, useBlinkingCaret, useCanvasWheel, useEngineModifiers,
 import { useFileDrop, useSystemClipboard } from './clipboard'
 import { VIEW_ACTIONS, VIEW_KEY_ALIASES, viewMove, type ViewAction } from './view'
 import { ZoomEntry } from './ZoomEntry'
+import { drawnCursor } from './cursors'
 import type { DocumentInfo } from './layout'
 
 /** The view tools are the host's (the Zoom tool's drag zooms into its area); the engine's other tools run in the engine. */
@@ -59,6 +60,12 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   const drawOverlay = useBlinkingCaret(change.revision)
   const tools = useEngineTools(session.tool, doc != null, change, { initial: 'selection', hostTools: HOST_TOOLS, hidden: HIDDEN, onDialog: (name, params) => dialogs.current?.engine(name, params), drawOverlay })
   const canvas = useRef<KitCanvasHandle>(null)
+  // The engine's tools with their drawn cursors (rotate, the hollow arrow, the eyedropper, the loaded cursors).
+  const { canvasTool } = tools
+  const engineTool = useMemo(() => {
+    const cursor = drawnCursor(tools.active, canvasTool.cursor)
+    return cursor === canvasTool.cursor ? canvasTool : { ...canvasTool, cursor }
+  }, [canvasTool, tools.active])
   // Space and Ctrl reach the engine's tools, a modifier pressed mid-drag acts at once, a pause ends typing's undo step.
   useEngineModifiers(session.doc)
   const typing = useRef<() => boolean>(() => false)
@@ -217,7 +224,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
               {state ? <Ruler axis="y" info={state} view={view} onGuide={addGuide} /> : <span />}
             </>
           )}>
-            <KitDocumentCanvas canvas={canvas} viewMemory={viewMemory} initialArea={state?.spreads[0]?.area ?? null} panBounds={panBounds} framed={false} animated={Boolean(state?.editingText)} onView={(next) => {
+            <KitDocumentCanvas canvas={canvas} tool={engineTool} viewMemory={viewMemory} initialArea={state?.spreads[0]?.area ?? null} panBounds={panBounds} framed={false} animated={Boolean(state?.editingText)} onView={(next) => {
               setView(next)
               views.set(next)
             }}>
