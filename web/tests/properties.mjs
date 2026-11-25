@@ -1,6 +1,6 @@
 // The Properties panel and the dock (plan 2026-11-25, stage 4): node tests/properties.mjs [chromium|webkit]
-// Opens dev.html in Chinese and works as a person does: the sample opens on its content layer (not
-// the empty Notes layer) and new objects go there; with a text frame selected the panel sets
+// Opens dev.html in Chinese and works as a person does: a shape drawn in the sample goes on its
+// content layer (not the empty Notes layer the sample opens on); with a text frame selected the panel sets
 // underline, superscript, a left indent typed in millimetres, space before, the paragraph's
 // alignment, bullets, the language and the text colour, and each reads back from the engine; the
 // font menu finds a family by name, shows it in its own face, sets it, and loads a font file; on a
@@ -83,7 +83,6 @@ try {
   const layers = (await details()).layers
   const notes = layers.find((layer) => layer.name === 'Notes')
   const content = layers.find((layer) => layer.name !== 'Notes')
-  step('the sample opens on its content layer, not the empty Notes layer', await until(async () => (await kit.getByTestId(`layout-layer-${content.id}`).getAttribute('data-active')) === 'true' && (await kit.getByTestId(`layout-layer-${notes.id}`).getAttribute('data-active')) === 'false'))
   await kit.getByTestId('layout-tool-rectangle').click()
   const region = await kit.getByTestId('kit-canvas-surface').boundingBox()
   await page.mouse.move(region.x + region.width * 0.3, region.y + region.height * 0.86)
@@ -92,7 +91,8 @@ try {
   await page.mouse.up()
   await until(async () => (await details()).selection.items.length === 1)
   const drawn = await itemOf((await details()).selection.items[0])
-  step('a shape drawn by hand goes on the content layer', drawn?.layer === content.id, JSON.stringify({ layer: drawn?.layer, notes: notes.id }))
+  step('a shape drawn by hand goes on the content layer, not the empty Notes layer the sample opened on', drawn?.layer === content.id, JSON.stringify({ layer: drawn?.layer, notes: notes.id }))
+  step('Layers marks the content layer active', await until(async () => (await kit.getByTestId(`layout-layer-${content.id}`).getAttribute('data-active')) === 'true' && (await kit.getByTestId(`layout-layer-${notes.id}`).getAttribute('data-active')) === 'false'))
   // The status bar: where the pointer is, and the selection's size.
   await page.mouse.move(region.x + region.width * 0.5, region.y + region.height * 0.5)
   step('the status bar shows where the pointer is', await until(async () => /X .+ Y /.test((await kit.getByTestId('layout-status-pointer').textContent()) ?? '')), await kit.getByTestId('layout-status-pointer').textContent())

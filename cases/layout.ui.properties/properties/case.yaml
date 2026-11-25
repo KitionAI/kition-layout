@@ -2,8 +2,8 @@ format: 1
 id: layout.ui.properties/properties
 feature: layout.ui.properties
 intent: >-
-  A person with the Properties panel: the sample opens on its content layer (not the empty Notes
-  layer) and a shape drawn by hand goes there; the status bar shows the pointer's place, the
+  A person with the Properties panel: a shape drawn by hand in the sample goes on its content layer
+  (not the empty Notes layer the sample opens on) and Layers marks that layer active; the status bar shows the pointer's place, the
   selection's size and the story's words and overset characters; on a text frame the panel sets
   underline, superscript, a left indent typed in millimetres, space before, Justify with last line
   centred, bullets, the language, the text colour, columns and vertical justification, each read

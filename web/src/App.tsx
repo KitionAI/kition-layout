@@ -318,26 +318,46 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
 
 /**
  * The active layer follows the person (plan 2026-11-25, 0b): selecting objects on one layer makes
- * it active, as InDesign does, and a document that opens on an empty layer while another shown,
- * unlocked layer has objects opens on the topmost of those (the sample's "Notes"). The active
- * layer is editor state (`layer.activate`, no undo step), and new objects go on it.
+ * it active, as InDesign does, and in a document that opened on an empty layer while another
+ * shown, unlocked layer has objects, the person's first press on the canvas (before anything they
+ * draw there exists) makes the topmost of those active (the sample's "Notes"). Not at the moment
+ * the document opens: the editor runs nothing of its own while the host is still opening it. The
+ * active layer is editor state (`layer.activate`, no undo step), and new objects go on it.
  */
 function useActiveLayer(info: DocumentInfo | null, doc: unknown, run: RefObject<(command: string, params: Record<string, unknown>) => Promise<string | null>>) {
-  const opened = useRef<unknown>(null)
+  const latest = useRef(info)
+  latest.current = info
   const selection = info?.selection.join(',') ?? ''
-  useEffect(() => {
-    if (!info || !doc) return
-    const first = opened.current !== doc
-    opened.current = doc
-    const layers = new Map<number, number>()
-    for (const spread of info.spreads) for (const item of spread.items) layers.set(item.layer, (layers.get(item.layer) ?? 0) + 1)
-    const selected = [...new Set(info.selection.flatMap((id) => findItem(info, id)?.item.layer ?? []))]
-    if (!first && !selected.length) return
-    const next = layerToActivate(info.layers, layers, info.activeLayer, selected)
+  const activate = (selected: number[]) => {
+    const now = latest.current
+    if (!now) return
+    const counts = new Map<number, number>()
+    for (const spread of now.spreads) for (const item of spread.items) counts.set(item.layer, (counts.get(item.layer) ?? 0) + 1)
+    const next = layerToActivate(now.layers, counts, now.activeLayer, selected)
     if (next != null) void run.current?.('layer.activate', { id: next }).catch(() => null)
-    // Only when the document or the person's selection changes.
+  }
+  // The selection's layer.
+  useEffect(() => {
+    const now = latest.current
+    if (!now || !doc) return
+    const selected = [...new Set(now.selection.flatMap((id) => findItem(now, id)?.item.layer ?? []))]
+    if (selected.length) activate(selected)
+    // Only when the person's selection changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, selection, info != null])
+  }, [doc, selection])
+  // A document's first press on the canvas: off an empty layer it opened on.
+  useEffect(() => {
+    if (!doc) return
+    const onPress = (event: PointerEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest('.kui-canvas-region')) return
+      window.removeEventListener('pointerdown', onPress, true)
+      if (!latest.current?.selection.length) activate([])
+    }
+    window.addEventListener('pointerdown', onPress, true)
+    return () => window.removeEventListener('pointerdown', onPress, true)
+    // Once per document.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc])
 }
 
 /** Whether a key went to a field of its own (a panel's number, a text box). */
