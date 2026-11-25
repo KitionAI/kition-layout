@@ -172,6 +172,11 @@ try {
   await until(async () => (await count()) === items + 1)
   const made = (await details()).spreads[0].items.at(-1)
   step('OK makes a frame of that size', (await count()) === items + 1 && Math.abs(made.bounds[2] - made.bounds[0] - 100) < 0.01, JSON.stringify(made?.bounds))
+  // A click with the Page tool asks the page's size.
+  await kit.getByTestId('layout-tool-page').click()
+  await page.mouse.click(region.x + (placed.x + pageBox[0] + 300 - left - vx) * zoom, region.y + (placed.y + 500 - vy) * zoom)
+  step('a click with the Page tool asks the page size', await until(async () => (await dialog.isVisible()) && (await kit.getByTestId('layout-dialog-param-width').count()) === 1))
+  if (await dialog.isVisible()) await kit.getByTestId('layout-dialog-cancel').click()
   await kit.getByTestId('layout-tool-selection').click()
 
   // Delete Pages asks first.

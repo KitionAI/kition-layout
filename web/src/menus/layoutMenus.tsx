@@ -48,26 +48,34 @@ export function menuEnabled(enabled: (id: string) => boolean, info: DocumentInfo
  * title on the drawn element (plan section 9 asks kition-sdk for a `hint`).
  */
 export function MenuHints({ info }: { info: DocumentInfo | null }) {
-  const { t, phrase, byId } = useKitEditor()
+  const { t } = useKitEditor()
   useEffect(() => {
     const context = menuContext(info)
-    const label = (element: Element) => element.getAttribute('aria-label') ?? element.textContent ?? ''
+    // The title the element had before a hint replaced it (a ribbon button's label).
+    const OWN = 'data-layout-title'
     const mark = () => {
       for (const element of document.querySelectorAll<HTMLButtonElement>('button[data-kit-ui-id^="command:"]')) {
         const id = element.getAttribute('data-kit-ui-id')!.slice('command:'.length)
         const command = engineCommandOf(id) ?? id
         const reason = element.disabled ? (contextReason(command, context) ?? disabledReason(command)) : null
-        const hint = reason ? t(`hint.${reason}`) : null
-        const title = hint ? (element.classList.contains('kui-menu-item') ? hint : `${label(element)} — ${hint}`) : element.classList.contains('kui-menu-item') ? null : label(element)
-        if (title === null) element.removeAttribute('title')
-        else if (element.title !== title) element.title = title
+        if (reason) {
+          if (!element.hasAttribute(OWN)) element.setAttribute(OWN, element.title)
+          const own = element.getAttribute(OWN)
+          const title = own ? `${own} — ${t(`hint.${reason}`)}` : t(`hint.${reason}`)
+          if (element.title !== title) element.title = title
+        } else if (element.hasAttribute(OWN)) {
+          const own = element.getAttribute(OWN)
+          element.removeAttribute(OWN)
+          if (own) element.title = own
+          else element.removeAttribute('title')
+        }
       }
     }
     mark()
     const observer = new MutationObserver(mark)
     observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['disabled'] })
     return () => observer.disconnect()
-  }, [info, t, phrase, byId])
+  }, [info, t])
   return null
 }
 
