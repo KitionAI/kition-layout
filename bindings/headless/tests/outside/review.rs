@@ -4,7 +4,7 @@ use super::*;
 fn prepare(f: &Fixture, steps: &[(&str, Value)]) -> Vec<Value> {
     let mut doc = f.disk();
     let results = steps.iter().map(|(id, params)| doc.execute(id, params.clone()).unwrap()).collect();
-    std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
+    std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
     results
 }
 
@@ -279,7 +279,7 @@ async fn review_parent_application_holds_prefix_resolution() {
                     false,
                 )
                 .unwrap();
-            std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
+            std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
         }
         expect_conflict_or_apply(&f, basis, "layout.pages.applyParent", json!({"pages":[1],"parent":"A"}), change == "prefix").await;
         f.close().await;
@@ -710,7 +710,7 @@ async fn review_receipt_all_offsets_are_stated() {
     for n in 0..200 {
         ids.push(doc.execute("frame.create", json!({"rect":[10+n,100,20+n,110],"content":"unassigned"})).unwrap()["id"].clone());
     }
-    std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
+    std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
     let receipt = f.write(f.basis().await, "transform.move", json!({"ids":ids,"dx":0.123456789,"dy":0})).await.unwrap();
     let changes = &receipt["changes"];
     assert!(changes.get("truncated").is_none(), "all 200 offsets must be stated: {changes}");

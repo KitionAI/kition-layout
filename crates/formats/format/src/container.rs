@@ -5,17 +5,17 @@
 //! | --- | --- | --- |
 //! | `mimetype` | STORE, first, no extra field | the ASCII bytes `application/vnd.kition.layout+zip` |
 //! | `meta.json` | DEFLATE | [`Meta`] |
-//! | `content.bin` | STORE | the document's content: a KDM content snapshot (its state, and of its history only the seal) |
+//! | `content.json` | DEFLATE (level 6) | the document's content: the KDM content encoding (kition-sdk data model 7.4), its state and nothing else |
 //! | `blobs/<sha256>` | STORE | one blob's bytes, named by the lower-case hex SHA-256 its KDM value carries |
 //!
 //! The file holds no history (kition-sdk data model 7.3, rule M16b): no change log, no deleted
 //! content, no person's or agent's origin. The history lives in the host's history store.
 //! Any other entry with a safe name is kept byte for byte and written back ([`Container::extra`]).
-//! This module knows bytes only: what `content.bin` holds is the KDM's business
+//! This module knows bytes only: what `content.json` holds is the KDM's business
 //! (`kition-layout-kdm` opens it).
 //!
 //! The reader refuses, opening nothing and never panicking: a missing or wrong `mimetype` first
-//! entry ([`ContainerError::NotALayout`]); a missing `meta.json` or `content.bin`, an entry name
+//! entry ([`ContainerError::NotALayout`]); a missing `meta.json` or `content.json`, an entry name
 //! with `..`, `\`, a leading `/` or a drive letter, duplicate
 //! names, encrypted entries, ZIP64, more than [`MAX_ENTRIES`] entries, an entry over
 //! [`MAX_ENTRY_BYTES`] or a whole archive over [`MAX_TOTAL_BYTES`] uncompressed, a `meta.json`
@@ -43,7 +43,9 @@ pub const MAX_TOTAL_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 /// The largest deflate ratio `meta.json` may have.
 pub const MAX_META_RATIO: u64 = 100;
 
-const CONTENT: &str = "content.bin";
+const CONTENT: &str = "content.json";
+/// The DEFLATE level of `content.json`: fixed, so the same content is the same bytes for one build.
+const CONTENT_LEVEL: i64 = 6;
 const META: &str = "meta.json";
 
 /// Why a file is not a readable `.klayout`.
@@ -81,7 +83,7 @@ pub struct Meta {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Container {
     pub meta: Meta,
-    /// `content.bin`: the KDM content snapshot.
+    /// `content.json`: the KDM content (`Replica::content_snapshot`).
     pub content: Vec<u8>,
     /// Blob bytes by their SHA-256 (lower-case hex).
     pub blobs: BTreeMap<String, Vec<u8>>,
@@ -220,7 +222,7 @@ pub fn read(bytes: &[u8]) -> Result<Container, ContainerError> {
         return Err(ContainerError::TooNew(u32::try_from(version).unwrap_or(u32::MAX)));
     }
     let meta: Meta = serde_json::from_value(raw).map_err(|error| damaged(format!("meta.json: {error}")))?;
-    let content = content.ok_or_else(|| damaged("no content.bin"))?;
+    let content = content.ok_or_else(|| damaged("no content.json"))?;
     Ok(Container { meta, content, blobs, extra })
 }
 
@@ -243,7 +245,7 @@ pub fn write(container: &Container) -> Result<Vec<u8>, ContainerError> {
         zip.start_file(META, deflate).map_err(zip_io)?;
         let json = serde_json::to_vec_pretty(&meta).map_err(|error| damaged(error.to_string()))?;
         zip.write_all(&json).map_err(io)?;
-        zip.start_file(CONTENT, stored).map_err(zip_io)?;
+        zip.start_file(CONTENT, deflate.compression_level(Some(CONTENT_LEVEL))).map_err(zip_io)?;
         zip.write_all(&container.content).map_err(io)?;
         for (hash, bytes) in &container.blobs {
             zip.start_file(format!("blobs/{hash}"), stored).map_err(zip_io)?;
@@ -338,7 +340,7 @@ mod tests {
         assert!(not(&zip_of(&[("meta.json", &meta, true), ("mimetype", mime, false)])), "mimetype not first");
         assert!(not(&zip_of(&[("mimetype", mime, true), ("meta.json", &meta, true)])), "mimetype compressed");
         assert!(not(&zip_of(&[("mimetype", b"application/zip", false)])), "another MIME");
-        assert!(bad(&zip_of(&[("mimetype", mime, false), ("content.bin", b"s", false)])), "no meta.json");
+        assert!(bad(&zip_of(&[("mimetype", mime, false), ("content.json", b"s", true)])), "no meta.json");
         assert!(bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &meta, true)])), "no content");
         assert!(
             bad(&zip_of(&[
@@ -351,17 +353,17 @@ mod tests {
         );
         for name in ["../evil", "/abs", "a\\b", "C:/x", "a/../b"] {
             assert!(
-                bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &meta, true), ("content.bin", b"s", false), (name, b"x", false)])),
+                bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &meta, true), ("content.json", b"s", true), (name, b"x", false)])),
                 "{name}"
             );
         }
         let wrong_hash = format!("blobs/{}", sha256_hex(b"other"));
-        assert!(bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &meta, true), ("content.bin", b"s", false), (&wrong_hash, b"x", false)])));
+        assert!(bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &meta, true), ("content.json", b"s", true), (&wrong_hash, b"x", false)])));
         let bomb = serde_json::to_vec(&serde_json::json!({ "format": FORMAT, "formatVersion": 1, "kit": "kit.layout", "kdm": 1, "schemaVersion": 1, "docId": "d", "pad": " ".repeat(200_000) })).unwrap();
-        assert!(bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &bomb, true), ("content.bin", b"s", false)])), "deflate bomb");
+        assert!(bad(&zip_of(&[("mimetype", mime, false), ("meta.json", &bomb, true), ("content.json", b"s", true)])), "deflate bomb");
         let newer = serde_json::to_vec(&serde_json::json!({ "format": FORMAT, "formatVersion": 9 })).unwrap();
         assert_eq!(
-            read(&zip_of(&[("mimetype", mime, false), ("meta.json", &newer, true), ("content.bin", b"s", false)])),
+            read(&zip_of(&[("mimetype", mime, false), ("meta.json", &newer, true), ("content.json", b"s", true)])),
             Err(ContainerError::TooNew(9))
         );
         let other = serde_json::to_vec(&serde_json::json!({ "format": "klayout", "version": 1 })).unwrap();

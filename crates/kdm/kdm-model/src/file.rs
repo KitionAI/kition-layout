@@ -1,6 +1,6 @@
 //! The `.klayout` file as a replica (design note sections 3.1–3.2): the file holds the document's
 //! **content**, not its history (kition-sdk data model 7.3, rule M16b). [`save_file`] writes the
-//! replica's content snapshot (its state, and of its history only a `system` seal) and the blobs
+//! replica's content (`content.json`, the state and nothing else, data model 7.4) and the blobs
 //! the state references; [`open_file`] loads it as the same document (same docId, same object ids)
 //! and repairs once; it never writes. The history lives in the host's history store (the live
 //! replica's [`LayoutSession::snapshot`]), never in the file.
@@ -24,7 +24,7 @@ pub const KIT: &str = "kit.layout";
 /// What a session's file holds besides its content.
 #[derive(Clone, Debug)]
 pub struct FileBase {
-    /// The replica version the file's content holds (its seal included).
+    /// The replica's version when the file was read or written in this session.
     version: Version,
     doc_id: String,
     /// Entries this build does not know, written back as they were.
@@ -63,7 +63,7 @@ fn read(bytes: &[u8]) -> Result<(Container, Replica)> {
 }
 
 /// Opens a `.klayout` file as a replica of a fresh actor: the document the file holds, with its
-/// docId and object ids, and of its history only the seal.
+/// docId and object ids, on a new line of changes.
 pub fn open_file(bytes: &[u8]) -> Result<(LayoutSession, FileBase)> {
     let parts = container::read(bytes).map_err(container_error)?;
     let blobs = MemoryBlobs(parts.blobs.iter().map(|(hash, data)| (hash.clone(), Arc::from(data.as_slice()))).collect());
@@ -75,14 +75,10 @@ pub fn open_file(bytes: &[u8]) -> Result<(LayoutSession, FileBase)> {
     Ok((session, FileBase { version, doc_id, extra: parts.extra }))
 }
 
-/// What a save writes as `content.bin`: the content snapshot of `replica`, which the host sealed
-/// first (`KitDocument::prepare_save`, [`LayoutSession::seal`]), and the version it holds. A
-/// replica that is not sealed answers `not-sealed: …`: every host seals before it saves.
+/// What a save writes as `content.json`: the content of `replica`, which depends on its state
+/// alone (an unchanged layout saves to the same bytes), and the replica's version.
 fn content(replica: &Replica) -> Result<(Vec<u8>, Version)> {
-    if !replica.is_sealed() {
-        return Err(KitError::new("not-sealed: the layout is saved after its seal (prepareSave)"));
-    }
-    Ok((replica.sealed_content_snapshot().map_err(kit_err)?, replica.version()))
+    Ok((replica.content_snapshot().map_err(kit_err)?, replica.version()))
 }
 
 /// The `.klayout` bytes of `replica`'s content with `blobs` and the unknown entries `extra`.
@@ -105,9 +101,8 @@ fn write(replica: &Replica, blobs: BTreeMap<String, Vec<u8>>, extra: Vec<(String
 }
 
 /// The file `session` saves to, with `base` (what its file holds, when it is the same document, for
-/// the entries this build does not know): the bytes and what the file then holds. The session must
-/// be sealed first ([`LayoutSession::seal`]); it saves its own content snapshot, the same bytes for
-/// the same version.
+/// the entries this build does not know): the bytes and what the file then holds. The content
+/// depends on the state alone, so an unchanged layout saves to the same bytes.
 pub fn save_file(session: &LayoutSession, base: Option<&FileBase>) -> Result<SavedFile> {
     let doc_id = session.doc_id().to_string();
     let extra = base.filter(|base| base.doc_id == doc_id).map(|base| base.extra.clone()).unwrap_or_default();
@@ -117,14 +112,14 @@ pub fn save_file(session: &LayoutSession, base: Option<&FileBase>) -> Result<Sav
 }
 
 /// `replica` as a new `.klayout` file with the blobs its assets reference from `blobs`
-/// (`KitModel::export`): its content snapshot, as [`save_file`] writes it (sealed first).
+/// (`KitModel::export`): its content, as [`save_file`] writes it.
 pub(crate) fn export_file(replica: &Replica, blobs: &dyn BlobSource) -> Result<Vec<u8>> {
     let referenced = crate::session::referenced(replica);
     let blobs = referenced.into_iter().filter_map(|hash| blobs.get(&hash).map(|bytes| (hash, bytes.to_vec()))).collect();
     write(replica, blobs, Vec::new()).map(|(bytes, _)| bytes)
 }
 
-/// The replica a `.klayout` file embeds (`document.identity`, KitModel M7a): its content snapshot,
+/// The replica a `.klayout` file embeds (`document.identity`, KitModel M7a): its content,
 /// checked against `meta.json`'s copy of the docId. `None` for a file that holds no replica: an
 /// empty file (one made for the kit before it saved a layout there) or an IDML package (another
 /// program's file, which opens as a new replica each time). Other bytes answer `not-a-layout: …`
@@ -138,13 +133,13 @@ pub fn embedded_replica(bytes: &[u8]) -> Result<Option<Vec<u8>>> {
 }
 
 /// `bytes` (a `.klayout` file) holding the document `snapshot` instead of its own
-/// (`document.fork`, KitModel M7a): `content.bin` is the snapshot's content (a copy's birth is its
-/// seal, so a copy adds no change), `meta.json`'s docId the snapshot's, and the blobs only the ones
+/// (`document.fork`, KitModel M7a): `content.json` is the snapshot's content, `meta.json`'s docId
+/// the snapshot's, and the blobs only the ones
 /// its state references (what a save writes), so no earlier identity stays in the file. Entries
 /// this build does not know are kept.
 pub fn replace_replica(bytes: &[u8], snapshot: &[u8]) -> Result<Vec<u8>> {
     let mut parts = container::read(bytes).map_err(container_error)?;
-    let mut replica = load(snapshot)?;
+    let replica = load(snapshot)?;
     let referenced = crate::session::referenced(&replica);
     parts.blobs.retain(|hash, _| referenced.contains(hash));
     parts.meta.doc_id = replica.doc_id().to_string();

@@ -48,7 +48,7 @@ fn a_layout_opens_from_its_exported_replica_with_its_images() {
     let root = std::fs::canonicalize(root).unwrap();
     let mut poster = LayoutDocument::create("Poster.klayout", 612, 792).unwrap();
     poster.execute("file.place", json!({ "base64": PICTURE, "name": "dot.png", "x": 72, "y": 72, "width": 100 })).unwrap();
-    std::fs::write(root.join("Poster.klayout"), poster.seal_and_save(None).unwrap()).unwrap();
+    std::fs::write(root.join("Poster.klayout"), poster.save(None).unwrap()).unwrap();
 
     let mut kit = Headless::<LayoutDocument>::with_replica_port(
         KitInfo::from_manifest(include_str!("../../../kit.json"), &[], kition_layout_kit::EDITOR_STATE).unwrap(),

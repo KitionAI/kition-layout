@@ -28,23 +28,6 @@ fn environment_schema_names_objects_and_bounds_opacity() {
 }
 
 #[test]
-fn concurrent_creations_share_one_id_space_across_types() {
-    let bytes = LayoutDocument::create("Ids.klayout", 612, 792).unwrap().seal_and_save(None).unwrap();
-    let mut a = LayoutDocument::open("Ids.klayout", &bytes).unwrap();
-    let mut b = LayoutDocument::open("Ids.klayout", &bytes).unwrap();
-    let item = a.execute("frame.create", serde_json::json!({"rect":[20,20,60,60],"content":"unassigned"})).unwrap()["id"].clone();
-    let layer = b.execute("layer.new", serde_json::json!({"name":"Colleague"})).unwrap()["id"].clone();
-    assert_eq!(item, layer, "the independent writers allocate the same next number");
-    a.import_changes(&b.export_changes(&[]).unwrap()).unwrap();
-    let inspected = a.inspect().unwrap();
-    let item = &inspected["spreads"][0]["items"][0]["id"];
-    assert!(
-        inspected["layers"].as_array().unwrap().iter().all(|layer| layer["id"] != *item),
-        "one id cannot name both an item and a layer: {inspected}"
-    );
-}
-
-#[test]
 fn model_addresses_are_command_addresses() {
     let mut doc = LayoutDocument::create("Addresses.klayout", 612, 792).unwrap();
     let item = doc.execute("frame.create", serde_json::json!({"rect":[20,20,60,60],"content":"unassigned"})).unwrap()["id"].clone();

@@ -21,9 +21,9 @@
 //! The replica is made lazily (the first edit, or when asked for), unless the document came from a
 //! `.klayout` file: then the replica the file's content loads as (or the host's stored replica the
 //! file was taken into) is the document's. A `.klayout` file holds the document's content, not its
-//! history (kition-sdk data model 7.3, rule M16b): [`DocState::klayout_file`] seals the replica and
-//! writes its content snapshot ([`kition_layout_kdm::file`]); the history stays with the replica
-//! (and the host's history store).
+//! history (kition-sdk data model 7.3, rule M16b): [`DocState::klayout_file`] writes the replica's
+//! content ([`kition_layout_kdm::file`]); the change log stays with the replica (and the host's
+//! history store).
 //! A replica that refuses a write or an undo is left ([`DocState::kdm_resets`]); the next edit
 //! makes a fresh one, which collaborators must join from its snapshot.
 
@@ -350,34 +350,23 @@ impl DocState {
         Ok(())
     }
 
-    /// Seals the document's replica (made now if there is none yet) for a save (kition-sdk data
-    /// model 7.3, `KitDocument::prepare_save`): a `system` change, no edit, no undo step, so the
-    /// document stays as dirty or clean as it was. Answers whether it committed a seal.
-    pub fn seal(&mut self) -> Result<bool> {
-        let kdm = self.ensure_kdm(&local_person())?;
-        kdm.seal().map_err(kdm_error)
-    }
-
-    /// The document as a `.klayout` file and what the file then holds: the replica is sealed
-    /// first ([`DocState::seal`]), so the file holds its own content snapshot. The caller records
-    /// the base with [`DocState::saved_as`] once the bytes are stored.
+    /// The document as a `.klayout` file and what the file then holds: the replica's content
+    /// (made now if there is none yet). The caller records the base with [`DocState::saved_as`]
+    /// once the bytes are stored.
     pub fn klayout_file(&mut self) -> Result<(Vec<u8>, FileBase)> {
         let file = self.link.file.clone();
-        self.seal()?;
         let kdm = self.ensure_kdm(&local_person())?;
         kition_layout_kdm::save_file(kdm, file.as_ref()).map(|saved| (saved.bytes, saved.base)).map_err(kdm_error)
     }
 
     /// The bytes of the document's content as a `.klayout` file without saving it (Save a Copy,
-    /// `file.serialize`): the replica is sealed first (a `system` change, no edit, no undo step, so
-    /// the document stays as dirty or clean as it was) when it holds the document; a fresh replica
-    /// of `doc` otherwise. A data-merge preview's filled document is session state: the unfilled
+    /// `file.serialize`): the replica's content when it holds the document (no change, so the
+    /// document stays as dirty or clean as it was); a fresh replica of `doc` otherwise. A data-merge preview's filled document is session state: the unfilled
     /// template is saved.
     pub fn klayout_bytes(&mut self) -> Result<Vec<u8>> {
         let content = self.preview_stash.clone().unwrap_or_else(|| self.doc.clone());
-        match self.link.kdm.as_mut() {
+        match self.link.kdm.as_ref() {
             Some(kdm) if Arc::ptr_eq(&self.link.synced, &content) => {
-                kdm.seal().map_err(kdm_error)?;
                 kition_layout_kdm::save_file(kdm, self.link.file.as_ref()).map(|saved| saved.bytes).map_err(kdm_error)
             }
             _ => klayout_of(&content),
@@ -400,8 +389,7 @@ impl DocState {
 
 /// `doc` as a new `.klayout` file (a fresh replica: a copy, with its own document id).
 pub fn klayout_of(doc: &Document) -> Result<Vec<u8>> {
-    let mut kdm = LayoutSession::create(&Arc::new(doc.clone()), &Origin::system("create")).map_err(kdm_error)?;
-    kdm.seal().map_err(kdm_error)?;
+    let kdm = LayoutSession::create(&Arc::new(doc.clone()), &Origin::system("create")).map_err(kdm_error)?;
     kition_layout_kdm::save_file(&kdm, None).map(|saved| saved.bytes).map_err(kdm_error)
 }
 
@@ -412,7 +400,6 @@ pub fn klayout_over(existing: Option<&[u8]>, doc: &Document) -> Result<Vec<u8>> 
         return klayout_of(doc);
     };
     kdm.record(&local_person(), &Arc::new(doc.clone())).map_err(kdm_error)?;
-    kdm.seal().map_err(kdm_error)?;
     kition_layout_kdm::save_file(&kdm, Some(&base)).map(|saved| saved.bytes).map_err(kdm_error)
 }
 
@@ -673,24 +660,6 @@ mod tests {
         assert_eq!(items(&s), 1, "the script's two frames undo together");
     }
 
-    #[test]
-    fn two_people_converge_and_each_undoes_only_their_own_edit() {
-        let mut a = session();
-        frame(&mut a, [72.0, 72.0, 144.0, 144.0]);
-        let mut b = peer(&mut a);
-        assert_eq!(b.doc_id(), a.doc_id());
-        frame(&mut a, [200.0, 72.0, 260.0, 144.0]);
-        b.execute_as("frame.create", &json!({"rect": [72, 300, 144, 400], "content": "unassigned"}), &Origin::person("person:b")).unwrap();
-        exchange(&mut a, &mut b);
-        exchange(&mut b, &mut a);
-        assert_eq!(a.state_hash().unwrap(), b.state_hash().unwrap());
-        assert_eq!((items(&a), items(&b)), (3, 3));
-        b.execute("edit.undo", &json!({})).unwrap();
-        assert_eq!(items(&b), 2, "b's own frame goes; a's stays");
-        exchange(&mut b, &mut a);
-        assert_eq!(a.state_hash().unwrap(), b.state_hash().unwrap());
-    }
-
     /// Design note 4.4: Smart Text Reflow runs only inside the local command that overset the
     /// story. The peer that imports the typing adds no page of its own, so the merged document has
     /// the pages one side's edit made, not twice as many.
@@ -740,19 +709,24 @@ mod tests {
         let mut s = session();
         frame(&mut s, [72.0, 72.0, 144.0, 144.0]);
         let (bytes, base) = s.doc_mut().unwrap().klayout_file().unwrap();
+        let version = s.version().unwrap();
         s.doc_mut().unwrap().saved_as(base);
-        assert!(s.doc().unwrap().kdm().unwrap().is_sealed(), "the save sealed the live replica");
+        assert_eq!(s.version().unwrap(), version, "a save writes nothing into the live replica");
         let mut opened = Session::new();
         opened.add_document(DocState::open_klayout(&bytes, None).unwrap());
         assert_eq!(opened.doc_id(), s.doc_id());
-        assert_eq!(opened.version().unwrap(), s.version().unwrap(), "the file holds the live replica's version");
+        assert_eq!(opened.state_hash().unwrap(), s.state_hash().unwrap(), "the file holds the live replica's state, under its ids");
         assert!(!opened.doc().unwrap().is_dirty());
         frame(&mut opened, [200.0, 200.0, 250.0, 250.0]);
         let (again, base) = opened.doc_mut().unwrap().klayout_file().unwrap();
         assert_eq!(base.version(), &opened.version().unwrap());
         let parts = kition_layout_format::container::read(&again).unwrap();
-        let origins = kition_layout_kdm::kition_kit::kdm::Replica::snapshot_origins(&parts.content).unwrap();
-        assert_eq!(origins, vec![Some(Origin::system("content-seal"))], "of the history, the file holds the seal");
+        let content = String::from_utf8(parts.content).unwrap();
+        assert!(content.starts_with("{\"kdm\":1,\"kit\":\"kit.layout\",\"docId\":"), "{content}");
+        assert!(
+            !content.contains("\"version\"") && !content.contains("lineage") && !content.contains("person:"),
+            "the content holds no version, actor or origin"
+        );
         // The engine's paths read it too.
         assert_eq!(crate::cmd::from_bytes(&again).unwrap().spreads[0].items.len(), 2);
         // A direct write between commands is no part of the next command's step.

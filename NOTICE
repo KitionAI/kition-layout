@@ -21,14 +21,11 @@ Third-party material
 - Foxit standard-14 substitute fonts (compiled in through hayro-interpret): Copyright 2014 PDFium
   Authors, original code copyright 2014 Foxit Software Inc., BSD-3-Clause (below).
 - Adobe CMap resources (compiled in through hayro-cmap): Copyright 1990-2023 Adobe, BSD-3-Clause (below).
-- Loro (https://github.com/loro-dev/loro): Copyright (c) 2023 Zixuan Chen, MIT License (below).
-- MPL-2.0 crates used unmodified (source on crates.io): im, sized-chunks, bitmaps.
 
-MIT License (DesignCraft, hyph-es, Loro)
+MIT License (DesignCraft, hyph-es)
 
 Copyright (c) 2026 ArtCraft Team and the DesignCraft contributors
 Copyright (C) 1993, 1997 Javier Bezos, 2001-2019 Javier Bezos, CervanTeX
-Copyright (c) 2023 Zixuan Chen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

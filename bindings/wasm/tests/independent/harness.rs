@@ -290,7 +290,7 @@ impl Fixture {
         let png = kition_layout_render::Rendered { width: 2, height: 2, pixels: vec![90; 16] }.to_png();
         fixture.tokens.insert("$PNG".to_owned(), json!(kition_layout_engine::cmd::base64_encode(&png)));
         if command == "file.openBytes" {
-            let bytes = fixture.doc.seal_and_save(None)?;
+            let bytes = fixture.doc.save(None)?;
             fixture.tokens.insert("$DOCUMENT_BYTES".to_owned(), json!(kition_layout_engine::cmd::base64_encode(&bytes)));
         }
         if command == "file.revert" {
@@ -490,7 +490,7 @@ fn misc_files(fixture: &mut Fixture, command: &str, notes: &mut Vec<String>) -> 
     let png =
         |shade: u8, side: u32| kition_layout_render::Rendered { width: side, height: side, pixels: vec![shade; (side * side * 4) as usize] }.to_png();
     if command.starts_with("book.") {
-        let bytes = fixture.doc.seal_and_save(None)?;
+        let bytes = fixture.doc.save(None)?;
         for (token, name) in [("$CHAPTER_A", "a.klayout"), ("$CHAPTER_B", "b.klayout"), ("$CHAPTER_C", "c.klayout")] {
             write(name, &bytes)?;
             fixture.tokens.insert(token.to_owned(), json!(path(name)));

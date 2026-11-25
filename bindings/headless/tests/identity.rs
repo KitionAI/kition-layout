@@ -1,6 +1,6 @@
 //! `document.identity` and `document.fork` (Kit Process Protocol section 5.6, KitModel M7a)
 //! through the real `kition-layout` process: a `.klayout` holds the layout's content
-//! (`content.bin`, a content snapshot: the state, no history), so a byte copy of a file is the same
+//! (`content.json`, the KDM content: the state, no history), so a byte copy of a file is the same
 //! document. A host reads the identity a file carries without opening the layout, and forks a file
 //! into a new document: a new docId (in the replica and in `meta.json`'s copy), the same objects,
 //! ids and values, no history, only the blobs the layout references, and everything else in the
@@ -50,16 +50,13 @@ fn layout() -> Vec<u8> {
     doc.execute("frame.create", json!({ "rect": [72, 220, 300, 340], "content": "text", "text": "Also kept" })).unwrap();
     let secret = doc.execute("frame.create", json!({ "rect": [72, 360, 300, 480], "content": "text", "text": SECRET })).unwrap()["id"].clone();
     doc.execute("file.place", json!({ "base64": PICTURE, "name": "dot.png", "x": 320, "y": 72, "width": 100 })).unwrap();
-    doc.prepare_save().unwrap();
-    let first = doc.seal_and_save(None).unwrap();
-    assert!(holds(&first, SECRET), "the control: the first file holds the frame's text");
+    let first = doc.save(None).unwrap();
+    assert!(file_holds(&first, SECRET), "the control: the first file holds the frame's text");
     let mut doc = LayoutDocument::open("Plan.klayout", &first).unwrap();
     doc.execute("edit.clear", json!({ "ids": [secret] })).unwrap();
-    doc.prepare_save().unwrap();
-    let saved = doc.seal_and_save(None).unwrap();
+    let saved = doc.save(None).unwrap();
     let mut parts = container::read(&saved).unwrap();
-    let origins = kition_kit::kdm::Replica::snapshot_origins(&parts.content).unwrap();
-    assert_eq!(origins, vec![Some(kition_kit::kdm::Origin::system("content-seal"))], "of the history, the file holds the seal");
+    assert!(!holds_history(&parts.content), "the file holds no history");
     assert_eq!(parts.blobs.len(), 1, "the picture");
     parts.blobs.insert(container::sha256_hex(STRAY), STRAY.to_vec());
     parts.extra.push(("notes/kept.txt".into(), b"an entry another program wrote".to_vec()));
@@ -86,6 +83,16 @@ async fn objects(kit: &HeadlessKit, path: &str) -> Value {
 
 fn holds(bytes: &[u8], needle: &str) -> bool {
     bytes.windows(needle.len()).any(|window| window == needle.as_bytes())
+}
+
+/// Whether a `.klayout` file holds `needle`, in its bytes or in its content entry unzipped.
+fn file_holds(file: &[u8], needle: &str) -> bool {
+    holds(file, needle) || holds(&container::read(file).unwrap().content, needle)
+}
+
+/// Whether content holds a version, a lineage or an origin (kition-sdk data model 7.4).
+fn holds_history(content: &[u8]) -> bool {
+    ["\"version\"", "\"lineage\"", "\"origin\"", "\"seq\""].iter().any(|key| holds(content, key))
 }
 
 /// What the kit said about a refusal (`error.data.detail`).
@@ -133,12 +140,13 @@ async fn a_layout_tells_its_identity_and_forks_into_a_new_document_without_histo
     assert_ne!(draft["documentId"], state["documentId"], "{draft}");
     kit.request("document.close", json!({ "documentId": state["documentId"] }), LIMIT).await.unwrap();
 
-    // The fork's file: the new id in meta.json too, of the history only its birth, only the
+    // The fork's file: the new id in meta.json and in its content too, no history, only the
     // referenced blobs, everything else kept.
     let (source_bytes, fork_bytes) = (std::fs::read(dir.join("Plan.klayout")).unwrap(), std::fs::read(dir.join("Fork.klayout")).unwrap());
     let (source, forked) = (container::read(&source_bytes).unwrap(), container::read(&fork_bytes).unwrap());
     assert_eq!(forked.meta.doc_id, fork_id, "meta.json's copy of the docId is the fork's");
-    assert_eq!(kition_kit::kdm::Replica::snapshot_origins(&forked.content).unwrap().len(), 1, "a fork holds one change, its birth");
+    assert!(holds(&forked.content, &format!("\"docId\":\"{fork_id}\"")), "the fork's content names the fork");
+    assert!(!holds_history(&forked.content), "a fork's file holds no history");
     assert_eq!(forked.meta.kit, source.meta.kit);
     let stray = container::sha256_hex(STRAY);
     assert!(source.blobs.contains_key(&stray), "the source keeps what it held");
@@ -151,15 +159,14 @@ async fn a_layout_tells_its_identity_and_forks_into_a_new_document_without_histo
     let mut opened = LayoutDocument::open("Fork.klayout", &fork_bytes).unwrap();
     assert_eq!(opened.doc_id().as_deref(), Some(fork_id.as_str()));
     opened.execute("frame.create", json!({ "rect": [72, 500, 300, 600], "content": "text", "text": "New" })).unwrap();
-    opened.prepare_save().unwrap();
-    let edited = opened.seal_and_save(None).unwrap();
+    let edited = opened.save(None).unwrap();
     let reopened = LayoutDocument::open("Fork.klayout", &edited).unwrap();
     assert_eq!(reopened.doc_id().as_deref(), Some(fork_id.as_str()));
     assert_eq!(items(&reopened), items(&opened));
 
     // No history: the deleted frame's text is in neither file.
-    assert!(!holds(&source_bytes, SECRET), "the source's file holds no deleted content");
-    assert!(!holds(&fork_bytes, SECRET), "deleted content does not travel");
+    assert!(!file_holds(&source_bytes, SECRET), "the source's file holds no deleted content");
+    assert!(!file_holds(&fork_bytes, SECRET), "deleted content does not travel");
 
     // A fork of a fork is a third document with the same content.
     let again = kit.fork("Fork.klayout", "Again.klayout", LIMIT).await.unwrap().doc_id.expect("the second fork's identity");

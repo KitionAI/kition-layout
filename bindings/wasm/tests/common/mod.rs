@@ -1,6 +1,6 @@
-//! The Kition platform convergence suite's adapter for Kition Layout: drives `LayoutDocument` the
-//! way a host does (contract 1 `execute`, the contract 2 replica members), shared by the
-//! `convergence` and `coediting` test binaries.
+//! The Kition platform kit suite's adapter for Kition Layout (`kition_convergence::KitAdapter`):
+//! drives `LayoutDocument` the way a host does (contract 1 `execute`, the contract 2 replica
+//! members), shared by the `coediting` and `replica_integrity` test binaries.
 #![allow(dead_code, clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]
 
 use kition_convergence::{Blobs, KitAdapter, Result, Rng, Script};
@@ -33,8 +33,33 @@ pub fn decode_blobs(bytes: &[u8]) -> Result<Blobs> {
     Ok(out)
 }
 
+/// Reverses [`decode_blobs`], hashes in order.
 pub fn encode_blobs(blobs: &Blobs) -> Vec<u8> {
-    kition_convergence::wasm::encode_blobs(blobs)
+    let mut out = Vec::new();
+    for (hash, data) in blobs {
+        out.extend_from_slice(hash.as_bytes());
+        out.extend_from_slice(&(data.len() as u64).to_le_bytes());
+        out.extend_from_slice(data);
+    }
+    out
+}
+
+/// The first path at which `a` and `b` differ, with both values there.
+fn first_difference(a: &Value, b: &Value) -> Option<String> {
+    match (a, b) {
+        (Value::Object(x), Value::Object(y)) => {
+            let keys: std::collections::BTreeSet<&String> = x.keys().chain(y.keys()).collect();
+            keys.into_iter().find_map(|key| {
+                let (l, r) = (x.get(key).unwrap_or(&Value::Null), y.get(key).unwrap_or(&Value::Null));
+                first_difference(l, r).map(|inner| format!("/{key}{inner}"))
+            })
+        }
+        (Value::Array(x), Value::Array(y)) if x.len() == y.len() => {
+            x.iter().zip(y).enumerate().find_map(|(index, (l, r))| first_difference(l, r).map(|inner| format!("/{index}{inner}")))
+        }
+        _ if a == b => None,
+        _ => Some(format!(": {a} != {b}")),
+    }
 }
 
 pub fn exec(doc: &mut LayoutDocument, command: &str, params: Value) -> Result<Value> {
@@ -354,10 +379,7 @@ impl KitAdapter for LayoutKit {
             json!({ "spreads": strip_ids(&inspected["spreads"]), "stories": stories })
         };
         if view(doc) != view(&fresh) {
-            return Err(format!(
-                "the view differs from a fresh replica's: {}",
-                kition_convergence::state::first_difference(&view(doc), &view(&fresh)).unwrap_or_default()
-            ));
+            return Err(format!("the view differs from a fresh replica's: {}", first_difference(&view(doc), &view(&fresh)).unwrap_or_default()));
         }
         let (w, h) = (doc.width(), doc.height());
         if doc.render(0.0, 0.0, 0.25, w / 4, h / 4)? != fresh.render(0.0, 0.0, 0.25, w / 4, h / 4)? {
@@ -375,7 +397,7 @@ impl KitAdapter for LayoutKit {
     }
 
     fn export_file(&self, doc: &mut LayoutDocument) -> Result<Option<Vec<u8>>> {
-        doc.seal_and_save(None).map(Some)
+        doc.save(None).map(Some)
     }
 }
 

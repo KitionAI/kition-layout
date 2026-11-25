@@ -1,10 +1,9 @@
 //! Engine ids survive reading (KHP A46, A57; KitModel M8): every object the engine numbers (layers,
 //! spreads and parent spreads, pages, stories, assets, items, a story's tables and inline objects)
 //! stores its number in the replica (`number`), so a save and reopen, a replica-only open and a
-//! reopen after a failed run all answer the ids the session had. Two replicas that mint one number
-//! concurrently end with distinct ids by a deterministic rule every read applies: the object with
-//! the smaller object id keeps it, the other gets the next free one, the same on every replica
-//! whatever the merge order; the next edit stores it.
+//! reopen after a failed run all answer the ids the session had. An object made without a number
+//! (through the object model) gets the next free one, stored by the repair, alike on a replica
+//! that takes the same changes.
 
 mod common;
 
@@ -79,11 +78,9 @@ fn add_rect(d: &mut Document, x: f64) -> ItemId {
     id
 }
 
-/// `s` saved (a replica of it sealed first, as a host seals before it saves) and opened again.
+/// `s` saved and opened again.
 fn reopened(s: &LayoutSession) -> LayoutSession {
-    let mut sealed = LayoutSession::open(&s.snapshot().unwrap(), s.blobs().clone()).unwrap();
-    sealed.seal().unwrap();
-    let bytes = save_file(&sealed, None).unwrap().bytes;
+    let bytes = save_file(s, None).unwrap().bytes;
     open_file(&bytes).unwrap().0
 }
 
@@ -145,64 +142,6 @@ fn a_file_without_numbers_reads_as_before_and_stores_them() {
     let (again, _) = open_file(&bytes).unwrap();
     assert_eq!(ids_of(again.document()), want, "a second open numbers the same");
     assert_eq!(ids_of(reopened(&opened).document()), want, "and a save keeps it");
-}
-
-/// Two replicas, one base, one item each made offline: both mint the same number.
-fn concurrent_items(a_first: bool) -> (LayoutSession, LayoutSession, (ObjectId, ObjectId), u64) {
-    let start = Arc::new(rich());
-    let base = LayoutSession::create(&start, &Origin::system("create")).unwrap();
-    let snapshot = base.snapshot().unwrap();
-    let mut a = LayoutSession::open(&snapshot, base.blobs().clone()).unwrap();
-    let mut b = LayoutSession::open(&snapshot, base.blobs().clone()).unwrap();
-    let mut minted = 0;
-    let a_doc = edited(a.document(), |d| minted = add_rect(d, 100.0).0);
-    a.record(&person(), &a_doc).unwrap();
-    let b_doc = edited(b.document(), |d| assert_eq!(add_rect(d, 200.0).0, minted, "both mint one number"));
-    b.record(&Origin::person("person:b"), &b_doc).unwrap();
-    let a_item = a.model().ids().item(ItemId(minted)).unwrap().clone();
-    let b_item = b.model().ids().item(ItemId(minted)).unwrap().clone();
-    let (va, vb) = (a.version(), b.version());
-    let (from_a, from_b) = (a.export_changes(&vb).unwrap(), b.export_changes(&va).unwrap());
-    if a_first {
-        b.import_changes(&from_a).unwrap();
-        a.import_changes(&from_b).unwrap();
-    } else {
-        a.import_changes(&from_b).unwrap();
-        b.import_changes(&from_a).unwrap();
-    }
-    (a, b, (a_item, b_item), minted)
-}
-
-#[test]
-fn concurrent_numbers_end_distinct_by_a_deterministic_repair() {
-    for a_first in [true, false] {
-        let (mut a, mut b, (a_item, b_item), minted) = concurrent_items(a_first);
-        assert_eq!(a.state_hash().unwrap(), b.state_hash().unwrap(), "the replicas converge");
-        assert!(a.version().includes(&b.version()) && b.version().includes(&a.version()), "in one exchange: the merge writes nothing");
-        assert_eq!(ids_of(a.document()), ids_of(b.document()), "and number every object alike (merge order a first: {a_first})");
-        let local = |s: &LayoutSession, object: &ObjectId| s.model().ids().items.local(object).unwrap().0;
-        let (keeper, other) = if a_item < b_item { (&a_item, &b_item) } else { (&b_item, &a_item) };
-        assert_eq!(local(&a, keeper), minted, "the smaller object id keeps the number");
-        assert_eq!(local(&b, keeper), minted);
-        let next = local(&a, other);
-        assert_ne!(next, minted);
-        assert_eq!(local(&b, other), next);
-        // Both survive saving and reopening on either side.
-        assert_eq!(ids_of(reopened(&a).document()), ids_of(a.document()));
-        assert_eq!(ids_of(reopened(&b).document()), ids_of(b.document()));
-        // The next edit stores the new number and allocates above both.
-        let mut added = 0;
-        let a_doc = edited(a.document(), |d| added = add_rect(d, 300.0).0);
-        assert!(added > next.max(minted));
-        a.record(&person(), &a_doc).unwrap();
-        assert_eq!(a.replica().get(other, "number").unwrap(), json!(next), "the edit stores the new number");
-        b.import_changes(&a.export_changes(&b.version()).unwrap()).unwrap();
-        assert_eq!(ids_of(b.document()), ids_of(a.document()));
-        assert_eq!(local(&b, other), next);
-        // Undoing the edit takes the stored number back; the id stays, as every read gives it.
-        a.undo().unwrap();
-        assert_eq!(local(&a, other), next);
-    }
 }
 
 /// An object made through the object model (`model.batch`) carries no number: the replica gives

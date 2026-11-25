@@ -501,20 +501,12 @@ impl KitDocument for LayoutDocument {
             .collect()
     }
 
-    /// Seals the replica (rule M16b) so `save` writes its content snapshot, and the seal is in the
-    /// replica the host stores and syncs: a `system` change, no edit, no undo step, no revision.
-    fn prepare_save(&mut self) -> Result<(), String> {
-        self.session.active_mut().ok_or_else(|| "no document is open".to_owned())?.seal().map_err(engine_error)?;
-        Ok(())
-    }
-
     /// The layout as a `.klayout` file: the document's content (no history, rule M16b) and the
     /// images' blobs its state references, the same bytes while the document stays at the version
     /// saved; or as an IDML package when `name` says so.
     ///
-    /// The content is sealed (kition-sdk data model 7.3): hosts call [`KitDocument::prepare_save`]
-    /// first, which seals the replica, and the file holds the replica's own content snapshot. A
-    /// save the replica was not sealed for answers `not-sealed: …`
+    /// The content is the replica's (`content.json`, kition-sdk data model 7.4): it depends on the
+    /// state alone, so an unchanged layout saves to the same bytes
     /// (`kition_layout_kdm::file::save_file`).
     fn save(&self, name: Option<&str>) -> Result<Vec<u8>, String> {
         let state = self.active()?;
@@ -627,14 +619,6 @@ pub fn add_font(bytes: &[u8]) -> usize {
 }
 
 impl LayoutDocument {
-    /// The document's file as a host saves it: [`KitDocument::prepare_save`] (the seal), then
-    /// [`KitDocument::save`]. For code that holds the document itself (tests, fixture builders);
-    /// a host calls the two itself.
-    pub fn seal_and_save(&mut self, name: Option<&str>) -> Result<Vec<u8>, String> {
-        self.prepare_save()?;
-        self.save(name)
-    }
-
     /// The canvas around the spreads in `#rrggbb` (the editor's canvas color).
     pub fn set_backdrop(&mut self, color: &str) -> Result<(), String> {
         let hex = color.trim().trim_start_matches('#');
@@ -783,7 +767,7 @@ mod tests {
         doc.execute("swatch.create", json!({ "name": "Red", "color": "#ff0000" })).unwrap();
         let frame = doc.execute("frame.create", json!({ "rect": [72, 72, 216, 144], "content": "unassigned" })).unwrap();
         doc.execute("object.fill", json!({ "swatch": "Red", "ids": [frame["id"]] })).unwrap();
-        doc.seal_and_save(None).unwrap()
+        doc.save(None).unwrap()
     }
 
     #[test]

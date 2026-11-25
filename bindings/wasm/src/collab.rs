@@ -10,8 +10,8 @@
 //! A `.klayout` file holds the document's content, not its history (design note 3.1, kition-sdk
 //! data model 7.3, rule M16b): opening one alone opens a replica of its content (same docId, same
 //! object ids), and opening it with the replica the host stored takes the file into that replica.
-//! The members below answer `replica/*` so a host can store the history and relay changes between
-//! people editing the same file. Placed images are blobs, encoded for transfer as
+//! The members below answer `replica/*` so a host can store the history and a replica on the same
+//! line of changes (an agent's draft) can take them in order. Placed images are blobs, encoded for transfer as
 //! `(64-char ASCII-hex sha256, u64 LE length, bytes) * N`, as every kit does.
 
 use std::collections::HashMap;
@@ -30,10 +30,9 @@ impl LayoutDocument {
     /// protocol's `replica` capability) and that replica's blobs (a blob bundle). A `.klayout`
     /// file of the same document (which holds the content and no history) is taken into the
     /// stored replica ([`kition_layout_kdm::LayoutSession::take_file`]): nothing when the replica
-    /// has the file's version; the changes the file holds beyond it when the file's history
-    /// starts at a version the replica has; and otherwise (the file was saved elsewhere, from
-    /// changes the store never saw) the file's state, as one `system` transaction keyed by object
-    /// id. Edits the replica has and the file lacks are kept. A `.klayout` file of another
+    /// holds the file's state; otherwise (the file was saved elsewhere, or changed outside) the
+    /// file's state, as one `system` transaction keyed by object id, on the stored replica's line
+    /// of changes. A `.klayout` file of another
     /// document, or a replica that does not open, leaves the file as [`KitDocument::open`] opens
     /// it. Empty `bytes` mean there is no file yet, only the replica (a host opening a shared
     /// layout from its sync room): the layout is the replica's alone, and a replica that does not
@@ -267,7 +266,7 @@ mod tests {
     fn fixture() -> Vec<u8> {
         let mut doc = LayoutDocument::create("Flyer.klayout", 612, 792).unwrap();
         doc.execute("frame.create", json!({ "rect": [72, 72, 216, 144], "content": "unassigned" })).unwrap();
-        doc.seal_and_save(None).unwrap()
+        doc.save(None).unwrap()
     }
 
     fn frame(doc: &mut LayoutDocument, x: u32) {
@@ -303,23 +302,6 @@ mod tests {
     }
 
     #[test]
-    fn two_layouts_converge_through_their_changes_and_blobs() {
-        let bytes = fixture();
-        let mut a = LayoutDocument::open("Flyer.klayout", &bytes).unwrap();
-        let mut b = LayoutDocument::open("Flyer.klayout", &bytes).unwrap();
-        frame(&mut a, 300);
-        b.execute_as("frame.create", json!({ "rect": [400, 400, 440, 440], "content": "unassigned" }), &Origin::person("person:b")).unwrap();
-        let (va, vb) = (a.version().unwrap(), b.version().unwrap());
-        b.add_blobs(&a.blobs_since(&vb).unwrap()).unwrap();
-        b.import_changes(&a.export_changes(&vb).unwrap()).unwrap();
-        a.add_blobs(&b.blobs_since(&va).unwrap()).unwrap();
-        a.import_changes(&b.export_changes(&va).unwrap()).unwrap();
-        assert_eq!(a.session.state_hash().unwrap(), b.session.state_hash().unwrap());
-        assert_eq!(a.render(0.0, 0.0, 1.0, a.width(), a.height()).unwrap(), b.render(0.0, 0.0, 1.0, b.width(), b.height()).unwrap());
-        assert_eq!(items(&a), 3);
-    }
-
-    #[test]
     fn a_replica_opens_without_a_file_and_a_bad_one_is_an_error() {
         let mut a = LayoutDocument::open("Flyer.klayout", &fixture()).unwrap();
         frame(&mut a, 300);
@@ -330,7 +312,7 @@ mod tests {
         assert!(!b.dirty());
         assert!(LayoutDocument::open_with_replica("Shared.klayout", &[], b"not a replica", &[]).is_err());
         // A .klayout file wins over a stored replica: it is what the person saved.
-        let file = a.seal_and_save(None).unwrap();
+        let file = a.save(None).unwrap();
         let other = LayoutDocument::create("Other.klayout", 612, 792).unwrap().snapshot().unwrap();
         let c = LayoutDocument::open_with_replica("Flyer.klayout", &file, &other, &[]).unwrap();
         assert_eq!(c.doc_id(), a.doc_id());

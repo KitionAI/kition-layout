@@ -25,15 +25,15 @@ fn clipboard_paste_into_text_allocates_fresh_item_ids_after_reopen() {
     let text = doc.execute("frame.create", json!({"rect":[20,200,400,600],"content":"text","text":"Body"})).unwrap();
     doc.execute("text.select", json!({"story":text["story"],"anchor":0})).unwrap();
     let state = doc.editor_state();
-    let bytes = doc.seal_and_save(None).unwrap();
+    let bytes = doc.save(None).unwrap();
     let mut colleague = LayoutDocument::open("Paste.klayout", &bytes).unwrap();
     colleague.execute("object.opacity", json!({"ids":[item],"opacity":0.5})).unwrap();
-    let mut reopened = LayoutDocument::open("Paste.klayout", &colleague.seal_and_save(None).unwrap()).unwrap();
+    let mut reopened = LayoutDocument::open("Paste.klayout", &colleague.save(None).unwrap()).unwrap();
     reopened.restore_editor_state(&state).unwrap();
     reopened.execute("edit.paste", json!({})).unwrap();
     reopened.execute("edit.paste", json!({})).unwrap();
     let live = document_content(reopened.inspect().unwrap(), &["/selection", "/tool", "/activeLayer"]);
-    let saved = LayoutDocument::open("Paste.klayout", &reopened.seal_and_save(None).unwrap()).unwrap();
+    let saved = LayoutDocument::open("Paste.klayout", &reopened.save(None).unwrap()).unwrap();
     assert_eq!(live, document_content(saved.inspect().unwrap(), &["/selection", "/tool", "/activeLayer"]));
 }
 
@@ -251,7 +251,7 @@ fn every_conformance_fixture_write_family_survives_native_save() {
             }
             let scenarios = writes(&mut source);
             let state = source.editor_state();
-            let prepared = source.seal_and_save(None).unwrap();
+            let prepared = source.save(None).unwrap();
             for (command, params) in scenarios {
                 let context = format!("{} imported={imported} {command} {params}", path.display());
                 let mut doc = LayoutDocument::open("Review.klayout", &prepared).unwrap();
@@ -272,7 +272,7 @@ fn every_conformance_fixture_write_family_survives_native_save() {
                     }
                 };
                 let live = document_content(doc.inspect().unwrap(), &["/selection", "/tool", "/activeLayer"]);
-                let mut reopened = LayoutDocument::open("Review.klayout", &doc.seal_and_save(None).unwrap()).unwrap();
+                let mut reopened = LayoutDocument::open("Review.klayout", &doc.save(None).unwrap()).unwrap();
                 assert_eq!(live, document_content(reopened.inspect().unwrap(), &["/selection", "/tool", "/activeLayer"]), "{context}");
                 let after = exchange.replica(&mut doc).unwrap().state_json().unwrap();
                 let disk = Exchange::new().replica(&mut reopened).unwrap().state_json().unwrap();

@@ -64,7 +64,7 @@ async fn read3_table_style_edit_holds_the_tables_using_it() {
         let table = doc.execute("table.insert", json!({"rows":2,"cols":2})).unwrap()["table"].clone();
         doc.execute("style.table.create", json!({"name":"Grid"})).unwrap();
         doc.execute("style.table.apply", json!({"name":"Grid","story":f.story,"table":table})).unwrap();
-        std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
+        std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
         let basis = f.basis().await;
         f.colleague(&[if change == "table-options" {
             ("table.options", json!({"story":f.story,"table":table,"spaceAfter":9}))
@@ -90,7 +90,7 @@ async fn read3_variable_insertion_holds_the_variable_list() {
         let mut doc = f.disk();
         doc.execute("variables.define", json!({"name":"First","type":"custom","text":"One"})).unwrap();
         doc.execute("variables.define", json!({"name":"Var","type":"custom","text":"Value"})).unwrap();
-        std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
+        std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
         let basis = f.basis().await;
         f.colleague(&[if change == "earlier-variable" {
             ("variables.delete", json!({"name":"First"}))

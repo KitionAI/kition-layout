@@ -138,9 +138,16 @@ features:
     title: "Real-time co-editing: editors converge, viewers cannot write, an offline page catches up"
     dimension: [collab]
     priority: P1
-    status: has
-    paths: [web/src/main.tsx, web/src/panels, bindings/wasm/src/collab.rs, crates/engine/doc/src/build.rs, bindings/wasm/tests/coediting.rs, bindings/wasm/tests/convergence.rs, web/tests/collab.mjs]
-    cases: [layout.collab.coedit/engine-replicas, layout.collab.coedit/convergence-suite, layout.collab.coedit/kition-server, regressions/issue-concurrent-page-moves, regressions/issue-frame-create-text, regressions/issue-concurrent-ids]
+    status: partial
+    paths: [web/src/main.tsx, web/src/panels, bindings/wasm/src/collab.rs, crates/engine/doc/src/build.rs, bindings/wasm/tests/coediting.rs]
+    gap: >-
+      Kition Desktop is for one person since the plain document model (kition-sdk 91cf510, plan
+      2026-11-24): the KDM no longer merges concurrent edits, so the convergence suite, the
+      kition-server co-editing script and the layout's merge tests are gone; co-editing comes back
+      with Kition One's server-ordered changes. What stays: every edit is a KDM change with stable
+      ids, a viewer's editor writes nothing to the replica, and a page on the editor's line of
+      changes follows its edits in order. Not yet: a server-ordered change stream, presence.
+    cases: [layout.collab.coedit/engine-replicas, regressions/issue-frame-create-text, regressions/issue-concurrent-ids]
     since: "2026-11-17"
   - id: layout.file.recovery
     title: "Recovery data"
@@ -483,11 +490,11 @@ features:
     cases: [layout.platform.document-identity/fork, layout.platform.document-identity/no-replica]
     since: "2026-11-20"
   - id: layout.file.content-only
-    title: "A .klayout holds the layout's content, not its history: a sealed content snapshot and the blobs the state references, no change log, no deleted content, no origins (kition-sdk rule M16b); it opens as the same document alone or on the host's stored replica"
+    title: "A .klayout holds the layout's content, not its history: content.json (the KDM content encoding, kition-sdk data model 7.4) and the blobs the state references, no change log, no deleted content, no version, no origins (kition-sdk rule M16b); it opens as the same document alone or on the host's stored replica"
     dimension: [platform, data-safety]
     priority: P0
     status: has
-    paths: [crates/formats/format/src/container.rs, crates/kdm/kdm-model/src/file.rs, crates/kdm/kdm-model/src/session.rs, crates/engine/engine/src/replica.rs, bindings/wasm/src/lib.rs, bindings/wasm/src/collab.rs, bindings/wasm/tests/content_file.rs, bindings/headless/tests/content_file.rs]
+    paths: [crates/formats/format/src/container.rs, crates/kdm/kdm-model/src/file.rs, crates/kdm/kdm-model/src/session.rs, crates/engine/engine/src/replica.rs, bindings/wasm/src/lib.rs, bindings/wasm/src/collab.rs, bindings/wasm/tests/content_file.rs, bindings/headless/tests/content_file.rs, crates/kdm/kdm-model/tests/samples.rs]
     cases: [layout.file.content-only/no-history, layout.file.content-only/reopen-and-converge]
     since: "2026-11-23"
   - id: layout.editor.host-theme

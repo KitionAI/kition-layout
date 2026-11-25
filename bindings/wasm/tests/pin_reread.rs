@@ -24,13 +24,13 @@ fn field(doc: &mut LayoutDocument, id: &Value, name: &str) -> Value {
 
 /// The live session saved and clean, and the file as a colleague who ran `steps` saved it.
 fn saved_and_rewritten(live: &mut LayoutDocument, steps: &[(&str, Value)]) -> LayoutDocument {
-    let bytes = live.seal_and_save(None).unwrap();
+    let bytes = live.save(None).unwrap();
     live.mark_saved();
     let mut colleague = LayoutDocument::open(FILE, &bytes).unwrap();
     for (command, params) in steps {
         colleague.execute(command, params.clone()).unwrap();
     }
-    LayoutDocument::open(FILE, &colleague.seal_and_save(None).unwrap()).unwrap()
+    LayoutDocument::open(FILE, &colleague.save(None).unwrap()).unwrap()
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn a_new_object_in_the_file_is_imported_and_saved_again() {
     let wanted = fresh.inspect().unwrap()["items"].clone();
     assert!(live.reconcile_reread(&fresh).unwrap());
     assert_eq!(live.inspect().unwrap()["items"], wanted, "the session shows the file's items with their ids");
-    let reopened = LayoutDocument::open(FILE, &live.seal_and_save(None).unwrap()).unwrap();
+    let reopened = LayoutDocument::open(FILE, &live.save(None).unwrap()).unwrap();
     assert_eq!(reopened.inspect().unwrap()["items"], wanted, "the next save holds them");
 }
 
@@ -81,9 +81,9 @@ fn a_reread_refuses_a_deleted_selected_item_and_keeps_the_session() {
     let mut fresh = saved_and_rewritten(&mut live, &[("edit.clear", json!({"ids":[a]}))]);
     let error = fresh.restore_editor_state(&saved).unwrap_err();
     assert_eq!(error, format!("deleted selected item {a}"));
-    let before = live.seal_and_save(None).unwrap();
+    let before = live.save(None).unwrap();
     assert_eq!(live.reconcile_reread(&fresh).unwrap_err(), format!("deleted selected item {a}"));
-    assert_eq!(live.seal_and_save(None).unwrap(), before, "a refused reread leaves the session as it was");
+    assert_eq!(live.save(None).unwrap(), before, "a refused reread leaves the session as it was");
     assert_eq!(live.editor_state(), saved);
 }
 

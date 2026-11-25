@@ -34,5 +34,5 @@ log = { workspace = true }
 # Counted ids for the deterministic-save test (KITION_REPRODUCIBLE_IDS); never in a shipped build.
 kition-kit = { workspace = true, features = ["reproducible-ids"] }
 kition-layout-fonts = { workspace = true, features = ["testing"] }
-# The Kition platform convergence suite (L6): two to five replicas of a layout (tests/convergence.rs).
+# The Kition platform kit suite's adapter and random edits (tests/common, tests/replica_integrity.rs).
 kition-convergence = { workspace = true }

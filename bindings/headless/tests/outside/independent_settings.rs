@@ -5,7 +5,7 @@ use kition_kit::session::model::Exchange;
 fn prepare(f: &Fixture, steps: &[(&str, Value)]) -> Vec<Value> {
     let mut doc = f.disk();
     let results = steps.iter().map(|(command, params)| doc.execute(command, params.clone()).unwrap()).collect();
-    std::fs::write(f.root.join(FILE), doc.seal_and_save(None).unwrap()).unwrap();
+    std::fs::write(f.root.join(FILE), doc.save(None).unwrap()).unwrap();
     results
 }
 
@@ -40,9 +40,9 @@ fn colleague_batch(f: &Fixture, ops: Value) {
     let path = f.root.join(FILE);
     let modified = std::fs::metadata(&path).unwrap().modified().unwrap();
     let mut doc = f.disk();
-    let before = doc.seal_and_save(None).unwrap();
+    let before = doc.save(None).unwrap();
     Exchange::new().batch(&mut doc, &json!({ "ops": ops }), false).unwrap();
-    let saved = doc.seal_and_save(None).unwrap();
+    let saved = doc.save(None).unwrap();
     assert_ne!(before, saved, "the independent writer must really change the file");
     std::fs::write(&path, saved).unwrap();
     std::fs::File::options().write(true).open(path).unwrap().set_modified(modified - std::time::Duration::from_secs(3600)).unwrap();

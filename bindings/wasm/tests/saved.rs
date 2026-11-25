@@ -27,7 +27,7 @@ fn representative_fixture_writes_equal_the_saved_document() {
             let before = exchange.replica(&mut doc).unwrap().state_json().unwrap();
             let receipt = exchange.batch(&mut doc, &json!({"ops":[{"op":"command","id":command,"params":params}]}), false).unwrap();
             let live = document_content(doc.inspect().unwrap(), &["/selection", "/tool", "/activeLayer"]);
-            let saved = doc.seal_and_save(None).unwrap();
+            let saved = doc.save(None).unwrap();
             let mut reopened = LayoutDocument::open(file, &saved).unwrap();
             assert_eq!(live, document_content(reopened.inspect().unwrap(), &["/selection", "/tool", "/activeLayer"]), "{file}: {command}");
             let after = exchange.replica(&mut doc).unwrap().state_json().unwrap();

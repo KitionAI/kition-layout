@@ -8,7 +8,6 @@
 
 use kition_kit::KitDocument;
 use kition_kit::session::model::{Exchange, ReplicaPort};
-use kition_layout_kdm::kition_kit::kdm::Origin;
 use kition_layout_kit::LayoutDocument;
 use serde_json::{Value, json};
 
@@ -73,11 +72,11 @@ fn made() -> LayoutDocument {
 fn inspect_answers_the_same_ids_after_save_and_reopen() {
     let mut doc = made();
     let want = inspected(&doc);
-    let bytes = doc.seal_and_save(None).unwrap();
+    let bytes = doc.save(None).unwrap();
     doc.mark_saved();
     let mut again = LayoutDocument::open("basic.klayout", &bytes).unwrap();
     assert_eq!(inspected(&again), want);
-    let twice = LayoutDocument::open("basic.klayout", &again.seal_and_save(None).unwrap()).unwrap();
+    let twice = LayoutDocument::open("basic.klayout", &again.save(None).unwrap()).unwrap();
     assert_eq!(inspected(&twice), want);
 }
 
@@ -100,7 +99,7 @@ fn a_failed_run_rolled_back_by_reopening_answers_the_same_ids() {
     // A run that succeeds and is saved.
     run(&mut doc, "frame.create", json!({ "rect": [36, 36, 300, 200], "content": "text", "text": "Headline" }));
     run(&mut doc, "frame.create", json!({ "rect": [36, 400, 300, 500], "content": "graphic" }));
-    let saved = doc.seal_and_save(None).unwrap();
+    let saved = doc.save(None).unwrap();
     doc.mark_saved();
     let before = inspected(&doc);
     // A run whose last step fails.
@@ -108,44 +107,6 @@ fn a_failed_run_rolled_back_by_reopening_answers_the_same_ids() {
     assert!(doc.execute("frame.fitText", json!({ "ids": [999_999] })).is_err(), "the last step fails");
     let rolled_back = LayoutDocument::open("basic.klayout", &saved).unwrap();
     assert_eq!(inspected(&rolled_back), before);
-}
-
-/// Two people each make a frame offline: both engines mint the same next id. After the merge the
-/// two frames have distinct ids, the same on both replicas, kept by saving and reopening.
-#[test]
-fn frames_made_concurrently_end_with_distinct_ids_on_both_replicas() {
-    for a_first in [true, false] {
-        let mut a = LayoutDocument::open("basic.klayout", BASIC).unwrap();
-        let mut b = LayoutDocument::open("basic.klayout", BASIC).unwrap();
-        let mine = run(&mut a, "frame.create", json!({ "rect": [40, 600, 120, 680], "content": "unassigned" }))["id"].as_u64().unwrap();
-        let theirs = b
-            .execute_as("frame.create", json!({ "rect": [300, 600, 380, 680], "content": "unassigned" }), &Origin::person("person:b"))
-            .unwrap()["id"]
-            .as_u64()
-            .unwrap();
-        assert_eq!(mine, theirs, "both engines mint the same id");
-        for _ in 0..3 {
-            let (va, vb) = (a.version().unwrap(), b.version().unwrap());
-            let (to_b, to_a) = (a.export_changes(&vb).unwrap(), b.export_changes(&va).unwrap());
-            if a_first {
-                b.import_changes(&to_b).unwrap();
-                a.import_changes(&to_a).unwrap();
-            } else {
-                a.import_changes(&to_a).unwrap();
-                b.import_changes(&to_b).unwrap();
-            }
-        }
-        let ids = item_ids(&a);
-        assert_eq!(ids, item_ids(&b), "one numbering on both replicas");
-        let mut unique = ids.clone();
-        unique.sort_unstable();
-        unique.dedup();
-        assert_eq!(unique.len(), ids.len(), "no id twice: {ids:?}");
-        assert!(ids.contains(&mine));
-        assert_eq!(inspected(&a), inspected(&b));
-        let reopened = LayoutDocument::open("basic.klayout", &a.seal_and_save(None).unwrap()).unwrap();
-        assert_eq!(item_ids(&reopened), ids);
-    }
 }
 
 /// An item made through the object model (`layout_batch`) gets an id that the next read keeps, and
@@ -170,7 +131,7 @@ fn an_item_made_through_the_object_model_keeps_its_id() {
     let after = item_ids(&doc);
     let new: Vec<u64> = after.iter().filter(|id| !before.contains(id)).copied().collect();
     assert_eq!(new.len(), 1, "{before:?} -> {after:?}");
-    let reopened = LayoutDocument::open("basic.klayout", &doc.seal_and_save(None).unwrap()).unwrap();
+    let reopened = LayoutDocument::open("basic.klayout", &doc.save(None).unwrap()).unwrap();
     assert_eq!(item_ids(&reopened), after);
     let replica = LayoutDocument::model_open_replica("basic.klayout", &doc.model_export(&[]).unwrap(), &[]).unwrap();
     assert_eq!(item_ids(&replica), after);
@@ -184,7 +145,7 @@ fn two_imports_of_one_idml_file_answer_the_same_ids() {
     let mut one = LayoutDocument::open("made.idml", &idml).unwrap();
     let two = LayoutDocument::open("made.idml", &idml).unwrap();
     assert_eq!(inspected(&one), inspected(&two));
-    let saved = LayoutDocument::open("made.klayout", &one.seal_and_save(None).unwrap()).unwrap();
+    let saved = LayoutDocument::open("made.klayout", &one.save(None).unwrap()).unwrap();
     let mut want = inspected(&one);
     let mut got = inspected(&saved);
     for v in [&mut want, &mut got] {

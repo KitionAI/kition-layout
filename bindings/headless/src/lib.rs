@@ -35,7 +35,7 @@ pub fn backend(kit: &KitInfo) -> Headless<LayoutDocument> {
 }
 
 /// Where a `.klayout` file keeps the layout's replica (`document.identity` and `document.fork`, Kit
-/// Process Protocol section 5.6): `content.bin`, the document's content snapshot (no history). A
+/// Process Protocol section 5.6): `content.json`, the document's content (no history). A
 /// fork's file holds the copy's content there, with `meta.json`'s copy of the docId the copy's
 /// (`kition_layout_kdm::file::replace_replica`). An empty file or an IDML package holds none.
 pub struct LayoutFiles;

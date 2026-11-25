@@ -200,7 +200,7 @@ fn plant(root: &Path) {
     std::fs::write(outside.join("book.dcbook"), format!("{{\"documents\": [\"{SECRET}.klayout\"], \"styleSource\": 0}}")).unwrap();
     std::fs::write(outside.join("lib.dclib"), format!("{{\"items\": [{{\"name\": \"{SECRET}\", \"description\": \"\", \"snippet\": \"\"}}]}}"))
         .unwrap();
-    std::fs::write(outside.join("planted.klayout"), layout_with_text(SECRET).seal_and_save(None).unwrap()).unwrap();
+    std::fs::write(outside.join("planted.klayout"), layout_with_text(SECRET).save(None).unwrap()).unwrap();
     std::fs::write(outside.join("planted.idml"), layout_with_text(SECRET).save(Some("planted.idml")).unwrap()).unwrap();
 
     // An IDML package linking a picture in the workspace and three outside it: by absolute path,
@@ -243,7 +243,7 @@ fn plant(root: &Path) {
     let mut doc = LayoutDocument::create("hostile.klayout", 612, 792).unwrap();
     doc.execute("data.source.select", json!({ "path": at(&outside, "source.csv") })).unwrap();
     place(&mut doc, &at(&outside, "swap.png"), 72, 72);
-    std::fs::write(workspace.join("hostile.klayout"), doc.seal_and_save(None).unwrap()).unwrap();
+    std::fs::write(workspace.join("hostile.klayout"), doc.save(None).unwrap()).unwrap();
     std::fs::write(outside.join("source.csv"), format!("name,@photo\n{SECRET},{}\n", at(&outside, "secret4.png"))).unwrap();
     std::fs::write(outside.join("swap.png"), png(OUTSIDE_RGB)).unwrap();
 
