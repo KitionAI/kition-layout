@@ -310,12 +310,21 @@ impl DocState {
     /// (`None` when there was nothing to step).
     pub(crate) fn step(&mut self, undo: bool, scope: UndoScope) -> Result<Option<String>> {
         let Some(kdm) = self.link.kdm.as_mut() else { return Ok(None) };
-        let stepped = if undo { kdm.undo_in(scope) } else { kdm.redo_in(scope) };
-        match stepped {
-            Ok((false, _)) => Ok(None),
-            Ok((true, _)) => {
+        match kdm.step_in(scope, undo) {
+            Ok((outcome, _)) => {
+                // The steps the replica passed over (they changed nothing any more) left its stack
+                // with the one it took back: their labels go too, so the two stay in step.
                 let labels = self.link.labels_mut(scope);
                 let (from, to) = if undo { (&mut labels.undo, &mut labels.redo) } else { (&mut labels.redo, &mut labels.undo) };
+                for _ in 0..outcome.passed.len() {
+                    from.pop();
+                }
+                if !outcome.is_done() {
+                    if !outcome.passed.is_empty() {
+                        self.follow_kdm(true);
+                    }
+                    return Ok(None);
+                }
                 let label = from.pop().unwrap_or_else(|| "Edit".to_owned());
                 to.push(label.clone());
                 self.follow_kdm(true);
@@ -537,6 +546,56 @@ impl Session {
             && self.preview(&cmd, params).is_err()
         {
             self.cancel_interaction();
+        }
+        Ok(damage)
+    }
+
+    /// Takes a draft's changes (an agent's draft, on this document's line of changes) into the
+    /// active document as one undo step of `origin`'s scope, labelled `Merge Draft`: the
+    /// document follows, as after an import. A live interaction and a data-merge preview end
+    /// first; local edits not written yet are written first. A refused merge changes nothing.
+    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<Damage> {
+        self.take_in(origin, "Merge Draft", |kdm, origin| kdm.merge_changes(bytes, origin))
+    }
+
+    /// Writes the state `snapshot` holds (a checkpoint of this document) over the active
+    /// document by object id as one undo step of `origin`'s scope, labelled `Restore Version`;
+    /// the document follows. Nothing changes when the states are equal; another document's
+    /// snapshot is refused.
+    pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<Damage> {
+        self.take_in(origin, "Restore Version", |kdm, origin| kdm.restore_state(snapshot, origin))
+    }
+
+    fn take_in(
+        &mut self,
+        origin: &Origin,
+        label: &str,
+        write: impl FnOnce(&mut LayoutSession, &Origin) -> kition_layout_kdm::kition_kit::session::Result<(u32, Damage)>,
+    ) -> Result<Damage> {
+        self.cancel_interaction();
+        self.stop_data_preview();
+        let st = self.doc_mut()?;
+        let kdm = st.ensure_kdm(origin)?;
+        let before = kdm.version();
+        let result = write(kdm, origin);
+        let changed = kdm.version() != before;
+        let (steps, damage) = match result {
+            Ok(answer) => answer,
+            Err(error) if changed => {
+                // It went in but the view could not follow: leave the replica rather than diff
+                // the next edit against a view it no longer holds.
+                st.detach_kdm();
+                return Err(kdm_error(error));
+            }
+            Err(error) => return Err(kdm_error(error)),
+        };
+        if steps > 0 {
+            let labels = st.link.labels_mut(scope_of(origin));
+            labels.undo.push(label.to_owned());
+            labels.redo.clear();
+        }
+        if changed {
+            st.follow_kdm(false);
         }
         Ok(damage)
     }

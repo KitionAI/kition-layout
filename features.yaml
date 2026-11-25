@@ -134,6 +134,16 @@ features:
     requirements: [AX11, E4]
     cases: [regressions/issue-host-files-only, regressions/issue-writes-outside-workspace]
     since: "2026-11-17"
+  - id: layout.collab.drafts
+    title: "Drafts merge in and earlier versions restore as one undo step"
+    dimension: [collab, data-safety]
+    priority: P1
+    status: partial
+    paths: [bindings/wasm/src/collab.rs, bindings/wasm/src/lib.rs, crates/engine/engine/src/replica.rs, crates/kdm/kdm-model/src/session.rs]
+    target: "Kit UI protocol section 7 (replica/restore); engine contract K3a members mergeChanges, compareChanges, restoreState, changesSince, modelReply, modelBatch, modelDescribe"
+    gap: "Engine tests merge a draft, compare it first, restore a version, name reply ids, answer receipts and the object model; test:contract checks the built engine exports every member; no case drives a draft or a restore in the editor yet."
+    cases: [layout.collab.drafts/engine-members]
+    since: "2026-11-25"
   - id: layout.collab.coedit
     title: "Real-time co-editing: editors converge, viewers cannot write, an offline page catches up"
     dimension: [collab]

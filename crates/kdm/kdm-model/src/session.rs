@@ -22,7 +22,7 @@
 use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 
-use kition_kit::kdm::{ActorId, DocId, KdmError, ObjectId, Origin, OriginKind, Replica, Tx, UndoScope, Version};
+use kition_kit::kdm::{ActorId, DocId, KdmError, ObjectId, Origin, OriginKind, Replica, Tx, UndoOutcome, UndoScope, Version};
 use kition_kit::session::{BlobSource, Damage, KitError, KitModel, MemoryBlobs};
 use kition_layout_doc::Document;
 
@@ -206,23 +206,26 @@ impl LayoutSession {
     /// other scope's steps, Kition platform KitModel 1.1 M12a), repairs the result and patches the
     /// view. Answers whether there was one, and the damage.
     pub fn undo_in(&mut self, scope: UndoScope) -> Result<(bool, Damage)> {
-        if !self.can_undo_in(scope) {
-            return Ok((false, Damage::None));
-        }
-        self.group = None;
-        let done = self.replica.undo_in(scope).map_err(kit_err)?;
-        let damage = self.settle()?;
-        Ok((done, damage))
+        self.step_in(scope, true).map(|(outcome, damage)| (outcome.is_done(), damage))
     }
 
     pub fn redo_in(&mut self, scope: UndoScope) -> Result<(bool, Damage)> {
-        if !self.can_redo_in(scope) {
-            return Ok((false, Damage::None));
+        self.step_in(scope, false).map(|(outcome, damage)| (outcome.is_done(), damage))
+    }
+
+    /// [`LayoutSession::undo_in`] (`undo`) or [`LayoutSession::redo_in`], answering what the
+    /// replica took off its stack ([`UndoOutcome`]: the steps it passed over, which changed
+    /// nothing any more, and the one it took back), so a history kept beside the replica's (the
+    /// engine's step labels) stays in step with it.
+    pub fn step_in(&mut self, scope: UndoScope, undo: bool) -> Result<(UndoOutcome, Damage)> {
+        let possible = if undo { self.can_undo_in(scope) } else { self.can_redo_in(scope) };
+        if !possible {
+            return Ok((UndoOutcome::default(), Damage::None));
         }
         self.group = None;
-        let done = self.replica.redo_in(scope).map_err(kit_err)?;
+        let outcome = if undo { self.replica.undo_in(scope) } else { self.replica.redo_in(scope) }.map_err(kit_err)?;
         let damage = self.settle()?;
-        Ok((done, damage))
+        Ok((outcome, damage))
     }
 
     pub fn can_undo_in(&self, scope: UndoScope) -> bool {
@@ -259,6 +262,57 @@ impl LayoutSession {
         self.end_undo_group();
         self.replica.import_changes(bytes).map_err(kit_err)?;
         self.settle()
+    }
+
+    /// Takes a draft's changes (made on a replica of this one's line, an agent's draft) in as one
+    /// transaction of `origin` (`Replica::merge_changes`): one undo step of its scope unless
+    /// `origin` is a `system` or `import` one; the edits made here since the draft began stay.
+    /// Repairs the result and patches the view as an import does; add the draft's blobs first
+    /// ([`LayoutSession::add_blobs`]). Answers the undo steps it made (1 or 0) and the damage. A
+    /// refused merge changes nothing.
+    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<(u32, Damage)> {
+        self.end_undo_group();
+        let before = self.replica.version();
+        self.replica.merge_changes(bytes, origin).map_err(kit_err)?;
+        self.took_in(&before, origin)
+    }
+
+    /// Writes the state `snapshot` holds (a snapshot or content of this document, as a host's
+    /// checkpoint keeps it) over the replica as one transaction of `origin`, keyed by object id
+    /// (`kition_kit::session::write_state`), so every object the two share keeps its id: one undo
+    /// step of its scope unless `origin` is a `system` or `import` one. Nothing changes when the
+    /// states are equal. Refuses another document's snapshot. Add the blobs it references first.
+    pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<(u32, Damage)> {
+        self.end_undo_group();
+        let schema = LayoutModel::schema();
+        let loaded = Replica::load(Arc::clone(&schema), snapshot, ActorId::random()).map_err(kit_err)?;
+        if loaded.doc_id() != self.replica.doc_id() {
+            return Err(kit_err(KdmError::WrongDocument { expected: self.replica.doc_id().to_string(), found: loaded.doc_id().to_string() }));
+        }
+        let (now, then) = (kition_kit::session::state(&self.replica)?, kition_kit::session::state(&loaded)?);
+        if now == then {
+            return Ok((0, Damage::None));
+        }
+        let before = self.replica.version();
+        let result = transact(&mut self.replica, origin, |tx| kition_kit::session::write_state(tx, &schema, &now, &then).map(|()| true));
+        if let Err(error) = result {
+            self.replica.take_changed();
+            return Err(error);
+        }
+        self.took_in(&before, origin)
+    }
+
+    /// After a merge or a restore wrote one transaction of `origin` since `before`: repairs and
+    /// patches the view as an import does; answers whether that is an undo step (1 or 0).
+    fn took_in(&mut self, before: &Version, origin: &Origin) -> Result<(u32, Damage)> {
+        let wrote = self.replica.version() != *before;
+        let referenced_now = referenced(&self.replica);
+        let damage = self.settle()?;
+        let added: Vec<String> = referenced_now.into_iter().filter(|hash| self.blobs.0.contains_key(hash)).collect();
+        if wrote {
+            self.log_added(added);
+        }
+        Ok((u32::from(wrote && undoable(origin)), damage))
     }
 
     /// The blobs a peer at `since` needs to reach this session's state: the hashes logged for a

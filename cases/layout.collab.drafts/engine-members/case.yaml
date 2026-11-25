@@ -1,0 +1,28 @@
+format: 1
+id: layout.collab.drafts/engine-members
+feature: layout.collab.drafts
+intent: >-
+  The engine's own contract 2 members (engine contract K3a), at the engine: a draft on the
+  layout's line of changes merges in as one undo step of the person, the comparison beforehand
+  names what the merge does and changes nothing, an edit made meanwhile stays and a refused merge
+  changes nothing; a checkpoint's state is restored by object id as one undo step, the same state
+  again changes nothing and another document's is refused; a reply names objects by tool id; a
+  receipt names what changed since a version or says it is unavailable; modelDescribe and
+  modelBatch answer the object model.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/src/collab.rs (tests)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, filter: a_draft_merges_in_as_one_undo_step_and_the_layout_follows }
+  - cargo-test: { package: kition-layout-kit, filter: a_restored_state_keeps_the_ids_and_undoes_as_one_step }
+  - cargo-test: { package: kition-layout-kit, filter: a_reply_names_objects_by_their_tool_ids }
+  - cargo-test: { package: kition-layout-kit, filter: changes_since_answers_a_receipt_or_unavailable }
+  - cargo-test: { package: kition-layout-kit, filter: model_describe_and_model_batch_answer_the_object_model }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"
