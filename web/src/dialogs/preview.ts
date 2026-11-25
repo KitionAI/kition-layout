@@ -3,8 +3,11 @@ import { useKitEditor, type PreviewDialogPreview } from '@kition/sdk/editor'
 import { useEditorView } from '../viewContext'
 import { refusalReason } from '../menus/context'
 
-/** A dialog's live preview, with `keep`: what OK calls first (true when it kept the preview as the step). */
-export type CommandPreview = PreviewDialogPreview & { keep: (params: Record<string, unknown>) => Promise<boolean> }
+/**
+ * A dialog's live preview, with `keep`: what OK calls first (true when it kept the preview as the
+ * step), and `discard`: what Cancel waits for (the preview taken back before the dialog closes).
+ */
+export type CommandPreview = PreviewDialogPreview & { keep: (params: Record<string, unknown>) => Promise<boolean>; discard: () => Promise<void> }
 
 /**
  * A dialog's live preview (plan 2026-11-25, stage 3), for kit-editor's `PreviewDialog`: while
@@ -66,6 +69,13 @@ export function useCommandPreview(command: string, params: Record<string, unknow
           ending = null
           void cancel()
         }, 0)
+      },
+      // Cancel takes the preview back at once and the dialog closes after it (plan stage 4: with
+      // the panels reading every change, a deferred take-back could land after the dialog closed).
+      discard: async () => {
+        if (ending) clearTimeout(ending)
+        ending = null
+        await cancel()
       },
       keep: async (values) => {
         const waiting = ending !== null

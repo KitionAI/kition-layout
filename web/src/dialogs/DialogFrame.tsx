@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { PreviewDialog, useKitEditor, type PreviewDialogPreview } from '@kition/sdk/editor'
+import { PreviewDialog, useKitEditor } from '@kition/sdk/editor'
+import type { CommandPreview } from './preview'
 import { refusalReason } from '../menus/context'
 
 /** The test id every command dialog has (its buttons: `-ok`, `-cancel`). */
@@ -71,7 +72,7 @@ export function DialogFrame({
   cancelLabel?: string
   keepOpen?: boolean
   modal?: boolean
-  preview?: PreviewDialogPreview
+  preview?: CommandPreview
   children: ReactNode
 }) {
   const place = useDialogPlace()
@@ -90,7 +91,11 @@ export function DialogFrame({
         await onOk()
         if (!keepOpen) onClose(true)
       }}
-      onCancel={() => onClose(false)}
+      onCancel={() => {
+        // The preview is taken back before the dialog goes, so nothing of it outlasts the dialog.
+        if (preview) void preview.discard().finally(() => onClose(false))
+        else onClose(false)
+      }}
       onReset={onReset}
       testId={DIALOG_TEST_ID}
     >
