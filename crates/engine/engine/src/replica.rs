@@ -763,7 +763,7 @@ mod tests {
         assert!(!s.doc().unwrap().can_undo(), "nothing written while the drag lasts");
         s.pointer(&PointerEvent::new(PointerKind::Up, 60.0, 50.0), v).unwrap();
         assert_eq!(s.doc().unwrap().undo_steps(), 1);
-        let script = "frame.add {\"rect\": [300, 300, 350, 350]}\nframe.create {\"rect\": [400, 400, 450, 450]}";
+        let script = "frame.add {\"rect\": [300, 300, 350, 350]}\nframe.add {\"rect\": [400, 400, 450, 450]}";
         s.execute("script.run", &json!({"text": script})).unwrap();
         assert_eq!(s.doc().unwrap().undo_steps(), 2);
         s.execute("edit.undo", &json!({})).unwrap();

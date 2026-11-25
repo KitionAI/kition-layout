@@ -167,8 +167,8 @@ mod tests {
     #[test]
     fn parses_all_forms() {
         let a = parse(r#"[{"command": "file.new"}, {"command": "frame.add", "params": {"rect": [0, 0, 10, 10]}}]"#).unwrap();
-        let b = parse("# comment\nfile.new\n\nframe.create {\"rect\": [0, 0, 10, 10]}\n").unwrap();
-        let c = parse("{\"command\": \"file.new\"}\nframe.create={\"rect\": [0, 0, 10, 10]}").unwrap();
+        let b = parse("# comment\nfile.new\n\nframe.add {\"rect\": [0, 0, 10, 10]}\n").unwrap();
+        let c = parse("{\"command\": \"file.new\"}\nframe.add={\"rect\": [0, 0, 10, 10]}").unwrap();
         assert_eq!(a, b);
         assert_eq!(a, c);
         assert!(parse("frame.add {bad").unwrap_err().contains("line 1"));

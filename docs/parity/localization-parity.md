@@ -44,7 +44,7 @@ it, nb, nl, pl, ro, ru, sq, sv, tr, uk, zh_TW); the editor ships none of them.
 
 InDesign 2026 hyphenates and spell-checks ~40 languages (Hunspell and Duden dictionaries).
 Kition Layout hyphenates **English and Spanish** and spell-checks **English** only. Text language
-can be set per paragraph and character (`type.char`, `type.para`) and drives quotes and
+can be set per paragraph and character (`text.char`, `text.para`) and drives quotes and
 locale shaping. See [typography-parity.md](typography-parity.md).
 
 ## Remaining effort
