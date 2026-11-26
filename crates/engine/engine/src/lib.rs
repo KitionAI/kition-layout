@@ -664,6 +664,8 @@ mod tests_idml;
 #[cfg(test)]
 mod tests_images;
 #[cfg(test)]
+mod tests_incremental;
+#[cfg(test)]
 mod tests_panels;
 #[cfg(test)]
 mod tests_paths;

@@ -97,11 +97,15 @@ pub fn damage_with(old: &Document, new: &Document, cache: Option<&kition_layout_
             && let Some(prev) = c.composed_for(old, sid)
         {
             let cur = c.get(new, sid, None);
-            let changed = kition_layout_compose::Cache::changed_frames(&prev, &cur);
-            for f in changed {
+            // Only the lines that look different (typing repaints the lines it reflows).
+            for (f, bands) in kition_layout_compose::Cache::changed_bands(&prev, &cur) {
                 for d in [old, new] {
-                    if d.find(f).is_some() {
-                        out.push(frame_area(d, f)?);
+                    if d.find(f).is_none() {
+                        continue;
+                    }
+                    match bands.as_deref().and_then(|bands| band_areas(d, f, bands)) {
+                        Some(areas) => out.extend(areas),
+                        None => out.push(frame_area(d, f)?),
                     }
                 }
             }
@@ -157,6 +161,29 @@ fn item_area(it: &Item) -> Option<Rect> {
     }
     let pad = it.stroke.extent().max(0.0) + 2.0 + if it.is_text_frame() { 24.0 } else { 0.0 };
     Some(it.bounds().inflate(pad, pad))
+}
+
+/// Bands of a text frame's lines (inner space, top and bottom) on its spread, across the frame with
+/// the room [`frame_area`] leaves for overhang. `None` for frames whose lines are not laid in the
+/// frame's own space (vertical type, type on a path).
+fn band_areas(d: &Document, f: ItemId, bands: &[(f64, f64)]) -> Option<Vec<(SpreadRef, Rect)>> {
+    let loc = d.find(f)?;
+    let it = d.item_at(&loc)?;
+    let tf = it.text_frame()?;
+    if d.frame_vertical(it) || tf.options.path.is_some() {
+        return None;
+    }
+    let xf = d.parent_xf(&loc) * it.xf;
+    let inner = it.path.bounds()?;
+    let pad = 24.0 + 0.1 * inner.width().max(inner.height());
+    Some(
+        bands
+            .iter()
+            .map(|&(top, bottom)| {
+                (loc.spread, xf.transform_rect_bbox(Rect::new(inner.x0 - pad, top.min(bottom), inner.x1 + pad, top.max(bottom))).inflate(2.0, 2.0))
+            })
+            .collect(),
+    )
 }
 
 /// A text frame's area: its spread and bounds with room for glyph overhang.

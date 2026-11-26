@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-walk-typing-repaint
+feature: layout.ui.text-and-tables
+intent: >-
+  Each typed character redrew the whole view (about 25 ms in the web engine). The same view after
+  an edit now repaints only the lines the edit reflowed, and the picture is the one a full render
+  gives.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (after phase 9, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, filter: a_typed_character_repaints_the_lines_it_reflows }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

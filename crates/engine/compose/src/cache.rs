@@ -20,6 +20,11 @@ struct Entry {
     _keep: (Arc<Story>, Arc<Styles>, Vec<Arc<Item>>),
     out: Arc<ComposedStory>,
     stamp: u64,
+    /// What the next composition of the story reuses (incremental composition), with the part of
+    /// the signature that isn't the story or its frames: the next one reuses this one only when
+    /// that part is the same.
+    trace: Option<Arc<crate::Trace>>,
+    env: Vec<usize>,
 }
 
 #[derive(Default)]
@@ -59,6 +64,7 @@ impl Cache {
     pub fn get(&self, doc: &Document, sid: StoryId, page_name: Option<&str>) -> Arc<ComposedStory> {
         let Some(story) = doc.stories.get(&sid) else { return Arc::new(ComposedStory { story: sid, ..Default::default() }) };
         let (mut sig, keep_items) = signature(doc, story);
+        let base = sig.len();
         let key = (sid, page_name.map(str::to_string));
         let with_vars = crate::vars::has_vars(story);
         let running = with_vars && crate::vars::has_running(doc, story);
@@ -114,34 +120,52 @@ impl Cache {
         for l in &doc.settings.lists {
             sig.push(doc.list_start(sid, &l.name) as usize);
         }
-        {
+        // Everything the composition reads besides the story and its frames: the styles, the font
+        // scope, the sections (page numbers) and the document settings above.
+        let env: Vec<usize> = {
+            use std::hash::{Hash, Hasher};
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            format!("{:?}", doc.sections).hash(&mut h);
+            [Arc::as_ptr(&doc.styles) as usize, doc.font_scope as usize, h.finish() as usize]
+                .into_iter()
+                .chain(sig.get(base..).unwrap_or_default().iter().copied())
+                .collect()
+        };
+        let prev = {
             let mut g = self.map.lock().unwrap_or_else(|e| e.into_inner());
             g.1 += 1;
             let stamp = g.1;
-            if let Some(e) = g.0.get_mut(&key)
-                && e.sig == sig
-            {
-                e.stamp = stamp;
-                return e.out.clone();
+            match g.0.get_mut(&key) {
+                Some(e) if e.sig == sig => {
+                    e.stamp = stamp;
+                    return e.out.clone();
+                }
+                Some(e) if key.1.is_none() && e.env == env => e.trace.clone().map(|t| (t, e.out.clone(), e._keep.0.clone())),
+                _ => None,
             }
-        }
+        };
         // Parent-page items are composed per page; variables need that page's index.
         let page = match page_name {
             Some(n) if with_vars => (0..doc.page_count()).find(|&i| doc.page_name(i) == n),
             _ => None,
         };
         let running = running.then(|| self.running_index(doc));
-        let out = Arc::new(crate::compose_story(
+        let (out, trace) = crate::compose_story_traced(
             doc,
             sid,
             &ComposeOptions { page_name: page_name.map(str::to_string), page, running, label: None, xrefs: with_xrefs.then(|| self.xref_index(doc)) },
-        ));
+            prev.as_ref().map(|(trace, out, story)| crate::Prev { story, out, trace }),
+        );
+        let out = Arc::new(out);
         let mut g = self.map.lock().unwrap_or_else(|e| e.into_inner());
         let stamp = g.1;
         if g.0.len() > 4096 {
             g.0.retain(|_, e| stamp - e.stamp < 64);
         }
-        let replaced = g.0.insert(key.clone(), Entry { sig, _keep: (story.clone(), doc.styles.clone(), keep_items), out: out.clone(), stamp });
+        let replaced = g.0.insert(
+            key.clone(),
+            Entry { sig, _keep: (story.clone(), doc.styles.clone(), keep_items), out: out.clone(), stamp, trace: trace.map(Arc::new), env },
+        );
         drop(g);
         if key.1.is_none()
             && let Some(old) = replaced
@@ -203,6 +227,92 @@ impl Cache {
         for fa in &a.frames {
             if b.frame(fa.frame).is_none() {
                 out.push(fa.frame);
+            }
+        }
+        out
+    }
+
+    /// What changed on screen between two compositions of a story, per frame: `None` for the
+    /// whole frame, or the vertical bands (frame inner space, top and bottom) of the lines that
+    /// look different. Text moved within the story without moving on the page (typing before it
+    /// shifts every byte offset) is not a change. Frames with tables, footnotes or anchored
+    /// objects, other decorations or other columns change whole.
+    pub fn changed_bands(a: &ComposedStory, b: &ComposedStory) -> Vec<(kition_layout_doc::ItemId, Option<Vec<(f64, f64)>>)> {
+        // Style indices mean the same in both when one table starts with the other.
+        let n = a.styles.len().min(b.styles.len());
+        let styles_agree = a.styles.get(..n) == b.styles.get(..n);
+        let same_glyph = |g: &crate::PlacedGlyph, h: &crate::PlacedGlyph| {
+            g.face == h.face
+                && g.gid == h.gid
+                && g.x == h.x
+                && g.y == h.y
+                && g.adv == h.adv
+                && g.sx == h.sx
+                && g.sy == h.sy
+                && g.style == h.style
+                && g.len == h.len
+                && g.visible == h.visible
+                && g.upright == h.upright
+                && g.tcy == h.tcy
+                && g.rtl == h.rtl
+        };
+        let same_line = |x: &crate::Line, y: &crate::Line| {
+            x.baseline == y.baseline
+                && x.x0 == y.x0
+                && x.x1 == y.x1
+                && x.ascent == y.ascent
+                && x.descent == y.descent
+                && x.end_x == y.end_x
+                && x.column == y.column
+                && x.hyphenated == y.hyphenated
+                && x.hj == y.hj
+                && x.keep_violation == y.keep_violation
+                && x.glyphs.len() == y.glyphs.len()
+                && x.glyphs.iter().zip(&y.glyphs).all(|(g, h)| same_glyph(g, h))
+        };
+        // A line's band, with a line's height of room for accents, rules and baseline shifts.
+        let band = |l: &crate::Line| {
+            let pad = (2.0 * (l.ascent + l.descent)).max(12.0);
+            (l.baseline - l.ascent - pad, l.baseline + l.descent + pad)
+        };
+        let mut out = Vec::new();
+        for fb in &b.frames {
+            let Some(fa) = a.frame(fb.frame) else {
+                out.push((fb.frame, None));
+                continue;
+            };
+            let whole = !styles_agree
+                || fa.vertical != fb.vertical
+                || fa.columns != fb.columns
+                || fa.decos != fb.decos
+                || !(fa.tables.is_empty() && fb.tables.is_empty() && fa.notes.is_empty() && fb.notes.is_empty())
+                || !(fa.objects.is_empty() && fb.objects.is_empty());
+            if whole {
+                out.push((fb.frame, None));
+                continue;
+            }
+            let mut bands: Vec<(f64, f64)> = Vec::new();
+            let mut add = |(t, z): (f64, f64)| match bands.last_mut() {
+                Some(last) if t <= last.1 => *last = (last.0.min(t), last.1.max(z)),
+                _ => bands.push((t, z)),
+            };
+            for i in 0..fa.lines.len().max(fb.lines.len()) {
+                match (fa.lines.get(i), fb.lines.get(i)) {
+                    (Some(x), Some(y)) if same_line(x, y) => {}
+                    (x, y) => {
+                        for l in [x, y].into_iter().flatten() {
+                            add(band(l));
+                        }
+                    }
+                }
+            }
+            if !bands.is_empty() {
+                out.push((fb.frame, Some(bands)));
+            }
+        }
+        for fa in &a.frames {
+            if b.frame(fa.frame).is_none() {
+                out.push((fa.frame, None));
             }
         }
         out

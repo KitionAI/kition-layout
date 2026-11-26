@@ -74,7 +74,31 @@ pub struct LayoutDocument {
     /// How many presses in a row the next press completes (the editor counts them: the Kit tools'
     /// pointer event has no count), for the Type tool's double, triple and more clicks.
     clicks: u8,
+    /// The last picture `draw` made, so the next one of the same view repaints only what changed
+    /// (plan 2026-11-25, phase 10: a typed character repaints the lines it reflows), and the
+    /// renderer for those patches (its own canvas size, so the view's stays allocated).
+    painted: RefCell<Option<Painted>>,
+    patcher: RefCell<Renderer>,
 }
+
+/// A picture `draw` made: what it showed and how.
+struct Painted {
+    doc: std::sync::Arc<kition_layout_doc::Document>,
+    /// `x`, `y`, `scale` (bits), width and height.
+    view: (u64, u64, u64, u32, u32),
+    /// The render options and the font generation it was drawn with.
+    look: String,
+    slots: Vec<Placed>,
+    pixels: Vec<u8>,
+    /// The size of the last patch drawn into it (tests bound the repaint with it).
+    patch: Option<(u32, u32)>,
+}
+
+/// Bumped whenever fonts are added: text already drawn may now draw in another face.
+static FONT_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// A patch is drawn when it covers less than this share of the view; above, the whole view is.
+const PATCH_SHARE: f64 = 0.6;
 
 /// The next [`LayoutDocument::editor_owner`].
 static NEXT_EDITOR_OWNER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -104,6 +128,8 @@ impl LayoutDocument {
             editor_owner,
             view: ViewOptions::default(),
             clicks: 1,
+            painted: RefCell::new(None),
+            patcher: RefCell::new(Renderer::new()),
         };
         document.commands();
         document
@@ -155,10 +181,30 @@ impl LayoutDocument {
             printing_only: preview,
             ..Default::default()
         };
+        let ghost = self.session.content_ghost();
+        let key = (x.to_bits(), y.to_bits(), scale.to_bits(), width, height);
+        let look = format!("{options:?} {}", FONT_GENERATION.load(std::sync::atomic::Ordering::Relaxed));
+        // The same view as the last picture, after an edit: repaint only what it changed.
+        if ghost.is_none()
+            && !preview
+            && let Some(pixels) = self.patch(&state.doc, key, &look, &placed, view, &options)
+        {
+            return Ok(pixels);
+        }
         let mut renderer = self.renderer.try_borrow_mut().map_err(|_| "the renderer is busy".to_owned())?;
         let mut pixels = renderer.render(&state.doc, &self.session.cache, &placed, width, height, view, &options).to_straight();
+        if let Ok(mut painted) = self.painted.try_borrow_mut() {
+            *painted = (ghost.is_none() && !preview).then(|| Painted {
+                doc: state.doc.clone(),
+                view: key,
+                look,
+                slots: placed.clone(),
+                pixels: pixels.clone(),
+                patch: None,
+            });
+        }
         // A graphic moved or sized inside its frame shows whole, faintly, outside the frame too.
-        if let Some(copy) = self.session.content_ghost().and_then(|id| ghost::document(&state.doc, id)) {
+        if let Some(copy) = ghost.and_then(|id| ghost::document(&state.doc, id)) {
             let bare = RenderOptions { background: None, paper: false, page_shadow: false, ..options.clone() };
             let faint = renderer.render(&copy, &self.session.cache, &placed, width, height, view, &bare).to_straight();
             ghost::blend(&mut pixels, &faint);
@@ -183,6 +229,62 @@ impl LayoutDocument {
 
     fn view(&self, zoom: f64) -> ViewInfo {
         self.view.info(zoom)
+    }
+
+    /// The last picture with the parts `doc` changed since it drawn again, when it showed the same
+    /// view with the same options and the change is small; `None` to draw the whole view.
+    fn patch(
+        &self,
+        doc: &std::sync::Arc<kition_layout_doc::Document>,
+        key: (u64, u64, u64, u32, u32),
+        look: &str,
+        placed: &[Placed],
+        view: Affine,
+        options: &RenderOptions,
+    ) -> Option<Vec<u8>> {
+        let mut slot = self.painted.try_borrow_mut().ok()?;
+        let last = slot.as_mut()?;
+        // The same document asked for again (fonts or images may have arrived): all of it.
+        if last.view != key || last.look != look || last.slots.as_slice() != placed || std::sync::Arc::ptr_eq(&last.doc, doc) {
+            return None;
+        }
+        let (width, height) = (key.3, key.4);
+        let regions = kition_layout_render::damage::damage_with(&last.doc, doc, Some(&self.session.cache))?;
+        let mut area: Option<Rect> = None;
+        for (spread, rect) in regions {
+            let at = placed.iter().find(|p| p.spread == spread)?;
+            let r = (view * at.xf).transform_rect_bbox(rect);
+            area = Some(area.map_or(r, |a| a.union(r)));
+        }
+        let Some(area) = area else {
+            last.doc = doc.clone();
+            last.patch = Some((0, 0));
+            return Some(last.pixels.clone());
+        };
+        let x0 = area.x0.floor().max(0.0);
+        let y0 = area.y0.floor().max(0.0);
+        let x1 = area.x1.ceil().min(f64::from(width));
+        let y1 = area.y1.ceil().min(f64::from(height));
+        if x1 <= x0 || y1 <= y0 {
+            last.doc = doc.clone();
+            last.patch = Some((0, 0));
+            return Some(last.pixels.clone());
+        }
+        if (x1 - x0) * (y1 - y0) > PATCH_SHARE * f64::from(width) * f64::from(height) {
+            return None;
+        }
+        let (px, py, pw, ph) = (x0 as u32, y0 as u32, (x1 - x0) as u32, (y1 - y0) as u32);
+        let mut patcher = self.patcher.try_borrow_mut().ok()?;
+        let patch = patcher.render(doc, &self.session.cache, placed, pw, ph, Affine::translate((-x0, -y0)) * view, options).to_straight();
+        let row = pw as usize * 4;
+        for r in 0..ph as usize {
+            let to = ((py as usize + r) * width as usize + px as usize) * 4;
+            let (Some(src), Some(dst)) = (patch.get(r * row..(r + 1) * row), last.pixels.get_mut(to..to + row)) else { return None };
+            dst.copy_from_slice(src);
+        }
+        last.doc = doc.clone();
+        last.patch = Some((pw, ph));
+        Some(last.pixels.clone())
     }
 
     /// The engine's answer after an event: its requests, overlays with the selection and text
@@ -759,7 +861,11 @@ kition_kit::export_kit_document!(LayoutDocument as "LayoutDocument");
 /// Chinese in a web build, which has no system fonts to fall back on (standard E9). Returns the
 /// faces added.
 pub fn add_font(bytes: &[u8]) -> usize {
-    kition_layout_fonts::FontDb::global().add_font(bytes.to_vec())
+    let added = kition_layout_fonts::FontDb::global().add_font(bytes.to_vec());
+    if added > 0 {
+        FONT_GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+    added
 }
 
 impl LayoutDocument {
@@ -1251,6 +1357,32 @@ mod tests {
         assert!(per_key <= 1.0, "a typed character composes the story once, not {per_key} times");
         let text = doc.execute("story.get", json!({ "story": story })).unwrap()["text"].as_str().unwrap().to_owned();
         assert!(text.starts_with("Typed1. "), "{}", &text[..20]);
+    }
+
+    /// Plan 2026-11-25, phase 10: after a typed character the same view is drawn again by
+    /// repainting the lines the character reflowed, and the picture is the one a full render gives.
+    #[test]
+    fn a_typed_character_repaints_the_lines_it_reflows() {
+        let (mut doc, _) = long_threaded_story();
+        let (w, h) = (900u32, 700u32);
+        doc.render(0.0, 0.0, 1.0, w, h).unwrap();
+        let mut patched = 0;
+        for letter in "Typed at the start, enough to move words to the next line and add one: ".split_inclusive(|_: char| true) {
+            kition_kit::tools::KitTools::text(&mut doc, letter, 1.0).unwrap();
+            let picture = doc.render(0.0, 0.0, 1.0, w, h).unwrap();
+            let patch = doc.painted.borrow().as_ref().and_then(|p| p.patch);
+            // The same picture drawn whole, by a renderer that has drawn nothing before.
+            *doc.painted.borrow_mut() = None;
+            *doc.renderer.borrow_mut() = Renderer::new();
+            let full = doc.render(0.0, 0.0, 1.0, w, h).unwrap();
+            let off = picture.iter().zip(&full).filter(|(a, b)| a.abs_diff(**b) > 2).count();
+            assert_eq!(off, 0, "after {letter:?} the repainted picture differs from a full one in {off} channels");
+            if let Some((pw, ph)) = patch {
+                assert!(u64::from(pw) * u64::from(ph) * 4 < u64::from(w) * u64::from(h), "a patch of {pw}×{ph} for one character");
+                patched += 1;
+            }
+        }
+        assert!(patched > 40, "most characters repaint a patch, not the view: {patched}");
     }
 
     #[test]

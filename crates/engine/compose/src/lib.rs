@@ -14,6 +14,7 @@ mod bidi;
 pub mod breaker;
 mod cache;
 pub mod hyphen;
+mod incremental;
 mod notes;
 mod overlay;
 mod ruby;
@@ -37,6 +38,7 @@ use kition_layout_geom::{Point, Rect};
 
 use crate::breaker::{Break, Spacing};
 pub use crate::cache::Cache;
+pub use crate::incremental::{Prev, Trace, paragraphs_laid_on_this_thread};
 use crate::notes::Notes;
 pub use crate::notes::{find_note, hit_note, note_caret};
 use crate::shape::{Glyph, StyleTable, SubstCtx};
@@ -292,7 +294,7 @@ pub struct Exclusion {
 }
 
 /// One frame of the thread, ready for composition.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FrameSpec {
     pub id: ItemId,
     /// Text area (inner space, after inset).
@@ -468,6 +470,18 @@ pub fn compose_story(doc: &Document, sid: StoryId, opts: &ComposeOptions) -> Com
     }
 }
 
+/// [`compose_story`] reusing the previous composition of the story where the edit since then
+/// leaves it unchanged (see [`Trace`]), with the trace for the next one (`None` for stories
+/// that are always composed in full).
+pub fn compose_story_traced(doc: &Document, sid: StoryId, opts: &ComposeOptions, prev: Option<Prev<'_>>) -> (ComposedStory, Option<Trace>) {
+    COMPOSED.with(|count| count.set(count.get().saturating_add(1)));
+    let specs = frame_specs(doc, sid);
+    match doc.story(sid) {
+        Some(st) => compose_traced(doc, st, &specs, opts, FontDb::global(), prev, true),
+        None => (ComposedStory { story: sid, ..Default::default() }, None),
+    }
+}
+
 const DEFAULT_TAB: f64 = 36.0;
 
 /// Compose `story` into `frames`.
@@ -476,6 +490,19 @@ pub fn compose(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &Compo
 }
 
 fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &ComposeOptions, db: &FontDb) -> ComposedStory {
+    compose_traced(doc, story, frames, opts, db, None, false).0
+}
+
+#[allow(clippy::too_many_arguments)]
+fn compose_traced(
+    doc: &Document,
+    story: &Story,
+    frames: &[FrameSpec],
+    opts: &ComposeOptions,
+    db: &FontDb,
+    prev: Option<Prev<'_>>,
+    want_trace: bool,
+) -> (ComposedStory, Option<Trace>) {
     let db = &db.scoped(doc.font_scope);
     let mut out = ComposedStory { story: story.id, rev: story.rev, text_len: story.text.len(), ..Default::default() };
     let mut styles_tab: Vec<RunStyle> = Vec::new();
@@ -510,6 +537,14 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
     };
     let para_ranges = story.para_ranges();
     let np = para_ranges.len();
+    // Incremental composition (see `incremental`): where to resume and when to stop.
+    let traced = want_trace && incremental::eligible(doc, story, frames, opts);
+    let run_starts = if traced { incremental::run_starts(story) } else { Vec::new() };
+    let plan = match prev {
+        Some(p) if traced => incremental::plan(&p, story, &run_starts, &para_ranges, frames),
+        _ => None,
+    };
+    let prev = prev.filter(|_| plan.is_some());
     let hyph_exceptions = doc.hyphenation_exception_map();
     let mut list_counter: u32 = 0;
     // Named lists number independently of layout: one pass up front.
@@ -557,13 +592,78 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
     // and in split columns.
     let mut span_paras = vec![false; np];
     let mut split_paras = vec![false; np];
+    // Paragraphs whose first layout is their final one (incremental composition).
+    let mut clean: Vec<bool> = Vec::with_capacity(np);
+    if let (Some(p), Some(plan)) = (prev, plan)
+        && plan.resume > 0
+        && let Some(m) = p.trace.marks.get(plan.resume)
+        && p.out.frames.get(m.fi()).is_some_and(|f| f.lines.len() >= m.lines() && f.decos.len() >= m.decos())
+        && p.out.styles.len() >= m.styles()
+        && p.trace.info.len() >= plan.resume
+        && p.trace.force_col.len() >= plan.resume
+        && p.trace.line_cap.len() >= plan.resume
+        && p.trace.clean.len() >= plan.resume
+    {
+        // Resume: everything before the paragraph is the previous composition's.
+        let (k, t, fi) = (plan.resume, p.trace, m.fi());
+        for (f, ft) in out.frames.iter_mut().enumerate().take(fi + 1) {
+            let Some(src) = p.out.frames.get(f) else { break };
+            let (l1, d1) = if f == fi { (m.lines(), m.decos()) } else { (src.lines.len(), t.rules_at.get(f).copied().unwrap_or(src.decos.len())) };
+            ft.lines = src.lines.get(..l1).unwrap_or_default().iter().map(|l| Line { keep_violation: false, ..l.clone() }).collect();
+            ft.decos = src.decos.get(..d1.min(src.decos.len())).unwrap_or_default().to_vec();
+        }
+        let snap = m.snapshot(k);
+        cur = snap.cur.clone();
+        list_counter = snap.list_counter;
+        styles_tab = p.out.styles.get(..snap.styles).unwrap_or_default().to_vec();
+        restores = snap.restores;
+        snaps = t.marks.get(..k).unwrap_or_default().iter().enumerate().map(|(i, m)| m.snapshot(i)).collect();
+        note_snaps = vec![(notes.num, notes.key, notes.placed.len()); k];
+        info = t.info.get(..k).unwrap_or_default().to_vec();
+        for (d, s) in force_col.iter_mut().zip(&t.force_col).take(k) {
+            *d = *s;
+        }
+        for (d, s) in line_cap.iter_mut().zip(&t.line_cap).take(k) {
+            *d = *s;
+        }
+        clean = t.clean.get(..k).unwrap_or_default().to_vec();
+        pi = k;
+    }
+    let mut converged: Option<usize> = None;
     'paras: while pi < np {
         let prange = para_ranges[pi].clone();
         cur.pi = pi;
         cur.limits = Rc::clone(&limits);
         cur.split_limits = Rc::clone(&split_limits);
-        let snap = Snapshot::take(&out, &cur, list_counter);
         snaps.truncate(pi);
+        // Back in step with the previous composition: the rest is copied after the loop.
+        if let (Some(p), Some(plan)) = (prev, plan.as_ref())
+            && let Some(op) = incremental::converges(
+                &p,
+                plan,
+                &incremental::Here {
+                    pi,
+                    cur: &cur,
+                    list_counter,
+                    styles: &styles_tab,
+                    restores,
+                    cap: (4 * np + 64) * (balance_runs + 1),
+                    info: &info,
+                    force_col: &force_col,
+                    line_cap: &line_cap,
+                    story,
+                    ranges: &para_ranges,
+                },
+            )
+        {
+            converged = Some(op);
+            break 'paras;
+        }
+        if pi == clean.len() {
+            clean.push(true);
+        }
+        incremental::count_laid();
+        let snap = Snapshot::take(&out, &cur, list_counter, styles_tab.len(), restores);
         snaps.push(snap);
         note_snaps.truncate(pi);
         note_snaps.push((notes.num, notes.key, notes.placed.len()));
@@ -573,7 +673,7 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
             && let Some(j) = trial_failed(&mut trial, &mut limits, balance_runs < balance_budget)
         {
             balance_runs += 1;
-            rewind(j, &snaps, &note_snaps, &mut notes, &mut out, &mut cur, &mut list_counter, &mut force_col, &mut line_cap);
+            rewind(j, &snaps, &note_snaps, &mut notes, &mut out, &mut cur, &mut list_counter, &mut force_col, &mut line_cap, &mut clean);
             pi = j;
             continue 'paras;
         }
@@ -596,7 +696,7 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
             if !table::place_table(doc, t, anchor, pi, &pp, frames, &cols, &mut cur, &mut out, opts) {
                 if let Some(j) = trial_failed(&mut trial, &mut limits, balance_runs < balance_budget) {
                     balance_runs += 1;
-                    rewind(j, &snaps, &note_snaps, &mut notes, &mut out, &mut cur, &mut list_counter, &mut force_col, &mut line_cap);
+                    rewind(j, &snaps, &note_snaps, &mut notes, &mut out, &mut cur, &mut list_counter, &mut force_col, &mut line_cap, &mut clean);
                     pi = j;
                     continue 'paras;
                 }
@@ -847,7 +947,18 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
                     if !t.done {
                         trial = Some(t);
                         balance_runs += 1;
-                        rewind(key.1, &snaps, &note_snaps, &mut notes, &mut out, &mut cur, &mut list_counter, &mut force_col, &mut line_cap);
+                        rewind(
+                            key.1,
+                            &snaps,
+                            &note_snaps,
+                            &mut notes,
+                            &mut out,
+                            &mut cur,
+                            &mut list_counter,
+                            &mut force_col,
+                            &mut line_cap,
+                            &mut clean,
+                        );
                         pi = key.1;
                         continue 'paras;
                     }
@@ -887,7 +998,7 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
             if cur.fi >= frames.len() {
                 if let Some(j) = trial_failed(&mut trial, &mut limits, balance_runs < balance_budget) {
                     balance_runs += 1;
-                    rewind(j, &snaps, &note_snaps, &mut notes, &mut out, &mut cur, &mut list_counter, &mut force_col, &mut line_cap);
+                    rewind(j, &snaps, &note_snaps, &mut notes, &mut out, &mut cur, &mut list_counter, &mut force_col, &mut line_cap, &mut clean);
                     pi = j;
                     continue 'paras;
                 }
@@ -1008,7 +1119,18 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
                         };
                         if let Some(j) = j {
                             split_runs += 1;
-                            rewind(j, &snaps, &note_snaps, &mut notes, &mut out, &mut cur, &mut list_counter, &mut force_col, &mut line_cap);
+                            rewind(
+                                j,
+                                &snaps,
+                                &note_snaps,
+                                &mut notes,
+                                &mut out,
+                                &mut cur,
+                                &mut list_counter,
+                                &mut force_col,
+                                &mut line_cap,
+                                &mut clean,
+                            );
                             pi = j;
                             continue 'paras;
                         }
@@ -1041,7 +1163,18 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
                                     j
                                 }
                             };
-                            rewind(j, &snaps, &note_snaps, &mut notes, &mut out, &mut cur, &mut list_counter, &mut force_col, &mut line_cap);
+                            rewind(
+                                j,
+                                &snaps,
+                                &note_snaps,
+                                &mut notes,
+                                &mut out,
+                                &mut cur,
+                                &mut list_counter,
+                                &mut force_col,
+                                &mut line_cap,
+                                &mut clean,
+                            );
                             pi = j;
                             continue 'paras;
                         }
@@ -1226,7 +1359,18 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
                         if !t.done {
                             split_trial = Some(t);
                             split_runs += 1;
-                            rewind(key.2, &snaps, &note_snaps, &mut notes, &mut out, &mut cur, &mut list_counter, &mut force_col, &mut line_cap);
+                            rewind(
+                                key.2,
+                                &snaps,
+                                &note_snaps,
+                                &mut notes,
+                                &mut out,
+                                &mut cur,
+                                &mut list_counter,
+                                &mut force_col,
+                                &mut line_cap,
+                                &mut clean,
+                            );
                             pi = key.2;
                             continue 'paras;
                         }
@@ -1238,6 +1382,12 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
         }
         cur.pending += pp.space_after;
         pi += 1;
+    }
+    // Converged: the rest of the story is the previous composition's, moved by the edit.
+    let mut moved = None;
+    if let (Some(op), Some(p), Some(plan)) = (converged, prev, plan.as_ref()) {
+        let (dl, dd) = incremental::copy_rest(&p, plan, op, pi, cur.fi, &mut out, &mut styles_tab, &para_ranges);
+        moved = Some((op, dl, dd));
     }
     notes.finish(doc, story, frames, &cols, &mut out);
     // Ranges, content heights and vertical justification.
@@ -1320,7 +1470,9 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
         }
     }
     // Column rules, once vertical justification has put the lines in place.
+    let mut rules_at = Vec::with_capacity(frames.len());
     for (ft, f) in out.frames.iter_mut().zip(frames) {
+        rules_at.push(ft.decos.len());
         if f.opts.column_rule {
             let rects = column_rule_rects(&ft.columns, &ft.lines, &f.opts);
             let tint = if f.opts.column_rule_tint.is_finite() { f.opts.column_rule_tint.clamp(0.0, 1.0) } else { 1.0 };
@@ -1329,7 +1481,20 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
     }
     out.styles = styles_tab;
     mark_keep_violations(doc, story, &mut out);
-    out
+    let trace = if traced {
+        snaps.iter().map(incremental::Mark::of).collect::<Option<Vec<_>>>().map(|marks| {
+            clean.truncate(marks.len());
+            let own =
+                Trace { ranges: para_ranges, runs: run_starts, marks, clean, info, force_col, line_cap, restores, rules_at, specs: frames.to_vec() };
+            match (moved, prev, plan.as_ref()) {
+                (Some((op, dl, dd)), Some(p), Some(plan)) => incremental::join(&p, plan, op, pi, cur.fi, dl, dd, own),
+                _ => own,
+            }
+        })
+    } else {
+        None
+    };
+    (out, trace)
 }
 
 /// The columns a spanning paragraph is set across, from `col`'s top to its bottom.
@@ -1575,12 +1740,15 @@ struct Snapshot {
     lines: usize,
     decos: usize,
     tables: usize,
+    /// Entries in the style table and keep re-lays so far (incremental composition).
+    styles: usize,
+    restores: usize,
 }
 
 impl Snapshot {
-    fn take(out: &ComposedStory, cur: &Cursor, list_counter: u32) -> Snapshot {
+    fn take(out: &ComposedStory, cur: &Cursor, list_counter: u32, styles: usize, restores: usize) -> Snapshot {
         let (lines, decos, tables) = out.frames.get(cur.fi).map_or((0, 0, 0), |f| (f.lines.len(), f.decos.len(), f.tables.len()));
-        Snapshot { cur: cur.clone(), list_counter, lines, decos, tables }
+        Snapshot { cur: cur.clone(), list_counter, lines, decos, tables, styles, restores }
     }
     fn restore(&self, out: &mut ComposedStory, cur: &mut Cursor, list_counter: &mut u32) {
         let fi = self.cur.fi;
@@ -1610,7 +1778,10 @@ fn rewind(
     list_counter: &mut u32,
     force_col: &mut [bool],
     line_cap: &mut [Option<usize>],
+    clean: &mut [bool],
 ) {
+    // Every paragraph entered from `j` on is laid again: its first layout is not the final one.
+    clean.iter_mut().skip(j).for_each(|c| *c = false);
     force_col.iter_mut().skip(j + 1).for_each(|f| *f = false);
     line_cap.iter_mut().skip(j + 1).for_each(|c| *c = None);
     if let Some(s) = snaps.get(j) {
@@ -1623,8 +1794,8 @@ fn rewind(
 }
 
 /// Where a placed paragraph sits (for keep resolution).
-#[derive(Clone, Debug)]
-struct ParaInfo {
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct ParaInfo {
     start: (usize, usize),
     /// Started at the top of a column (moving it can't help).
     at_top: bool,
