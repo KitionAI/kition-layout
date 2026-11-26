@@ -1042,8 +1042,10 @@ const SECTIONS = {
         await page.waitForTimeout(300)
         await page.keyboard.press('Escape')
         step(`${name} opened from the menu closes with Esc at once`, shown && (await until(async () => (await kit.getByTestId(testId).count()) === 0, 30)))
+        // The keyboard comes home (the editor, not the closed window's field) before a person's next key.
+        const home = await until(async () => kit.locator('.kui-app').evaluate((app) => { const active = app.ownerDocument.activeElement; return active === app || (app.contains(active) && !active.closest('input, select, .kui-dialog')) }), 30)
         await page.keyboard.press('m')
-        step(`… and then a tool key works`, await until(async () => (await tool()) === 'rectangle', 30), await tool())
+        step(`… and then a tool key works (${name})`, home && (await until(async () => (await tool()) === 'rectangle', 30)), await tool())
         await page.keyboard.press('v')
         await until(async () => (await tool()) === 'selection', 30)
       }
