@@ -63,8 +63,8 @@ fn style_defs(doc: &Document) -> Value {
                 "name": style.name,
                 "basedOn": style.based_on,
                 "nextStyle": style.next_style,
-                "para": style.para,
-                "chars": style.chars,
+                "para": set_only(&style.para),
+                "chars": set_only(&style.chars),
                 "resolvedPara": para,
                 "resolvedChars": chars,
                 "uses": paragraphs.get(style.name.as_str()).copied().unwrap_or(0),
@@ -78,8 +78,8 @@ fn style_defs(doc: &Document) -> Value {
             json!({
                 "name": style.name,
                 "basedOn": style.based_on,
-                "chars": style.chars,
-                "resolvedChars": styles.char_style_attrs(&style.name),
+                "chars": set_only(&style.chars),
+                "resolvedChars": set_only(&styles.char_style_attrs(&style.name)),
                 "uses": runs.get(style.name.as_str()).copied().unwrap_or(0),
             })
         })
@@ -206,6 +206,17 @@ fn colors(doc: &Document) -> Value {
         out.insert(swatch_entry.name.clone(), value);
     }
     Value::Object(out)
+}
+
+/// The attributes a style sets, as JSON without the ones set to nothing (`null`): an attribute
+/// whose value is "none" (automatic CJK spacing) reads the same before and after the file is
+/// saved and opened again, which keeps it only as unset.
+fn set_only(attrs: &impl serde::Serialize) -> Value {
+    let mut value = serde_json::to_value(attrs).unwrap_or(Value::Null);
+    if let Some(object) = value.as_object_mut() {
+        object.retain(|_, v| !v.is_null());
+    }
+    value
 }
 
 /// Visits a story and the texts inside it (table cells, notes), to a bounded depth.
