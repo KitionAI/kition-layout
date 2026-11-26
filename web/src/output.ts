@@ -56,9 +56,42 @@ export function issueText(issue: Issue, t: Words): string {
 /** A word `spelling.check` found: its story, byte range, the word, suggestions and its frame. */
 export type Misspelling = { story: number; start: number; end: number; word: string; suggestions: string[]; frame: number | null }
 
-/** The words a check still shows: those not ignored this session (Ignore All), by spelling. */
-export function shownWords(words: readonly Misspelling[], ignored: ReadonlySet<string>): Misspelling[] {
-  return words.filter((word) => !ignored.has(word.word.toLowerCase()))
+/**
+ * Which occurrence a misspelled word is: its story, its spelling and how many times the same
+ * spelling comes before it in that story (it keeps its key when other words of the story change).
+ */
+export function occurrenceKeys(words: readonly Misspelling[]): string[] {
+  const seen = new Map<string, number>()
+  return words.map((word) => {
+    const base = `${word.story}|${word.word}`
+    const n = seen.get(base) ?? 0
+    seen.set(base, n + 1)
+    return `${base}|${n}`
+  })
+}
+
+/**
+ * The words a check still shows: those not ignored this session (Ignore All), by spelling, and not
+ * skipped this session (Skip), by occurrence.
+ */
+export function shownWords(words: readonly Misspelling[], ignored: ReadonlySet<string>, skipped: ReadonlySet<string> = new Set()): Misspelling[] {
+  const keys = occurrenceKeys(words)
+  return words.filter((word, i) => !ignored.has(word.word.toLowerCase()) && !skipped.has(keys[i]))
+}
+
+/** What Skip and Ignore All set aside, kept for each open document until it closes. */
+export type SpellingMemory = { ignored: Set<string>; skipped: Set<string> }
+
+const memories = new WeakMap<object, SpellingMemory>()
+
+/** The spelling memory of an open document (the editor's handle on it; gone when it closes). */
+export function spellingMemory(doc: object): SpellingMemory {
+  let memory = memories.get(doc)
+  if (!memory) {
+    memory = { ignored: new Set(), skipped: new Set() }
+    memories.set(doc, memory)
+  }
+  return memory
 }
 
 /**

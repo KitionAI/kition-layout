@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ArrowLeftRightIcon as ArrowLeftRight, ArrowUpDownIcon as ArrowUpDown, LinkIcon as Link, UnlinkIcon as Unlink } from '@kition/tessera/icons/react'
 import { IconButton, NumberField, useKitEditor } from '@kition/sdk/editor'
-import { usePanelQuery } from '../query'
+import { usePanelAnswer } from '../query'
 import type { DocumentInfo, Item } from '../../layout'
 import { useEditorView } from '../../viewContext'
 import { LengthField, PropertyGroup } from '../fields'
@@ -32,13 +32,15 @@ export function TransformGroup({ info, item }: { info: DocumentInfo; item: Item 
   }
   const ids = info.selection
   const content = info.selectionContent
-  const measured = usePanelQuery<Measured>('transform.info', content ? { ids, content: true } : { ids }, `${ids.join(',')}:${content}`)
+  // Right after another selection the answer may still be the last object's: the geometry names
+  // the object its numbers are for, and a size keeps proportions only with the new object's own.
+  const { answer: measured, current } = usePanelAnswer<Measured>('transform.info', content ? { ids, content: true } : { ids }, `${ids.join(',')}:${content}`)
   if (!measured) return null
   const at = shownPosition(measured, ref)
   const set = (params: Record<string, unknown>) => void run('transform.set', { ...params, ref, ids, ...(content ? { content: true } : {}) })
   const size = (key: 'width' | 'height') => (points: number) => {
     if (!(points > 0)) return
-    const other = linked ? keptProportion(measured, key, points) : null
+    const other = linked && current ? keptProportion(measured, key, points) : null
     set(other ? { [key]: points, [key === 'width' ? 'height' : 'width']: other } : { [key]: points })
   }
   const scale = (key: 'scaleX' | 'scaleY') => (value: number, final: boolean) => {
@@ -53,7 +55,7 @@ export function TransformGroup({ info, item }: { info: DocumentInfo; item: Item 
             <button key={point} type="button" role="radio" aria-checked={point === ref} aria-label={t(`props.ref.${point}`)} title={t(`props.ref.${point}`)} className="layout-ref-dot" onClick={() => setRef(point)} data-testid={`layout-ref-${point}`} />
           ))}
         </div>
-        <div className="layout-grid layout-grid-tight" data-testid="layout-geometry" data-item={item.id} data-content={content || undefined}>
+        <div className="layout-grid layout-grid-tight" data-testid="layout-geometry" data-item={current ? item.id : undefined} data-content={(current && content) || undefined}>
           <LengthField label="X" name={t('positionX')} value={at.x} unit={unit} onCommit={(x) => set({ x })} testId="layout-x" />
           <LengthField label="W" name={t('width')} value={measured.width} unit={unit} min={0.01} onCommit={size('width')} testId="layout-w" />
           <LengthField label="Y" name={t('positionY')} value={at.y} unit={unit} onCommit={(y) => set({ y })} testId="layout-y" />

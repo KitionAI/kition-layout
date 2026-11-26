@@ -110,6 +110,25 @@ export function menuKey(event: KeyboardEvent<HTMLDivElement>, { commands, enable
   return true
 }
 
+/** The commands whose availability the command just before a key most often changes. */
+const CATCH_UP = ['edit.undo', 'edit.redo']
+
+/**
+ * Undo's and Redo's keys when the editor's last report says they cannot run (plan 2026-11-25,
+ * phase 10: Redo pressed right after Undo did nothing). kit-editor runs a key with Cmd or Ctrl only
+ * when its last report of the engine says the command can run, and that report comes after the
+ * command before it has finished: right after Undo it still says there is nothing to redo. Asked
+ * now, the engine answers after the Undo (it runs requests in order), so the Redo runs. Taken
+ * (true) whenever the report says no; nothing runs when the engine says no too.
+ */
+export function catchUpKey(event: KeyboardEvent<HTMLDivElement>, { commands, enabled, enabledNow, run }: { commands: readonly KitCommand[]; enabled: (id: string) => boolean; enabledNow: (id: string) => Promise<boolean>; run: (id: string, params?: Record<string, unknown>) => Promise<unknown> }): boolean {
+  if (!(event.metaKey || event.ctrlKey) || event.altKey) return false
+  const command = commands.find((c) => CATCH_UP.includes(c.id) && c.shortcut && shortcutMatches(c.shortcut, event, undefined, true))
+  if (!command || enabled(command.id)) return false
+  void enabledNow(command.id).then((now) => (now ? run(command.id, {}) : null))
+  return true
+}
+
 /** Commands whose key runs as their menu row does (Find Next runs the last search, or opens Find/Change). */
 const INVOKED = ['edit.findNext']
 

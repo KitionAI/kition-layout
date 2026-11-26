@@ -404,6 +404,50 @@ mod reflow_tests {
 }
 
 #[cfg(test)]
+mod reflow_page_tests {
+    use serde_json::json;
+
+    use crate::Session;
+
+    /// Plan 2026-11-25, phase 10: a new document of three pages with a primary text frame opened
+    /// with one page (Smart Text Reflow took the empty pages at the end). The pages the person
+    /// made stay, empty or not; only pages reflow added go when they end up empty.
+    #[test]
+    fn pages_made_with_the_document_stay_and_only_reflow_pages_go() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"pages": 3, "facingPages": false})).unwrap();
+        // As the editor's New Document makes them: a frame on each page's margins, threaded.
+        let mut frames = Vec::new();
+        for page in 0..3 {
+            let r = s.execute("frame.add", &json!({"spread": page, "rect": [36, 36, 576, 756], "content": "text", "caret": false})).unwrap();
+            frames.push(r["id"].as_u64().unwrap());
+        }
+        for w in frames.windows(2) {
+            s.execute("frame.thread", &json!({"from": w[0], "to": w[1]})).unwrap();
+        }
+        s.execute("select.set", &json!({"ids": [frames[0]]})).unwrap();
+        s.execute("object.primaryTextFrame", &json!({"ids": [frames[0]], "on": true})).unwrap();
+        assert_eq!(s.doc().unwrap().doc.page_count(), 3, "the three pages asked for stay");
+        let sid = s.doc().unwrap().doc.settings.primary_story.expect("primary story").0;
+        s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 0})).unwrap();
+        s.execute("text.insert", &json!({"text": "Words keep coming and the page fills up quickly with them. ".repeat(400)})).unwrap();
+        let pages = s.doc().unwrap().doc.page_count();
+        assert!(pages > 3, "reflow adds pages: {pages}");
+        // All the text gone: reflow's pages go, the person's three stay.
+        let n = s.doc().unwrap().doc.story(kition_layout_doc::StoryId(sid)).unwrap().len();
+        s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": n})).unwrap();
+        s.execute("text.delete", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().doc.page_count(), 3);
+        // The engine's own New Document with a primary text frame keeps its pages too.
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"pages": 3, "primaryTextFrame": true})).unwrap();
+        s.execute("text.insert", &json!({"text": "A line."})).ok();
+        assert_eq!(s.doc().unwrap().doc.page_count(), 3);
+        s.doc().unwrap().doc.check().unwrap();
+    }
+}
+
+#[cfg(test)]
 mod pdf_page_tests {
     use serde_json::json;
 

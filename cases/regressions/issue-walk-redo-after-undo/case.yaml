@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-walk-redo-after-undo
+feature: layout.ui.keys-and-view
+intent: >-
+  WebKit test:preview sometimes failed at "Redo brings it again": a key with Cmd ran only when the
+  editor's last report said the command could run, and right after Undo that report still said
+  nothing to redo. Undo's and Redo's keys now ask the engine afresh when the report says no.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (after phase 9, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, redoAfterUndo]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-26"

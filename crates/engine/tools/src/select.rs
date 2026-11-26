@@ -1015,12 +1015,15 @@ impl Tool for SelectionTool {
                     if (p - start).hypot() >= cx.tol(3.0) {
                         self.anchor_release = None;
                     }
-                    let d = p - start;
+                    // Shift keeps the drag at a multiple of 45° (plan 2026-11-25, phase 10).
+                    let d = if ev.mods.shift { kition_layout_geom::constrain_angle(p - start, 45.0) } else { p - start };
                     let mut dx = d.x;
                     let mut dy = d.y;
                     self.guides.clear();
-                    // Direction handles do not snap. An anchor excludes the path it is on.
+                    // Direction handles do not snap, nor a constrained drag. An anchor excludes the
+                    // path it is on.
                     if handle.is_none()
+                        && !ev.mods.shift
                         && let Some((spread, origin)) = at
                     {
                         let proposed = origin + cx.layout.delta_to_spread(spread, d);

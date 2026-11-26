@@ -2,7 +2,9 @@
 // Opens dev.html in Chinese with the menu bar and checks, as a person works, what the hands-on
 // walkthrough after the eight phases found broken: the keyboard comes back to the editor after
 // every kind of dialog closes (OK, Cancel, Esc) and after Esc out of text; and the sections
-// below, one per fix. A section's name after the browser runs that section alone.
+// below, one per fix; and phase 10's (a width typed right after selecting, Redo right after Undo,
+// spelling's Skip and Ignore All kept, a new style named in the list, the dock's rows). A section's
+// name after the browser runs that section alone.
 import './platform.mjs'
 import { chromium, webkit } from 'playwright'
 import { createServer } from 'vite'
@@ -21,8 +23,50 @@ const step = (name, ok, detail = '') => {
 }
 
 /** Opens dev.html (Chinese, the menu bar) at a size and gives the helpers a test uses. */
-async function opened({ width = 1440, height = 900, query = '', countRenders = false } = {}) {
+async function opened({ width = 1440, height = 900, query = '', countRenders = false, slowQuery = '', slowBy = 0 } = {}) {
   const context = await browser.newContext({ viewport: { width, height } })
+  // The engine's answers to one query command come `slowBy` ms late (a busy engine), the rest at once.
+  if (slowQuery)
+    await context.addInitScript(([command, delay]) => {
+      const Original = window.Worker
+      if (!Original) return
+      window.Worker = class extends Original {
+        constructor(...args) {
+          super(...args)
+          const slow = new Set()
+          const post = this.postMessage.bind(this)
+          this.postMessage = (message, transfer) => {
+            if (JSON.stringify(message?.request ?? '').includes(command)) slow.add(message.id)
+            return post(message, transfer)
+          }
+          // A late answer holds the ones after it: the worker answers in order.
+          const held = []
+          let until = 0
+          const flush = () => {
+            while (held.length && performance.now() >= until) {
+              const [listener, event] = held.shift()
+              listener.call(this, event)
+            }
+          }
+          const late = (listener) => (event) => {
+            if (slow.delete(event.data?.id)) until = performance.now() + delay
+            if (!held.length && performance.now() >= until) return listener.call(this, event)
+            held.push([listener, event])
+            setTimeout(flush, Math.max(0, until - performance.now()) + 1)
+          }
+          const add = this.addEventListener.bind(this)
+          this.addEventListener = (type, listener, options) => add(type, type === 'message' ? late(listener) : listener, options)
+          let handler = null
+          Object.defineProperty(this, 'onmessage', {
+            get: () => handler,
+            set: (listener) => {
+              handler = listener
+              add('message', late((event) => handler?.(event)))
+            },
+          })
+        }
+      }
+    }, [slowQuery, slowBy])
   // The engine's pictures, counted by size: each `render` request to the engine's worker.
   if (countRenders)
     await context.addInitScript(() => {
@@ -521,6 +565,232 @@ const SECTIONS = {
       await page.mouse.up()
       step('press, drag and release on a flyout tool chooses it', opened && (await until(async () => (await tool()) === 'ellipse', 30)), `flyout ${opened}, tool ${await tool()}`)
       step('input: no page errors', w.errors.length === 0, w.errors.join(' | '))
+    } finally {
+      await w.context.close()
+    }
+  },
+
+  /**
+   * Phase 10, 3a (the flaky width in test:flow). Right after another object is selected, a width
+   * typed into Properties replaces the field's value even when the panel catches up with the new
+   * object while the field is already focused (it went after the old value: 100 + 150, clamped to
+   * 100000). The engine's measurements come late here, as from a busy engine.
+   */
+  async staleField() {
+    const w = await opened({ slowQuery: 'transform.info', slowBy: 300 })
+    const { page, kit, until, details, agent, itemOf } = w
+    try {
+      const made = (await agent([
+        { command: 'frame.add', params: { spread: 0, rect: [60, 400, 100, 440], content: 'graphic' } },
+        { command: 'frame.add', params: { spread: 0, rect: [200, 460, 300, 560], content: 'graphic' } },
+      ])).completed.map((c) => c.result.id)
+      const pick = async (id) => {
+        const row = kit.getByTestId(`layout-object-name-${id}`)
+        await row.scrollIntoViewIfNeeded()
+        await row.click()
+        await until(async () => JSON.stringify((await details()).selection.items) === JSON.stringify([id]))
+      }
+      const named = (id) => until(async () => (await kit.getByTestId('layout-geometry').getAttribute('data-item').catch(() => null)) === String(id))
+      await pick(made[0])
+      step('the panel names the first object once it measured it', await named(made[0]))
+      await pick(made[1])
+      // A person clicks into W at once (its text selected) and types when the panel has caught up.
+      const input = kit.getByTestId('layout-w').locator('input').first()
+      await input.evaluate((element) => {
+        element.focus()
+        element.select()
+      })
+      await named(made[1])
+      await page.keyboard.insertText('150')
+      await page.keyboard.press('Enter')
+      const width = async () => {
+        const b = (await itemOf(made[1])).bounds
+        return b[2] - b[0]
+      }
+      step('the width typed is the width set', await until(async () => Math.abs((await width()) - 150) < 0.01, 40), String(await width()))
+      step('staleField: no page errors', w.errors.length === 0, w.errors.join(' | '))
+    } finally {
+      await w.context.close()
+    }
+  },
+
+  /**
+   * Phase 10, 3b (the flaky "Redo brings it again" in WebKit's test:preview). Redo pressed right
+   * after Undo redoes, even before the editor has heard back from the Undo (it ran a key with Cmd
+   * only when its last report said the command could run, and that report still said nothing to
+   * redo). The engine's answer to Undo comes late here, as from a busy engine.
+   */
+  async redoAfterUndo() {
+    const w = await opened({ slowQuery: 'edit.undo', slowBy: 400 })
+    const { page, kit, until, details, agent, itemOf } = w
+    try {
+      const id = (await agent([{ command: 'frame.add', params: { spread: 0, rect: [100, 400, 300, 500], content: 'graphic' } }])).completed[0].result.id
+      const row = kit.getByTestId(`layout-object-name-${id}`)
+      await row.scrollIntoViewIfNeeded()
+      await row.click()
+      await until(async () => JSON.stringify((await details()).selection.items) === JSON.stringify([id]))
+      const x = async () => (await itemOf(id)).bounds[0]
+      const x0 = await x()
+      await kit.locator('.kui-app').focus()
+      await page.keyboard.press('ArrowRight')
+      await until(async () => (await x()) > x0 + 0.5)
+      const moved = await x()
+      await page.waitForTimeout(500)
+      await kit.locator('.kui-app').focus()
+      await page.keyboard.press('ControlOrMeta+z')
+      await page.keyboard.press('ControlOrMeta+Shift+z')
+      // Undo, then Redo: the object ends where the nudge put it.
+      await page.waitForTimeout(1500)
+      step('Redo right after Undo redoes', await until(async () => Math.abs((await x()) - moved) < 0.01, 40), `${x0} → ${moved}, now ${await x()}`)
+      step('redoAfterUndo: no page errors', w.errors.length === 0, w.errors.join(' | '))
+    } finally {
+      await w.context.close()
+    }
+  },
+
+  /**
+   * Phase 10, 6. Check Spelling's Skip and Ignore All are remembered while the document is open:
+   * closed and opened again, the check does not stop at them again; a new misspelling it does.
+   */
+  async spelling() {
+    const w = await opened()
+    const { page, kit, until, agent, menu } = w
+    try {
+      await agent([{ command: 'frame.add', params: { spread: 0, rect: [100, 600, 400, 640], content: 'text', text: 'Thw cat jumpd over Thw dog', caret: false } }])
+      const word = () => kit.getByTestId('layout-spelling-word').textContent().catch(() => null)
+      const done = async () => (await kit.getByTestId('layout-spelling-status').textContent()) === '拼写检查已完成。'
+      const openCheck = async () => {
+        await menu('Edit', 'sub:拼写检查', 'layout-cmd-spelling.check')
+        await until(async () => (await kit.getByTestId('layout-spelling-word').count()) === 1 || (await done()))
+      }
+      await openCheck()
+      // Ignore All on "jumpd", Skip on everything else, to the end.
+      const seen = []
+      for (let i = 0; i < 12 && !(await done()); i += 1) {
+        const now = await word()
+        seen.push(now)
+        await kit.getByTestId(now === 'jumpd' ? 'layout-spelling-ignore' : 'layout-spelling-skip').click()
+        await page.waitForTimeout(200)
+      }
+      step('the first check walks every word to the end', seen.filter((x) => x === 'Thw').length === 2 && seen.includes('jumpd') && (await done()), JSON.stringify(seen))
+      await kit.getByTestId('layout-spelling-close').click()
+      await openCheck()
+      step('opened again, nothing skipped or ignored comes up again', await until(done, 20), String(await word()))
+      await kit.getByTestId('layout-spelling-close').click()
+      // A new misspelling, and another "jumpd" (ignored by spelling): only the new word comes up.
+      await agent([{ command: 'frame.add', params: { spread: 0, rect: [100, 650, 400, 690], content: 'text', text: 'zorpish and jumpd', caret: false } }])
+      await openCheck()
+      step('… a new misspelling does', (await word()) === 'zorpish', String(await word()))
+      await kit.getByTestId('layout-spelling-skip').click()
+      step('… and nothing after it', await until(done, 20), String(await word()))
+      await kit.getByTestId('layout-spelling-close').click()
+      step('spelling: no page errors', w.errors.length === 0, w.errors.join(' | '))
+    } finally {
+      await w.context.close()
+    }
+  },
+
+  /**
+   * Phase 10, 8. New Paragraph Style ("+") makes the style at once with its name ready to type
+   * over in the list: Enter keeps the name typed, Escape the one it was given; a click on its row
+   * applies it as on any row; a double-click on a style opens its options.
+   */
+  async styleRename() {
+    const w = await opened()
+    const { page, kit, until, details, agent } = w
+    try {
+      const frame = (await agent([{ command: 'frame.add', params: { spread: 0, rect: [100, 600, 400, 660], content: 'text', text: 'A lead paragraph.', caret: false } }])).completed[0].result
+      const row = kit.getByTestId(`layout-object-name-${frame.id}`)
+      await row.scrollIntoViewIfNeeded()
+      await row.click()
+      await until(async () => JSON.stringify((await details()).selection.items) === JSON.stringify([frame.id]))
+      await kit.getByTestId('layout-dock-tab-styles').click()
+      const styles = async () => (await details()).paragraphStyles
+      const field = kit.getByTestId('layout-paragraph-style-rename')
+      const make = async () => {
+        const before = (await styles()).length
+        await kit.getByTestId('layout-paragraph-style-new').click()
+        await until(async () => (await styles()).length === before + 1)
+        return (await styles()).at(-1)
+      }
+      const first = await make()
+      const ready = await until(async () => (await field.count()) === 1 && (await field.evaluate((input) => input === document.activeElement && input.selectionStart === 0 && input.selectionEnd === input.value.length)), 30)
+      step('after New the new style\'s name is ready to type over', ready, first)
+      await page.keyboard.type('Lead In')
+      await page.keyboard.press('Enter')
+      step('typing and Enter rename it', await until(async () => (await styles()).includes('Lead In') && !(await styles()).includes(first)), JSON.stringify(await styles()))
+      const second = await make()
+      await until(async () => (await field.count()) === 1, 30)
+      await page.keyboard.type('Other')
+      await page.keyboard.press('Escape')
+      await until(async () => (await field.count()) === 0, 30)
+      step('Escape keeps the name it was given', (await styles()).includes(second) && !(await styles()).includes('Other'), JSON.stringify(await styles()))
+      // As a person who makes a style and clicks its row: the row applies it.
+      const third = await make()
+      await kit.getByTestId(`layout-paragraph-style-${third}`).click()
+      const applied = async () => (await agent([{ command: 'text.selectionAttrs', params: {} }])).completed[0].result?.paragraphStyle
+      step('a click on the new style\'s row applies it', await until(async () => (await applied()) === third), String(await applied()))
+      step('… and leaves the name as it was', (await field.count()) === 0 && (await styles()).includes(third))
+      await kit.getByTestId('layout-paragraph-style-Lead In').dblclick()
+      step('a double-click on a style opens its options', await until(async () => (await kit.getByTestId('layout-style-dialog').count()) === 1), '')
+      step('styleRename: no page errors', w.errors.length === 0, w.errors.join(' | '))
+    } finally {
+      await w.context.close()
+    }
+  },
+
+  /**
+   * Phase 10, 2. At 1440 × 900 Layers, Swatches and Styles each show at least six rows with no
+   * resizing: the groups keep room for their panels and the column scrolls; a group collapses from
+   * its tab bar, and the dock remembers it after a reload.
+   */
+  async dock() {
+    const w = await opened()
+    const { page, kit, until, details, agent } = w
+    try {
+      await agent(Array.from({ length: 20 }, (_, i) => ({ command: 'frame.add', params: { spread: 0, rect: [40 + i * 8, 600, 70 + i * 8, 630], content: 'unassigned' } })))
+      await agent(Array.from({ length: 8 }, (_, i) => ({ command: 'style.paragraph.add', params: { name: `Body ${i + 1}` } })))
+      await until(async () => (await details()).paragraphStyles.length >= 10)
+      /** Rows of the group showing `tab` wholly in view (inside its body and the dock), the group brought into view as a person scrolls the column. */
+      const rowsInView = async (tab) => {
+        await kit.getByTestId(`layout-dock-tab-${tab}`).click()
+        await page.waitForTimeout(300)
+        return kit.getByTestId(`layout-dock-tab-${tab}`).evaluate((button) => {
+          const group = button.closest('.kui-dock-group')
+          group.scrollIntoView({ block: 'nearest' })
+          const body = group.querySelector('.kui-dock-body')?.getBoundingClientRect()
+          const dock = group.closest('.kui-dock').getBoundingClientRect()
+          if (!body) return { rows: 0, body: 0 }
+          const top = Math.max(body.top, dock.top) - 1
+          const bottom = Math.min(body.bottom, dock.bottom) + 1
+          const rows = [...group.querySelectorAll('.kui-dock-body .layout-row, .kui-dock-body .layout-list-item')].filter((row) => {
+            const box = row.getBoundingClientRect()
+            return box.height > 0 && box.top >= top && box.bottom <= bottom
+          })
+          return { rows: rows.length, body: Math.round(body.height) }
+        })
+      }
+      for (const tab of ['layers', 'swatches', 'styles']) {
+        const seen = await rowsInView(tab)
+        step(`at 1440 × 900 ${tab} shows at least six rows without resizing`, seen.rows >= 6, JSON.stringify(seen))
+      }
+      // Pages and Layers stay side by side, each in its own group.
+      const groups = await kit.locator('.kui-dock-group').evaluateAll((list) => list.map((group) => ({ tab: group.querySelector('[aria-selected="true"]')?.getAttribute('data-testid') ?? '', body: Math.round(group.querySelector('.kui-dock-body')?.getBoundingClientRect().height ?? 0) })))
+      step('five groups, Pages and Layers each in its own', groups.length === 5 && groups.some((g) => g.tab === 'layout-dock-tab-pages') && groups.some((g) => g.tab === 'layout-dock-tab-layers'), JSON.stringify(groups))
+      step('no group is squeezed to a sliver (each body at least 140 pixels)', groups.every((g) => g.body >= 140), JSON.stringify(groups))
+      // A click on the empty part of Swatches' tab bar collapses it; the dock remembers it.
+      const strip = kit.getByTestId('layout-dock-group-swatches-group').locator('.kui-dock-strip')
+      await strip.scrollIntoViewIfNeeded()
+      const box = await strip.boundingBox()
+      await page.mouse.click(box.x + box.width - 48, box.y + box.height / 2)
+      const collapsed = () => kit.getByTestId('layout-dock-group-swatches-group').getAttribute('data-collapsed')
+      step('a click on the empty part of a tab bar collapses the group', await until(async () => (await collapsed()) === 'true'), await collapsed())
+      await page.reload()
+      await page.waitForFunction(() => document.getElementById('status')?.textContent?.includes(' open in '), null, { timeout: 60000 })
+      step('… and it stays collapsed after a reload', await until(async () => (await collapsed()) === 'true'), await collapsed())
+      await kit.getByTestId('layout-dock-tab-swatches').dblclick()
+      step('a double-click on its tab expands it again', await until(async () => (await collapsed()) === 'false'), await collapsed())
+      step('dock: no page errors', w.errors.length === 0, w.errors.join(' | '))
     } finally {
       await w.context.close()
     }

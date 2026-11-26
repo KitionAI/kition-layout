@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { IconButton, useKitEditor, type IconComponent } from '@kition/sdk/editor'
 import { formatField, parseLength, unitSuffix, UNITS, type Unit } from '../units'
 import { VARIANT_LABELS } from '../menus/catalog'
@@ -16,6 +16,14 @@ export function LengthField({ label, name, value, unit, onCommit, min = -100000,
   const [typing, setTyping] = useState<string | null>(null)
   const [wrong, setWrong] = useState(false)
   const shown = value === null || !Number.isFinite(value) ? '' : formatField(value, unit)
+  const input = useRef<HTMLInputElement>(null)
+  // The value changed under a focused field nobody has typed in yet (the panel caught up with a new
+  // selection): its text is selected again, so what is typed next replaces it instead of going
+  // after it (plan 2026-11-25, phase 10).
+  useLayoutEffect(() => {
+    const element = input.current
+    if (element && typing === null && element.ownerDocument.activeElement === element) element.select()
+  }, [shown])
   const commit = (text: string) => {
     setTyping(null)
     if (text.trim() === '' || text === shown) {
@@ -47,6 +55,7 @@ export function LengthField({ label, name, value, unit, onCommit, min = -100000,
     <label className="layout-length" data-testid={testId} title={name ?? label}>
       <span className="layout-length-label">{label}</span>
       <input
+        ref={input}
         className="kui-field tabular-nums"
         type="text"
         inputMode="decimal"

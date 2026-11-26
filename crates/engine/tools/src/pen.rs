@@ -327,6 +327,14 @@ impl Tool for PenTool {
         if self.dragging
             && let Some(a) = self.anchors.last()
         {
+            // Dragging out a smooth point: the segment from the anchor before, as it will be
+            // drawn (that anchor's out handle, this one's in handle), and both handles.
+            if let Some(prev) = self.anchors.len().checked_sub(2).and_then(|i| self.anchors.get(i)) {
+                let mut path = BezPath::new();
+                path.move_to(xf * prev.0);
+                path.curve_to(xf * prev.2, xf * a.1, xf * a.0);
+                out.push(Overlay::Path { path, color: blue, dashed: false });
+            }
             out.push(Overlay::Line { a: xf * a.1, b: xf * a.2, color: blue, dashed: false });
         }
         // Guides are already canvas. Do not run them through the spread transform again.

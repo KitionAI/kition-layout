@@ -9,7 +9,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { errorText, parseEngineError, reasonOf } from './errors.ts'
 import { REASONS, refusalReason } from './menus/context.ts'
-import { PREFLIGHT_KINDS, changeAllSteps, indexAfterRemoving, issueText, shownWords } from './output.ts'
+import { PREFLIGHT_KINDS, changeAllSteps, indexAfterRemoving, issueText, occurrenceKeys, shownWords, spellingMemory } from './output.ts'
 import { DEFAULT_PDF, bytesRequest, pdfParams } from './exporting.ts'
 import { addPrimaryTextFrames, marginBox } from './dialogs/pages.ts'
 import { DRAWN_CURSORS, drawnCursor } from './cursors.ts'
@@ -115,6 +115,26 @@ test('Check Spelling walks on past what it changed, ignored or added; Change All
     ['spelling.change', { story: 1, start: 0, end: 5, to: 'the' }],
     ['spelling.change', { story: 2, start: 4, end: 7, to: 'the' }],
   ])
+})
+
+test('Skip and Ignore All are kept per open document, Skip by occurrence', () => {
+  const words = [
+    { story: 1, start: 0, end: 3, word: 'Thw', suggestions: [], frame: 9 },
+    { story: 1, start: 8, end: 13, word: 'jumpd', suggestions: [], frame: 9 },
+    { story: 1, start: 20, end: 23, word: 'Thw', suggestions: [], frame: 9 },
+    { story: 2, start: 0, end: 3, word: 'Thw', suggestions: [], frame: 11 },
+  ]
+  assert.deepEqual(occurrenceKeys(words), ['1|Thw|0', '1|jumpd|0', '1|Thw|1', '2|Thw|0'])
+  // The first "Thw" skipped: the others stay; after a change before them they keep their keys.
+  assert.deepEqual(shownWords(words, new Set(), new Set(['1|Thw|0'])).map((w) => w.start), [8, 20, 0])
+  const moved = words.map((w) => (w.story === 1 && w.start > 5 ? { ...w, start: w.start + 4, end: w.end + 4 } : w))
+  assert.deepEqual(shownWords(moved, new Set(['jumpd']), new Set(['1|Thw|0'])).map((w) => `${w.story}:${w.start}`), ['1:24', '2:0'])
+  // One memory per document handle.
+  const a = {}
+  const b = {}
+  spellingMemory(a).skipped.add('1|Thw|0')
+  assert.ok(spellingMemory(a).skipped.has('1|Thw|0'))
+  assert.equal(spellingMemory(b).skipped.size, 0)
 })
 
 test('the PDF options send only what the exporter reads, and nothing by default', () => {

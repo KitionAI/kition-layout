@@ -20,14 +20,25 @@ const asked = new Map<string, Promise<unknown>>()
  * A new `extra` (another selection) asks at once.
  */
 export function usePanelQuery<R>(id: string, params: Record<string, unknown> = {}, extra: unknown = undefined): R | null {
+  return usePanelAnswer<R>(id, params, extra).answer
+}
+
+/**
+ * [`usePanelQuery`] with whether the answer is for what the panel shows now (`current`): right
+ * after another object is selected the panel still has the last one's answer until the engine
+ * answers for the new one (plan 2026-11-25, phase 10: a width typed then went after the old
+ * value, which the new one replaced under the caret).
+ */
+export function usePanelAnswer<R>(id: string, params: Record<string, unknown> = {}, extra: unknown = undefined): { answer: R | null; current: boolean } {
   const { query, session } = useKitEditor()
   const { doc } = session
   const revision = session.change.revision
   // Only typing comes in bursts this fast; elsewhere a panel reads every change at once (a field
   // showing a value a moment old could write it back).
   const typing = Boolean((session.state as { editingText?: unknown } | null)?.editingText)
-  const [answer, setAnswer] = useState<R | null>(null)
+  const [answered, setAnswered] = useState<{ answer: R; subject: string } | null>(null)
   const shown = JSON.stringify(params)
+  const now = `${id}|${shown}|${String(extra)}`
   const lastChange = useRef({ revision, at: 0 })
   const askedFor = useRef<string | null>(null)
   if (lastChange.current.revision !== revision) lastChange.current = { revision, at: performance.now() }
@@ -50,7 +61,7 @@ export function usePanelQuery<R>(id: string, params: Record<string, unknown> = {
         (value) => {
           if (stale) return
           askedFor.current = subject
-          setAnswer(value as R)
+          setAnswered({ answer: value as R, subject })
         },
         () => undefined,
       )
@@ -62,5 +73,5 @@ export function usePanelQuery<R>(id: string, params: Record<string, unknown> = {
       if (timer !== null) window.clearTimeout(timer)
     }
   }, [doc, extra, id, query, revision, shown, typing])
-  return answer
+  return { answer: answered?.answer ?? null, current: answered?.subject === now }
 }

@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-walk-dock-rows
+feature: layout.ui.panels-and-styles
+intent: >-
+  At 1440 x 900 the dock left Swatches 85 and Styles 71 pixels. Every group now keeps room for its
+  panel (Layers, Swatches and Styles at least six rows) and the column scrolls instead; a group
+  collapses from its tab bar and the dock remembers it after a reload.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (after phase 9, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, dock]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-26"

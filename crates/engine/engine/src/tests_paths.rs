@@ -140,3 +140,22 @@ fn direct_selection_points_move_and_go_as_one_step() {
     assert_eq!(points(&s, a).len(), 3, "one undo brings both back");
     assert_eq!(points(&s, b).len(), 3);
 }
+
+/// Plan 2026-11-25, phase 10: `path.appendAnchor` on a closed subpath refuses, with the code the
+/// editor turns into Chinese, and changes nothing.
+#[test]
+fn append_anchor_refuses_a_closed_subpath() {
+    let mut s = session();
+    let id = path(&mut s, &[[10.0, 10.0], [100.0, 10.0], [100.0, 100.0]]);
+    s.execute("path.close", &json!({"id": id})).unwrap();
+    let before = points(&s, id);
+    let steps0 = steps(&s);
+    let err = s.execute("path.appendAnchor", &json!({"id": id, "anchor": {"p": [150, 150]}})).unwrap_err().to_string();
+    assert!(err.contains("[refusal:closedPath]"), "{err}");
+    assert_eq!(points(&s, id), before);
+    assert_eq!(steps(&s), steps0);
+    // An open path still takes one.
+    let open = path(&mut s, &[[10.0, 200.0], [100.0, 200.0]]);
+    s.execute("path.appendAnchor", &json!({"id": open, "anchor": {"p": [150, 250]}})).unwrap();
+    assert_eq!(points(&s, open).len(), 3);
+}

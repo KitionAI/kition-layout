@@ -258,3 +258,62 @@ fn direct_selection_arrows_move_and_delete_removes_the_selected_points() {
     let cx = ctx(&d, &s, &c, &l);
     assert!(matches!(t.key(&cx, ToolKey::Left, Mods::default()).as_slice(), [Action::Exec(cmd, _)] if cmd == "transform.move"));
 }
+
+/// Plan 2026-11-25, phase 10: while the Pen drags out a smooth point, the segment from the anchor
+/// before shows as it will be drawn (bent by both handles), with the handles.
+#[test]
+fn the_pen_previews_the_curve_while_a_smooth_point_is_dragged() {
+    let d = Document::new(&NewDocument::default());
+    let (s, c, l) = (Selection::default(), Cache::new(), CanvasLayout::new(&d, false));
+    let cx = ctx(&d, &s, &c, &l);
+    let mut t = create("pen");
+    let first = at(&l, 100.0, 100.0);
+    t.pointer(&cx, &ev(PointerKind::Down, first));
+    t.pointer(&cx, &ev(PointerKind::Up, first));
+    t.pointer(&cx, &ev(PointerKind::Down, at(&l, 200.0, 100.0)));
+    t.pointer(&cx, &ev(PointerKind::Drag, at(&l, 240.0, 140.0)));
+    let overlays = t.overlays(&cx);
+    let curve = overlays.iter().find_map(|o| match o {
+        Overlay::Path { path, dashed: false, .. } => Some(path.clone()),
+        _ => None,
+    });
+    let curve = curve.expect("a curve segment while dragging");
+    let els: Vec<kition_layout_geom::PathEl> = curve.elements().to_vec();
+    let (p0, p3) = (at(&l, 100.0, 100.0), at(&l, 200.0, 100.0));
+    assert!(matches!(els.first(), Some(kition_layout_geom::PathEl::MoveTo(p)) if (*p - p0).hypot() < 1e-9), "{els:?}");
+    // The in handle mirrors the drag: (160, 60).
+    let in_handle = at(&l, 160.0, 60.0);
+    assert!(
+        matches!(els.get(1), Some(kition_layout_geom::PathEl::CurveTo(_, b, e)) if (*b - in_handle).hypot() < 1e-9 && (*e - p3).hypot() < 1e-9),
+        "{els:?}"
+    );
+    // And the two handles, as one line through the anchor.
+    assert!(overlays.iter().any(
+        |o| matches!(o, Overlay::Line { a, b, dashed: false, .. } if (*a - in_handle).hypot() < 1e-9 && (*b - at(&l, 240.0, 140.0)).hypot() < 1e-9)
+    ));
+}
+
+/// Plan 2026-11-25, phase 10: Shift keeps a Direct Selection anchor drag at 45° steps.
+#[test]
+fn direct_selection_shift_constrains_an_anchor_drag_to_45_degrees() {
+    let (d, id, mut s) = selected_path();
+    s.anchors = vec![(id, 0, 1)];
+    let (c, l) = (Cache::new(), CanvasLayout::new(&d, false));
+    let cx = ctx(&d, &s, &c, &l);
+    let mut t = create("directSelection");
+    let press = at(&l, 200.0, 100.0);
+    t.pointer(&cx, &ev(PointerKind::Down, press));
+    let moved = |out: Vec<Action>| match out.first() {
+        Some(Action::Preview(id, p)) if id == "path.moveAnchors" => (p["dx"].as_f64().unwrap(), p["dy"].as_f64().unwrap()),
+        other => panic!("{other:?}"),
+    };
+    // Nearly level: level.
+    let (dx, dy) = moved(t.pointer(&cx, &ev(PointerKind::Drag, at(&l, 230.0, 108.0)).with_mods(shift())));
+    assert!(dy.abs() < 1e-9 && dx > 30.0, "({dx}, {dy})");
+    // Nearly diagonal: diagonal.
+    let (dx, dy) = moved(t.pointer(&cx, &ev(PointerKind::Drag, at(&l, 230.0, 127.0)).with_mods(shift())));
+    assert!((dx - dy).abs() < 1e-9 && dx > 0.0, "({dx}, {dy})");
+    // Without Shift the point follows the pointer.
+    let (dx, dy) = moved(t.pointer(&cx, &ev(PointerKind::Drag, at(&l, 230.0, 108.0))));
+    assert!((dx - 30.0).abs() < 1e-9 && (dy - 8.0).abs() < 1e-9, "({dx}, {dy})");
+}

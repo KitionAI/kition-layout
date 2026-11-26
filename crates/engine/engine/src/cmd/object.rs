@@ -2048,6 +2048,10 @@ fn path_append(s: &mut Session, p: &Value) -> Result<Value> {
             None => it.path.subpaths.len().checked_sub(1).ok_or_else(|| bad(ID, "empty path"))?,
         };
         let sp = it.path.subpaths.get_mut(si).ok_or_else(|| bad(ID, "no such subpath"))?;
+        // A closed subpath has no end to continue from (plan 2026-11-25, phase 10).
+        if sp.closed {
+            return Err(super::refused(ID, "closedPath", "the subpath is closed: anchors are added at an open path's end"));
+        }
         if at_start {
             sp.anchors.insert(0, a.transform(inv));
             // The selected anchors of this subpath move up one place with the others.

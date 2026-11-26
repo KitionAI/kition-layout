@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 import { CopyIcon as Copy, EraserIcon as Eraser, PencilIcon as Pencil, PlusIcon as Plus, RefreshCwIcon as Redefine, Settings2Icon as Settings2, TrashIcon as Trash } from '@kition/tessera/icons/react'
 import { Choice, IconButton, PanelFooter, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import { usePanelQuery } from './query'
@@ -22,7 +22,9 @@ type Selected = {
  * marked (with "+" when the text overrides it); a click applies, a double-click opens the style's
  * options. Under the list: Clear Overrides (paragraph styles), Redefine Style (the style takes the
  * selected text's look), New (Alt-click or the options button: its options first), Style Options,
- * Duplicate, and Delete (when text uses the style, it asks which style that text takes).
+ * Duplicate, and Delete (when text uses the style, it asks which style that text takes). A style
+ * New makes comes with its name ready to type over in the list (plan 2026-11-25, phase 10): Enter
+ * or leaving the field keeps what was typed, Escape the name it was given.
  */
 export function StylesSection({ info, kind }: { info: DocumentInfo; kind: StyleKind }) {
   const { run, phrase: p, t } = useKitEditor()
@@ -37,6 +39,14 @@ export function StylesSection({ info, kind }: { info: DocumentInfo; kind: StyleK
   // Alt+click on New opens the style options first (InDesign's); a plain click makes the style at once.
   const [making, setMaking] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  // The style New just made, its name being typed over.
+  const [renaming, setRenamingState] = useState<{ name: string; text: string } | null>(null)
+  // The rename in progress, read when it ends (Enter, then the field's blur as it goes, ends it once).
+  const renamingNow = useRef<{ name: string; text: string } | null>(null)
+  const setRenaming = (next: { name: string; text: string } | null) => {
+    renamingNow.current = next
+    setRenamingState(next)
+  }
   const testId = kind === 'paragraph' ? 'layout-paragraph-style' : 'layout-character-style'
   const hasText = info.editingText || info.selection.length > 0
   const apply = (name: string) => {
@@ -51,14 +61,37 @@ export function StylesSection({ info, kind }: { info: DocumentInfo; kind: StyleK
   }
   const create = async () => {
     const name = freeName()
+    let answer: string | null
     if (kind === 'paragraph') {
-      await run('style.paragraph.add', { name, fromSelection: hasText })
+      answer = await run('style.paragraph.add', { name, fromSelection: hasText })
     } else {
       const chars = at?.chars ?? {}
       const picked = Object.fromEntries(['fontFamily', 'fontStyle', 'size', 'fill', 'tracking'].filter((key) => chars[key] != null).map((key) => [key, chars[key]]))
-      await run('style.character.add', { name, chars: picked })
+      answer = await run('style.character.add', { name, chars: picked })
     }
-    setChosen(name)
+    if (answer == null) return
+    const made = (JSON.parse(answer) as { name?: string } | null)?.name ?? name
+    setChosen(made)
+    setRenaming({ name: made, text: made })
+  }
+  /** Ends typing over a new style's name: `keep` what was typed (else the name it was given). */
+  const finishRename = async (keep: boolean): Promise<string | null> => {
+    const current = renamingNow.current
+    if (!current) return null
+    setRenaming(null)
+    const to = current.text.trim()
+    if (!keep || !to || to === current.name) return current.name
+    const done = await run(kind === 'paragraph' ? 'style.paragraph.edit' : 'style.character.edit', { name: current.name, rename: to })
+    if (done == null) return current.name
+    setChosen(to)
+    return to
+  }
+  const renameKey = (event: KeyboardEvent<HTMLInputElement>) => {
+    // The field's keys are its own (no editor shortcut).
+    event.stopPropagation()
+    if (event.nativeEvent.isComposing) return
+    if (event.key === 'Enter') void finishRename(true)
+    else if (event.key === 'Escape') void finishRename(false)
   }
   const selected = chosen && names.includes(chosen) ? chosen : null
   const remove = (name: string) => {
@@ -78,7 +111,23 @@ export function StylesSection({ info, kind }: { info: DocumentInfo; kind: StyleK
   return (
     <div className="layout-panel" data-testid={`${testId}s`}>
       <PanelHeading title={p(kind === 'paragraph' ? 'Paragraph Styles' : 'Character Styles')} />
-      {names.map((name) => (
+      {names.map((name) =>
+        renaming?.name === name ? (
+          // A click on the row keeps the name typed and applies the style, as on any row.
+          <div key={name} className="layout-list-item layout-style-renaming" data-active="true" onClick={() => void finishRename(true).then((to) => to && apply(to))} data-testid={`${testId}-${name}`}>
+            <input
+              className="kui-rename"
+              value={renaming.text}
+              aria-label={t('renameStyle')}
+              autoFocus
+              onFocus={(event) => event.currentTarget.select()}
+              onChange={(event) => setRenaming({ ...renaming, text: event.target.value })}
+              onKeyDown={renameKey}
+              onBlur={() => void finishRename(true)}
+              data-testid={`${testId}-rename`}
+            />
+          </div>
+        ) : (
         <button
           key={name}
           type="button"
@@ -93,7 +142,8 @@ export function StylesSection({ info, kind }: { info: DocumentInfo; kind: StyleK
           {name}
           {name === current && overrides ? <span className="layout-override-mark" title={t('style.overridden')}>+</span> : null}
         </button>
-      ))}
+        ),
+      )}
       <PanelFooter
         start={
           <>

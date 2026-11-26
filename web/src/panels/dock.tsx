@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode, type RefObject } from 'react'
+import { useMemo, type MouseEvent, type ReactNode, type RefObject } from 'react'
 import { DockArea, useKitEditor, useMediaQuery, type DockAreaHandle, type DockGroup } from '@kition/sdk/editor'
 import type { DocumentInfo, Spread } from '../layout'
 import { LayersSection } from './Layers'
@@ -13,30 +13,30 @@ type DockSpec = ReadonlyArray<{ group: string; tabs: readonly { id: string; labe
 
 /**
  * The panels beside the spreads as tabbed groups (plan 2026-11-25, stage 4; kit-editor's
- * `DockArea`): each group shows one tab at a time, collapses to its strip, and is resized by its
- * bottom edge; the last one takes the rest of the column, and the others give way in a short
- * window down to their minimums (then the dock scrolls). Properties, Pages (with Sizes) and Layers
- * each have a group of their own, as a person uses them together (select in Layers, set in
- * Properties, add a page); Swatches shares one with Links, and the two style lists share the last.
- * At 1440 × 900 Properties gives way furthest (phase 9: Pages and Layers were left 105 and 113
- * pixels, two rows), and the Layers list fills its group and scrolls while a row is held at its edge.
- * The dock remembers its tabs and heights per kit in the browser.
+ * `DockArea`): each group shows one tab at a time, collapses to its strip (its chevron, a click on
+ * the empty part of its tab bar or a double-click on its tab), and is resized by its bottom edge;
+ * the last one takes the rest of the column. Properties, Pages (with Sizes) and Layers each have a
+ * group of their own, as a person uses them together (select in Layers, set in Properties, add a
+ * page); Swatches shares one with Links, and the two style lists share the last. Every group keeps
+ * room for its panel (Layers, Swatches and Styles at least six rows, phase 10) instead of giving
+ * way to a sliver: where the column is too short for all of them it scrolls. The dock remembers
+ * its tabs, heights and collapsed groups per kit in the browser (view state, never the file).
  */
 export const LAYOUT_DOCK: DockSpec = [
-  { group: 'properties', tabs: [{ id: 'properties', label: 'Properties' }], defaultHeight: 330, compactHeight: 230, minHeight: 150 },
-  { group: 'pages', tabs: [{ id: 'pages', label: 'Pages' }], defaultHeight: 170, compactHeight: 136, minHeight: 80 },
-  { group: 'layers', tabs: [{ id: 'layers', label: 'Layers' }], defaultHeight: 220, compactHeight: 192, minHeight: 90 },
+  { group: 'properties', tabs: [{ id: 'properties', label: 'Properties' }], defaultHeight: 330, compactHeight: 230, minHeight: 230 },
+  { group: 'pages', tabs: [{ id: 'pages', label: 'Pages' }], defaultHeight: 190, compactHeight: 170, minHeight: 170 },
+  { group: 'layers', tabs: [{ id: 'layers', label: 'Layers' }], defaultHeight: 260, compactHeight: 260, minHeight: 260 },
   {
     group: 'swatches',
     tabs: [
       { id: 'swatches', label: 'Swatches' },
       { id: 'links', label: 'Links' },
     ],
-    defaultHeight: 140,
-    compactHeight: 114,
-    minHeight: 80,
+    defaultHeight: 250,
+    compactHeight: 250,
+    minHeight: 250,
   },
-  { group: 'styles', tabs: [{ id: 'styles', label: 'Styles' }], defaultHeight: 140, compactHeight: 100, minHeight: 80, preferredFill: 100 },
+  { group: 'styles', tabs: [{ id: 'styles', label: 'Styles' }], defaultHeight: 260, compactHeight: 260, minHeight: 260, preferredFill: 260 },
 ]
 
 /**
@@ -72,6 +72,20 @@ export const SHORT_DOCK: DockSpec = [
 /** Below this window height the dock has three groups (`SHORT_DOCK`). */
 const SHORT_WINDOW = '(max-height: 799px)'
 
+/**
+ * A click on the empty part of a group's tab bar, or a second click on a tab (a double-click),
+ * collapses or expands the group as its chevron does (and is remembered the same way).
+ */
+export function toggleFromTabBar(event: MouseEvent) {
+  const target = event.target instanceof Element ? event.target : null
+  const strip = target?.closest('.kui-dock-strip')
+  if (!target || !strip) return
+  const empty = target === strip || target.classList.contains('kui-dock-tabs')
+  const again = event.detail === 2 && target.closest('.kui-dock-tab') != null
+  if (!empty && !again) return
+  strip.querySelector<HTMLButtonElement>('[data-testid^="layout-dock-collapse-"]')?.click()
+}
+
 /** The dock beside the canvas; `spread` is the one in view (Layers lists its objects). */
 export function LayoutDock({ info, spread, onShow, onSetup, dock }: { info: DocumentInfo; spread: Spread | null; onShow: (spread: Spread) => void; onSetup: () => void; dock?: RefObject<DockAreaHandle | null> }) {
   const { phrase } = useKitEditor()
@@ -104,7 +118,7 @@ export function LayoutDock({ info, spread, onShow, onSetup, dock }: { info: Docu
   }))
   const shown = useMemo(() => new Set(spec.map(({ group }) => `${group}-group`)), [spec])
   return (
-    <aside className="kui-panel layout-side" data-side="right" data-testid="layout-side">
+    <aside className="kui-panel layout-side" data-side="right" data-testid="layout-side" onClick={toggleFromTabBar}>
       <DockArea kit="kit.layout" groups={groups} shown={shown} handle={dock} testId="layout-dock" />
     </aside>
   )

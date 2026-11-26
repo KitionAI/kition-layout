@@ -1,0 +1,26 @@
+format: 1
+id: regressions/issue-walk-stale-width
+feature: layout.ui.properties
+intent: >-
+  test:flow sometimes read back a width of 100000 after typing 150: right after another object was
+  selected the panel still showed the last one's width under the new object's id, and when the new
+  one arrived it replaced the field's text under the caret, so 150 went after 100. The panel names
+  the object only once it measured it, and a focused field nobody typed in selects its text again
+  when its value changes.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (after phase 9, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, staleField]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-26"

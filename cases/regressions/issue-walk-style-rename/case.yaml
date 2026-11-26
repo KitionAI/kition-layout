@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-walk-style-rename
+feature: layout.ui.panels-and-styles
+intent: >-
+  New Paragraph Style made a style with a default name and no way to name it there. The new style's
+  name is ready to type over in the list (Enter keeps it, Escape keeps the default), a click on its
+  row applies it, and a double-click opens a style's options.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (after phase 9, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, styleRename]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-26"

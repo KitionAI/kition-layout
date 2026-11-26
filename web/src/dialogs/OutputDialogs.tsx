@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Dialog, useEngineQuery, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import { useEditorView } from '../viewContext'
-import { changeAllSteps, indexAfterRemoving, issueText, shownWords, type Issue, type Misspelling, type Preflight } from '../output'
+import { changeAllSteps, indexAfterRemoving, issueText, occurrenceKeys, shownWords, spellingMemory, type Issue, type Misspelling, type Preflight } from '../output'
 import { useDialogPlace } from './DialogFrame'
 import { TextRow } from './controls'
 
@@ -78,9 +78,10 @@ export function PreflightDialog({ goTo, onClose }: { goTo: GoTo; onClose: () => 
 /**
  * Edit › Spelling › Check Spelling… (plan stage 8): walks the words not in the dictionary, story
  * by story; each is selected in its frame and shown. Change replaces it (with a suggestion or
- * what the person types), Change All every one spelled so (one undo step), Skip goes on, Ignore
- * All skips that word for the session, Add puts it in the document's user dictionary. It does not
- * block the page.
+ * what the person types), Change All every one spelled so (one undo step), Skip passes this one,
+ * Ignore All every one spelled so, Add puts it in the document's user dictionary. What Skip and
+ * Ignore All set aside stays aside while the document is open, the dialog closed and opened again
+ * too (plan 2026-11-25, phase 10). It does not block the page.
  */
 export function SpellingDialog({ goTo, onClose }: { goTo: GoTo; onClose: () => void }) {
   const { t, session, run } = useKitEditor()
@@ -89,10 +90,12 @@ export function SpellingDialog({ goTo, onClose }: { goTo: GoTo; onClose: () => v
   const place = useDialogPlace()
   const [words, setWords] = useState<Misspelling[] | null>(null)
   const [index, setIndex] = useState(0)
-  const [ignored, setIgnored] = useState<ReadonlySet<string>>(new Set())
+  const memory = session.doc ? spellingMemory(session.doc) : null
+  const [ignored, setIgnored] = useState<ReadonlySet<string>>(() => new Set(memory?.ignored))
+  const [skipped, setSkipped] = useState<ReadonlySet<string>>(() => new Set(memory?.skipped))
   const [to, setTo] = useState('')
   const [busy, setBusy] = useState(false)
-  const shown = useMemo(() => (words ? shownWords(words, ignored) : []), [words, ignored])
+  const shown = useMemo(() => (words ? shownWords(words, ignored, skipped) : []), [words, ignored, skipped])
   const current = shown[index] ?? null
 
   const check = useCallback(async () => {
@@ -149,7 +152,16 @@ export function SpellingDialog({ goTo, onClose }: { goTo: GoTo; onClose: () => v
   const ignore = () => {
     if (!current) return
     setIndex(indexAfterRemoving(shown, index, current.word))
+    memory?.ignored.add(current.word.toLowerCase())
     setIgnored((now) => new Set([...now, current.word.toLowerCase()]))
+  }
+  // This occurrence set aside: the next word takes its place in the list.
+  const skip = () => {
+    if (!current || !words) return
+    const key = occurrenceKeys(words)[words.indexOf(current)]
+    if (key === undefined) return
+    memory?.skipped.add(key)
+    setSkipped((now) => new Set([...now, key]))
   }
   const add = () =>
     act(async () => {
@@ -178,7 +190,7 @@ export function SpellingDialog({ goTo, onClose }: { goTo: GoTo; onClose: () => v
           <Button disabled={!ready} onClick={ignore} data-testid="layout-spelling-ignore">
             {t('spelling.ignoreAll')}
           </Button>
-          <Button disabled={!ready} onClick={() => setIndex(index + 1)} data-testid="layout-spelling-skip">
+          <Button disabled={!ready} onClick={skip} data-testid="layout-spelling-skip">
             {t('spelling.skip')}
           </Button>
           <Button disabled={!ready || readOnly || !to} onClick={() => void changeAll()} data-testid="layout-spelling-change-all">

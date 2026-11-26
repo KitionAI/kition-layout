@@ -12,7 +12,7 @@ import { reasonOf } from '../errors.ts'
 export type MenuContext = { items: ReadonlyArray<{ kind: string; image: boolean; story: boolean }>; editingText: boolean }
 
 /** A reason's key in the editor's strings (`hint.<key>`). */
-export type Reason = 'badPageRange' | 'needTwo' | 'needThree' | 'needTwoShapes' | 'needImage' | 'needTypeOnPath' | 'needSelection' | 'needCaret' | 'needTextSelection' | 'needTable' | 'needClipboard' | 'nothingToUndo' | 'nothingToRedo' | 'needToc' | 'needIndex' | 'needFootnote' | 'needTransform' | 'needTextFrame' | 'needEmptyFrame' | 'needStoryText' | 'nothingToTrace' | 'textFrameShape' | 'noOverlap' | 'notNow'
+export type Reason = 'badPageRange' | 'needTwo' | 'needThree' | 'needTwoShapes' | 'needImage' | 'needTypeOnPath' | 'needSelection' | 'needCaret' | 'needTextSelection' | 'needTable' | 'needClipboard' | 'nothingToUndo' | 'nothingToRedo' | 'needToc' | 'needIndex' | 'needFootnote' | 'needTransform' | 'needTextFrame' | 'needEmptyFrame' | 'needStoryText' | 'nothingToTrace' | 'textFrameShape' | 'noOverlap' | 'closedPath' | 'notNow'
 
 /** Why `command` (an engine id) cannot run in `context` though the engine would try, or null. */
 export function contextReason(command: string, context: MenuContext): Reason | null {
@@ -57,7 +57,7 @@ export function disabledReason(command: string): Reason {
 }
 
 /** Every reason, as the engine's refusal codes name them (`[refusal:<code>]`). */
-export const REASONS: ReadonlySet<Reason> = new Set<Reason>(['needTwo', 'needThree', 'needTwoShapes', 'needImage', 'needTypeOnPath', 'needSelection', 'needCaret', 'needTextSelection', 'needTable', 'needClipboard', 'nothingToUndo', 'nothingToRedo', 'needToc', 'needIndex', 'needFootnote', 'needTransform', 'needTextFrame', 'needEmptyFrame', 'needStoryText', 'nothingToTrace', 'textFrameShape', 'noOverlap', 'badPageRange', 'notNow'])
+export const REASONS: ReadonlySet<Reason> = new Set<Reason>(['needTwo', 'needThree', 'needTwoShapes', 'needImage', 'needTypeOnPath', 'needSelection', 'needCaret', 'needTextSelection', 'needTable', 'needClipboard', 'nothingToUndo', 'nothingToRedo', 'needToc', 'needIndex', 'needFootnote', 'needTransform', 'needTextFrame', 'needEmptyFrame', 'needStoryText', 'nothingToTrace', 'textFrameShape', 'noOverlap', 'closedPath', 'badPageRange', 'notNow'])
 
 /**
  * The reason behind an engine refusal a person can meet, or null for any other error: by the

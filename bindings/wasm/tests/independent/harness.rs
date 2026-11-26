@@ -344,10 +344,11 @@ impl Fixture {
             fixture.doc.execute("object.setFlags", json!({"ids":ids,key:true}))?;
             notes.push(format!("fixture repair after review: all fixture items start with {key}=true"));
         }
-        if command == "path.close" {
+        if matches!(command, "path.close" | "path.appendAnchor") {
             let path = fixture.doc.execute("path.add", json!({"anchors":[{"p":[10,10]},{"p":[100,10]},{"p":[100,100]}]}))?;
             fixture.tokens.insert("$A".to_owned(), member(&path, "id")?);
-            notes.push("fixture repair after review: path.close uses an open path".to_owned());
+            // path.appendAnchor refuses a closed subpath (plan 2026-11-25, phase 10); A's rectangle is one.
+            notes.push(format!("fixture repair after review: {command} uses an open path"));
         }
         if command == "object.releaseCompoundPath" {
             let extra = fixture.doc.execute("frame.add", json!({"rect":[30,30,50,50],"caret":false}))?;

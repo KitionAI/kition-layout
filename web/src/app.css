@@ -997,3 +997,15 @@
   margin: 0;
   font-weight: 600;
 }
+
+/* A new style's name typed over in its row (plan 2026-11-25, phase 10): the field fills the row. */
+.layout-style-renaming {
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+
+.layout-style-renaming .kui-rename {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}

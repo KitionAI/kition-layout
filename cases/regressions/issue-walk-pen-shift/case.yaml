@@ -1,0 +1,18 @@
+format: 1
+id: regressions/issue-walk-pen-shift
+feature: layout.ui.paths-and-output
+intent: >-
+  Shift did not constrain a Direct Selection anchor drag; it now keeps it at 45 degree steps.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (after phase 9, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-tools, filter: direct_selection_shift_constrains_an_anchor_drag_to_45_degrees }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

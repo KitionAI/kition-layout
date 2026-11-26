@@ -90,6 +90,10 @@ pub struct DocState {
     pub preview_record: Option<u32>,
     /// The fonts the document brought (`doc.font_scope`), found while it is open.
     pub fonts: Option<Arc<FontScope>>,
+    /// Pages Smart Text Reflow added while the document is open (page ids): only these go again
+    /// when they end up empty, never pages the person made (plan 2026-11-25, phase 10: a new
+    /// document of three pages with a primary text frame opened with one). Editor state, not saved.
+    pub reflow_pages: std::collections::HashSet<u64>,
 }
 
 /// A document's font scope ([`kition_layout_fonts::FontDb::load_document_fonts`]): its fonts are
@@ -126,6 +130,7 @@ impl DocState {
             preview_stash: None,
             preview_record: None,
             fonts: None,
+            reflow_pages: std::collections::HashSet::new(),
         }
     }
     pub fn is_dirty(&self) -> bool {
@@ -568,9 +573,17 @@ impl Session {
             return;
         }
         let mut d = (*st.doc).clone();
-        if overset {
+        let page_ids = |d: &Document| d.spreads.iter().flat_map(|sp| sp.pages.iter().map(|p| p.id.0)).collect::<std::collections::HashSet<u64>>();
+        let added: Vec<u64> = if overset {
+            let before = page_ids(&d);
             let _ = cmd::place_text_autoflow(&mut d, sid, 500);
+            page_ids(&d).difference(&before).copied().collect()
         } else {
+            Vec::new()
+        };
+        let ours = &st.reflow_pages;
+        let mut removed = Vec::new();
+        if !overset {
             // Drop empty trailing frames on the last pages (one frame, nothing else there).
             while let Some(story) = d.story(sid) {
                 if story.frames.len() < 2 {
@@ -582,6 +595,11 @@ impl Session {
                     break;
                 }
                 let Some(page) = d.page_of_item(last) else { break };
+                // Only a page reflow added itself; the person's pages stay, empty or not.
+                let Some(id) = d.page_loc(page).and_then(|(si, pi)| d.spreads.get(si)?.pages.get(pi)).map(|p| p.id.0) else { break };
+                if !ours.contains(&id) {
+                    break;
+                }
                 let alone = d.spreads.iter().flat_map(|sp| sp.items.iter()).filter(|i| d.page_of_item(i.id) == Some(page)).count() == 1;
                 if page + 1 != d.page_count() || !alone || d.page_count() < 2 {
                     break;
@@ -589,9 +607,17 @@ impl Session {
                 if d.remove_item(last).is_err() || d.delete_pages(&[page]).is_err() {
                     break;
                 }
+                removed.push(id);
             }
         }
+        if !overset && removed.is_empty() {
+            return;
+        }
         if let Some(st) = self.active_mut() {
+            st.reflow_pages.extend(added);
+            for id in removed {
+                st.reflow_pages.remove(&id);
+            }
             st.doc = Arc::new(d);
             st.revision += 1;
         }
