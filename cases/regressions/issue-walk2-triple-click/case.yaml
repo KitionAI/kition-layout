@@ -4,7 +4,8 @@ feature: layout.ui.text-and-tables
 intent: >-
   A triple click sometimes selected only a word: a press the engine never got (the hand while Space is held, an
   Alt-drag pan, a press on a guide) left its count of presses waiting, so the next triple click's presses took their
-  counts one place late. Only presses the canvas gives the engine's tool take a count.
+  counts one place late. Only presses the canvas gives the engine's tool take a count. And a Space
+  kit-editor played again after its release left its hand on, so no press reached the engine; that replay is dropped.
 layer: gate
 source:
   kind: issue

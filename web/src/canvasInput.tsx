@@ -91,6 +91,14 @@ export function useEngineModifiers(doc: KitEngine | null) {
     }
     const key = (event: KeyboardEvent) => {
       const down = event.type === 'keydown'
+      // kit-editor holds a key pressed while the engine answers and plays it again later as a
+      // keydown of its own; a Space played again after it was let go turned its canvas's hand on
+      // with no release to come, so every press panned and none reached the engine (phase 12,
+      // found with the triple click's test). Out of a text field, that replay stops here.
+      if (down && !event.isTrusted && event.code === 'Space' && !held.space && !takesSpace(event.target)) {
+        event.stopImmediatePropagation()
+        return
+      }
       const before = { ...held }
       if (event.code === 'Space' && !event.isComposing && !(down && takesSpace(event.target))) held.space = down
       held.control = event.ctrlKey

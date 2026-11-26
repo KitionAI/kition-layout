@@ -799,7 +799,8 @@ const SECTIONS = {
   /**
    * Phase 12, 7. A triple click selects the line however the presses before it went: a press the
    * engine never got (an Alt-drag pan, a press with Space held, a press on a guide) left its count
-   * waiting, so the next triple click's presses took the counts one place late and selected a word.
+   * waiting, so the next triple click's presses took the counts one place late and selected a word;
+   * and a Space kit-editor played again after its release left the hand on, so no press reached it.
    */
   async tripleClick() {
     const w = await opened()
@@ -872,6 +873,8 @@ const SECTIONS = {
       const on = await w.toScreen(440, 640)
       await page.mouse.click(on.x, on.y)
       await until(async () => (await details()).selection.items?.includes(id), 30)
+      // The editor has the selection too (it checks a Cmd shortcut against what it knows).
+      await until(async () => (await kit.locator('.kui-app').textContent())?.includes('已选 1 个'), 30)
       await page.keyboard.press(`${MOD}+3`)
       step('Cmd+3 hides the selection', await until(async () => (await itemOf(id))?.hidden === true, 30), JSON.stringify(await itemOf(id)))
       await page.keyboard.press(`${MOD}+Alt+3`)
