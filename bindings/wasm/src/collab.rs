@@ -155,7 +155,8 @@ impl LayoutDocument {
         Ok(encode_blobs(&self.session.blobs_since(&decode_version(since)?).map_err(engine_error)?))
     }
 
-    /// The replicated state, the replica made first if there is none yet.
+    /// The replicated state, the replica made first if there is none yet (for the tests).
+    #[cfg(test)]
     fn replicated_state(&mut self) -> Result<Value, String> {
         self.session.version().map_err(engine_error)?;
         let kdm = self.session.kdm().ok_or("the layout has no replica")?;
@@ -499,7 +500,7 @@ mod tests {
             .iter()
             .filter(|(_, object)| object["$type"] == "Item")
             .map(|(id, _)| id.clone())
-            .last()
+            .next_back()
             .unwrap_or_else(|| panic!("an item object: {state}"));
         let reply = json!({ "target": item, "items": [{ "id": item, "note": "one of many" }] });
         let shown: Value = serde_json::from_str(&doc.model_reply(&reply.to_string()).unwrap()).unwrap();

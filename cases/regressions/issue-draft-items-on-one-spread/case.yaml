@@ -1,0 +1,22 @@
+format: 1
+id: regressions/issue-draft-items-on-one-spread
+feature: layout.collab.drafts
+intent: >-
+  An agent's draft and the person each adding an item to a spread that is not the last one (with
+  items on later spreads) made the merge refuse the draft (rule D7, "both moved the node"): the
+  writer kept the items tree in one order across all spreads, so an item added to an early spread
+  moved every item of the later spreads to the end, on both sides. Only the order within a spread
+  is read, so an added item now moves no item of another spread, and the draft merges.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/kdm/kdm-model/tests/numbers.rs (CI run 45893593603)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kdm, test: numbers, filter: a_number_minted_by_a_draft_and_meanwhile_ends_distinct }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

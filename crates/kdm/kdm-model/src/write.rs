@@ -958,16 +958,31 @@ impl<'w, 'tx> Writer<'w, 'tx> {
         }
         let root = root_id();
         let before_pos: HashMap<ItemId, usize> = before.iter().enumerate().map(|(i, id)| (*id, i)).collect();
-        let mut prefix = 0;
-        let mut previous: Option<usize> = None;
-        for (item, _) in after {
+        // Only the order among the nodes of one spread (or of one group's children) is read, so a
+        // node of the same spread as before keeps its place while every node of its spread before
+        // it in `after` kept its place, in order; the others go last (a tree move or create
+        // appends), in `after` order. So adding an item to a spread moves no item of another
+        // spread: an agent's draft adding one merges with the person adding one (both are inserts,
+        // not moves of the same nodes, rule D7).
+        let mut last: HashMap<Option<u64>, usize> = HashMap::new();
+        let mut broken: HashSet<Option<u64>> = HashSet::new();
+        let mut keep = Vec::with_capacity(after.len());
+        for (item, spread) in after {
             let fresh = self.ids.items.object(item.id).is_none_or(|o| self.fresh.contains(o));
-            let Some(&pos) = before_pos.get(&item.id).filter(|_| !fresh) else { break };
-            if previous.is_some_and(|p| pos <= p) {
-                break;
+            // A top-level item that changed spread moves: its old place says nothing about its
+            // order among the items of its new spread.
+            let same_spread = parent.is_some() || ctx.before_spread.get(&item.id).copied() == *spread;
+            let pos = before_pos.get(&item.id).copied().filter(|_| !fresh && same_spread);
+            let kept = !broken.contains(spread) && pos.is_some_and(|pos| last.get(spread).is_none_or(|previous| pos > *previous));
+            match (kept, pos) {
+                (true, Some(pos)) => {
+                    last.insert(*spread, pos);
+                }
+                _ => {
+                    broken.insert(*spread);
+                }
             }
-            previous = Some(pos);
-            prefix += 1;
+            keep.push(kept);
         }
         for (k, (item, spread)) in after.iter().enumerate() {
             let object = self.ids.items.object(item.id).cloned().ok_or_else(|| kdm_err(format!("item {} has no replica object", item.id)))?;
@@ -987,7 +1002,7 @@ impl<'w, 'tx> Writer<'w, 'tx> {
                 };
                 self.set_fields(&object, old_fields, new_fields)?;
             }
-            if k >= prefix {
+            if !keep.get(k).copied().unwrap_or(false) {
                 match self.ids.tree.get(&object).cloned() {
                     Some(node) if !fresh => self.tx.tree_move(&root, "items", &node, parent)?,
                     _ => {

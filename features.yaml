@@ -142,7 +142,7 @@ features:
     paths: [bindings/wasm/src/collab.rs, bindings/wasm/src/lib.rs, crates/engine/engine/src/replica.rs, crates/kdm/kdm-model/src/session.rs]
     target: "Kit UI protocol section 7 (replica/restore); engine contract K3a members mergeChanges, compareChanges, restoreState, changesSince, modelReply, modelBatch, modelDescribe"
     gap: "Engine tests merge an agent's draft as the person's one undo step with the repair inside it (exact undo and redo, the preview equal to the merge, a draft the repair cancels recording nothing), restore a version, keep engine and spread ids through a draft, name reply ids, answer receipts and the object model; test:drafts merges a draft and restores a checkpoint in the editor. Not yet: a draft's preview shown in the editor."
-    cases: [layout.collab.drafts/editor, layout.collab.drafts/engine-members, layout.collab.drafts/ids-and-pages, layout.collab.drafts/repair-in-step]
+    cases: [layout.collab.drafts/editor, layout.collab.drafts/engine-members, layout.collab.drafts/ids-and-pages, layout.collab.drafts/repair-in-step, regressions/issue-draft-items-on-one-spread]
     since: "2026-11-25"
   - id: layout.collab.coedit
     title: "Real-time co-editing: editors converge, viewers cannot write, an offline page catches up"
