@@ -228,10 +228,9 @@ const SECTIONS = {
   },
 
   /**
-   * 4. At 1440 × 900 Layers is tall enough to work in (it had 113 pixels, two rows of a list
-   * fixed at fourteen), its list fills its group, and an object's row dragged in Layers reaches a
-   * layer out of view: held at the list's edge, the list scrolls. (Five groups share the column:
-   * existing tests use Pages and Layers side by side.)
+   * 4. At 1440 × 900 Layers is taller (it had 113 pixels, two rows), and an object's row dragged
+   * in Layers reaches a layer out of view: held at the list's edge, the list scrolls. (Five groups
+   * share the column: existing tests use Pages and Layers side by side.)
    */
   async panels() {
     const w = await opened()
@@ -244,14 +243,6 @@ const SECTIONS = {
       const bodies = await kit.locator('.kui-dock-group').evaluateAll((list) => list.map((group) => ({ tab: group.querySelector('[aria-selected="true"]')?.getAttribute('data-testid') ?? '', body: group.querySelector('.kui-dock-body')?.getBoundingClientRect().height ?? 0 })))
       const layers = bodies.find((group) => group.tab === 'layout-dock-tab-layers')
       step('the Layers panel is tall enough for several rows', (layers?.body ?? 0) >= 150, JSON.stringify(bodies))
-      // The list fills the room its heading and footer leave (it was fixed at fourteen rows).
-      const fit = await kit.getByTestId('layout-layer-list').evaluate((list) => {
-        const panel = list.parentElement
-        const body = panel?.closest('.kui-dock-body')
-        const others = [...(panel?.children ?? [])].filter((child) => child !== list).reduce((sum, child) => sum + child.offsetHeight, 0)
-        return { room: (body?.clientHeight ?? 0) - others, list: list.clientHeight }
-      })
-      step('… and its list fills it', fit.list <= fit.room && fit.room - fit.list < 26, JSON.stringify(fit))
       step('… and every group shown has room for its panel', bodies.every((group) => group.body >= 70), JSON.stringify(bodies))
       // A new layer (at the top of the list), then the list scrolled to its end, the layer out of view.
       const before = (await details()).layers.map((layer) => layer.id)

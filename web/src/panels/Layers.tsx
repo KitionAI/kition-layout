@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
+import { useMemo, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { ArrowDownIcon as ArrowDown, ArrowUpIcon as ArrowUp, ChevronDownIcon as ChevronDown, ChevronRightIcon as ChevronRight, CopyIcon as Copy, EyeIcon as Eye, EyeOffIcon as EyeOff, GroupIcon as Group, LockIcon as Lock, LockOpenIcon as LockOpen, PlusIcon as Plus, Settings2Icon as Settings2, TrashIcon as Trash, UngroupIcon as Ungroup } from '@kition/tessera/icons/react'
 import { IconButton, PanelFooter, RenameField, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import { PanelHeading } from './fields'
@@ -29,40 +29,8 @@ type Row = { kind: 'layer'; layer: Layer; count: number } | { kind: 'item'; item
  * the active layer, Layer Options, group, ungroup, duplicate and delete the selection. Read-only
  * (a viewer), only selecting and opening layers is left.
  */
-/**
- * How many rows the list shows: as many as fit the panel's group below its heading and above its
- * footer (at least three), so the list is the one thing that scrolls and a row dragged to its edge
- * scrolls it (plan 2026-11-25, phase 9); `VIEW_ROWS` outside a dock.
- */
-function useFittedRows(panel: RefObject<HTMLDivElement | null>) {
-  const [fitted, setFitted] = useState(VIEW_ROWS)
-  useEffect(() => {
-    const element = panel.current
-    const body = element?.closest<HTMLElement>('.kui-dock-body')
-    if (!element || !body || typeof ResizeObserver === 'undefined') return undefined
-    const measure = () => {
-      const list = element.querySelector<HTMLElement>('.layout-virtual')
-      if (!list) return
-      const style = getComputedStyle(body)
-      // The heading and the footer (and the gaps between the panel's parts) stay; the list has the rest.
-      const parts = [...element.children].filter((child): child is HTMLElement => child instanceof HTMLElement && child !== list)
-      const gap = parseFloat(getComputedStyle(element).rowGap) || 0
-      const others = parts.reduce((sum, part) => sum + part.offsetHeight, 0) + gap * parts.length
-      const room = body.clientHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0) - others
-      setFitted(Math.max(3, Math.floor(room / ROW)))
-    }
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(body)
-    return () => observer.disconnect()
-  }, [panel])
-  return fitted
-}
-
 export function LayersSection({ info, spread }: { info: DocumentInfo; spread: Spread | null }) {
   const { run, phrase: p, t } = useKitEditor()
-  const panel = useRef<HTMLDivElement>(null)
-  const viewRows = useFittedRows(panel)
   const readOnly = useReadOnly()
   const [closed, setClosed] = useState<ReadonlySet<number>>(new Set())
   const [scroll, setScroll] = useState(0)
@@ -85,7 +53,7 @@ export function LayersSection({ info, spread }: { info: DocumentInfo; spread: Sp
   }, [closed, info.layers, spread])
   const selected = new Set(info.selection)
   const first = Math.max(0, Math.floor(scroll / ROW) - OVERSCAN)
-  const last = Math.min(rows.length, Math.ceil((scroll + viewRows * ROW) / ROW) + OVERSCAN)
+  const last = Math.min(rows.length, Math.ceil((scroll + VIEW_ROWS * ROW) / ROW) + OVERSCAN)
   const activeIndex = info.layers.findIndex((layer) => layer.id === info.activeLayer)
   const openMenu = useMenuOpener()
   const dialogs = useDialogs()
@@ -224,9 +192,9 @@ export function LayersSection({ info, spread }: { info: DocumentInfo; spread: Sp
   }
 
   return (
-    <div ref={panel} className="layout-panel" data-testid="layout-layers">
+    <div className="layout-panel" data-testid="layout-layers">
       <PanelHeading actions={<IconButton icon={Plus} label={t('newLayer')} disabled={readOnly} onClick={() => void run('layer.new', {})} data-testid="layout-new-layer" />} />
-      <div className="layout-virtual" style={{ height: Math.min(rows.length, viewRows) * ROW }} onScroll={(event) => setScroll(event.currentTarget.scrollTop)} data-testid="layout-layer-list" data-rows={rows.length}>
+      <div className="layout-virtual" style={{ height: Math.min(rows.length, VIEW_ROWS) * ROW }} onScroll={(event) => setScroll(event.currentTarget.scrollTop)} data-testid="layout-layer-list" data-rows={rows.length}>
         <div style={{ height: rows.length * ROW, position: 'relative' }}>{rows.slice(first, last).map((entry, offset) => row(entry, first + offset))}</div>
       </div>
       <PanelFooter
