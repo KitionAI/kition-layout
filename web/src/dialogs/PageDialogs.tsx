@@ -7,7 +7,8 @@ import { useEditorView } from '../viewContext'
 import { useCommandPreview } from './preview'
 import { DialogFrame, useRunInDialog } from './DialogFrame'
 import { CheckRow, ChoiceRow, LengthRow, NumberRow, SidesRows, TextRow, type Sides } from './controls'
-import { insertPlan, movePlan, pagesFromText, type Where } from './pages'
+import { useErrorText } from '../errorWords'
+import { addPrimaryTextFrames, insertPlan, movePlan, pagesFromText, type Where } from './pages'
 
 /**
  * The page dialogs (plan 2026-11-25, stage 1): New Document, Margins and Columns, Insert Pages,
@@ -50,6 +51,8 @@ export function documentFileName(name: string, fallback: string) {
  */
 export function NewDocumentDialog({ onClose }: { onClose: () => void }) {
   const { t, host } = useKitEditor()
+  const words = useErrorText()
+  const [primary, setPrimary] = useState(false)
   const [name, setName] = useState(() => t('dialog.untitled'))
   const [preset, setPreset] = useState<PagePreset>('a4')
   const [unit, setUnit] = useState<Unit>('mm')
@@ -81,10 +84,11 @@ export function NewDocumentDialog({ onClose }: { onClose: () => void }) {
     try {
       await engine.execute('layout.documentSetup', { width, height, pages, facingPages: facing, bleed })
       await engine.execute('layout.marginsAndColumns', { margins, columns, gutter })
+      if (primary) await addPrimaryTextFrames((command, params) => engine.execute(command, params), columns, gutter)
       const path = await host.exportFile(file, await engine.save())
       toast('success', t('dialog.created', { path }))
     } catch (error) {
-      toast('error', t('dialog.createFailed'), error instanceof Error ? error.message : String(error))
+      toast('error', t('dialog.createFailed'), words(error))
       throw error
     } finally {
       engine.dispose()
@@ -128,6 +132,8 @@ export function NewDocumentDialog({ onClose }: { onClose: () => void }) {
         <LengthRow label={t('gutter')} value={gutter} unit={unit} onChange={(next) => next !== null && next >= 0 && setGutter(next)} testId="layout-new-gutter" />
         <SidesRows label={t('margins')} sides={margins} linked={linked} labels={sideLabels(t, facing)} linkLabel={t('dialog.linkSides')} unit={unit} onChange={setMargins} onLink={setLinked} testId="layout-new-margins" />
         <LengthRow label={t('bleed')} value={bleed} unit={unit} onChange={(next) => next !== null && next >= 0 && setBleed(next)} testId="layout-new-bleed" />
+        <CheckRow label={t('dialog.primaryTextFrame')} checked={primary} onChange={setPrimary} testId="layout-new-primary" />
+        {primary ? <p className="kui-muted layout-note">{t('dialog.primaryTextFrameNote')}</p> : null}
         {valid ? null : <div className="layout-dialog-warning">{t('dialog.badSize')}</div>}
         <p className="kui-muted layout-note">{t('dialog.newDocumentNote')}</p>
       </div>

@@ -134,7 +134,7 @@ fn add_anchor(s: &mut Session, p: &Value) -> Result<Value> {
     let id = super::id_param(p, "id").ok_or_else(|| bad("path.addAnchor", "missing id"))?;
     let at = point_param(p, "at").ok_or_else(|| bad("path.addAnchor", "missing at"))?;
     let tol = p.get("tolerance").and_then(Value::as_f64).unwrap_or(4.0);
-    s.edit(|d, _| {
+    s.edit(|d, sel| {
         let inv = to_inner(d, id).ok_or(kition_layout_doc::DocError::NoItem(id))?;
         let it = d.item_mut(id).ok_or(kition_layout_doc::DocError::NoItem(id))?;
         let q = inv * at;
@@ -145,8 +145,12 @@ fn add_anchor(s: &mut Session, p: &Value) -> Result<Value> {
             return Err(bad("path.addAnchor", "not on the path"));
         }
         let t = t.clamp(1e-4, 1.0 - 1e-4);
-        let ai = it.path.subpaths[si].insert_anchor(seg, t);
+        let ai = it.path.subpaths.get_mut(si).ok_or_else(|| bad("path.addAnchor", "the object has no path"))?.insert_anchor(seg, t);
         as_path(&mut it.shape);
+        // The selected anchors after the new one move up one place with the others.
+        for a in sel.anchors.iter_mut().filter(|a| a.0 == id && a.1 == si && a.2 >= ai) {
+            a.2 = a.2.saturating_add(1);
+        }
         Ok(json!({"subpath": si, "anchor": ai}))
     })
 }
@@ -161,10 +165,21 @@ fn delete_anchor(s: &mut Session, p: &Value) -> Result<Value> {
         }
         sp.anchors.remove(ai);
         // A subpath needs two points (three to stay closed).
-        if sp.anchors.len() < 2 {
+        let gone = sp.anchors.len() < 2;
+        if gone {
             it.path.subpaths.remove(si);
         } else if sp.closed && sp.anchors.len() < 3 {
             sp.closed = false;
+        }
+        // The selected anchors follow: the deleted one (or its whole subpath) goes, the ones
+        // after it move down a place.
+        sel.anchors.retain(|a| !(a.0 == id && a.1 == si && (gone || a.2 == ai)));
+        for a in sel.anchors.iter_mut().filter(|a| a.0 == id) {
+            if gone && a.1 > si {
+                a.1 -= 1;
+            } else if !gone && a.1 == si && a.2 > ai {
+                a.2 -= 1;
+            }
         }
         as_path(&mut it.shape);
         if it.path.subpaths.is_empty() {

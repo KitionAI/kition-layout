@@ -298,12 +298,18 @@ pub fn rows() -> Vec<Row> {
         ),
         r(
             "path.appendAnchor",
-            "id item; anchor coordinates in spread space",
-            "target last subpath and shape, transform and every ancestor transform/ownership",
-            "last-subpath anchors; line becomes path",
+            "id item; anchor coordinates in spread space; subpath:0-based default last; at:end|start",
+            "target subpath (the last unless given) and shape, transform and every ancestor transform/ownership",
+            "that subpath's anchors at its end or start; line becomes path; selected anchors of that subpath shift with at:start",
             &[],
         ),
-        r("path.close", "id item", "target subpaths closed flags and shape", "all subpaths closed; line becomes path", &[]),
+        r(
+            "path.close",
+            "id item; subpath:0-based (default every subpath)",
+            "target subpaths closed flags and shape",
+            "the given subpath or all subpaths closed; line becomes path",
+            &[],
+        ),
         r(
             "path.moveAnchors",
             "id item; anchors pairs are subpath/anchor ordinals",
@@ -449,9 +455,9 @@ pub fn rows() -> Vec<Row> {
         ),
         r(
             "select.set",
-            "ids item ids filtered to existing; add appends to prior selection",
-            "session: item identity; previous selection only when add",
-            "session: item selection/content; text/cells cleared",
+            "ids item ids filtered to existing; add appends to prior selection; anchors:[id, subpath, anchor] of selected items, existing anchors only",
+            "session: item identity; previous selection only when add; with anchors the paths' subpaths and anchor counts",
+            "session: item selection/content and selected anchors; text/cells cleared",
             &["selection"],
         ),
         r(

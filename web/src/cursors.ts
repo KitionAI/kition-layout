@@ -12,6 +12,10 @@ function drawn(svg: string, x: number, y: number, fallback: string) {
 const ARROW = "<path d='M2 2v13l3.5-3.5 2.5 5 2-0.9-2.4-4.9H12z' fill='black' stroke='white' stroke-width='1' stroke-linejoin='round'/><rect x='12.5' y='12.5' width='10' height='10' fill='white' stroke='black'/>"
 const svg = (body: string) => `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'>${body}</svg>`
 
+/** The Pen's nib (tip at the top left), with a sign beside it for what a click does. */
+const NIB = "<path d='M2 2l4.5 11.5 3-1.5 3 3 2.5-2.5-3-3 1.5-3z' fill='black' stroke='white' stroke-width='1' stroke-linejoin='round'/><circle cx='5.6' cy='5.6' r='1' fill='white'/>"
+const pen = (sign: string, fallback: string) => drawn(svg(`${NIB}${sign}`), 2, 2, fallback)
+
 /** The drawn cursors: rotate, the Direct Selection tool's hollow arrow, the eyedropper, and the loaded text and place cursors. */
 export const DRAWN_CURSORS = {
   rotate: drawn(svg("<path d='M6 15a7 7 0 1 0 2.5-9' fill='none' stroke='white' stroke-width='4'/><path d='M6 15a7 7 0 1 0 2.5-9' fill='none' stroke='black' stroke-width='1.6'/><path d='M3.5 3.5l7 1.5-4.5 4.5z' fill='black' stroke='white' stroke-width='1'/>"), 12, 12, 'grab'),
@@ -24,7 +28,26 @@ export const DRAWN_CURSORS = {
   unthread: drawn(svg(`${ARROW}<path d='M14.5 18.5a2 2 0 0 1 2-2h0.5M21.5 18.5a2 2 0 0 1-2 2H19' fill='none' stroke='black' stroke-width='1.3'/><path d='M18 14.5v1.5M18 21v1.5M15.5 15l1 1M20.5 22l-1-1' stroke='black'/>`), 2, 2, 'no-drop'),
   loadedGraphic: drawn(svg(`${ARROW}<path d='M13.5 21.5l3-4 2 2 1.5-1.5 1.5 3.5z' fill='black'/><circle cx='19.5' cy='15.5' r='1.2' fill='black'/>`), 2, 2, 'copy'),
   /** Over a frame's content grabber or its selected graphic (plan stage 6): an open hand takes hold of the graphic. */
+  /** The Pen placing an anchor. */
+  pen: pen('', 'crosshair'),
+  /** The Pen over a selected path's outline: a click adds an anchor. */
+  penAdd: pen("<path d='M15.5 19h7M19 15.5v7' stroke='white' stroke-width='3.2'/><path d='M15.5 19h7M19 15.5v7' stroke='black' stroke-width='1.4'/>", 'copy'),
+  /** The Pen over a selected path's anchor: a click deletes it. */
+  penDelete: pen("<path d='M15.5 19h7' stroke='white' stroke-width='3.2'/><path d='M15.5 19h7' stroke='black' stroke-width='1.4'/>", 'no-drop'),
+  /** The Pen over the first anchor of the path it draws: a click closes it. */
+  penClose: pen("<circle cx='19' cy='19' r='3' fill='white' stroke='black' stroke-width='1.3'/>", 'alias'),
+  /** The Pen over an open path's end point: a click continues the path. */
+  penContinue: pen("<path d='M15 21.5h5.5' stroke='white' stroke-width='3'/><path d='M15 21.5h5.5' stroke='black' stroke-width='1.3'/><rect x='19.5' y='19.5' width='4' height='4' fill='white' stroke='black'/>", 'cell'),
   contentHand: drawn(svg("<path d='M7 12V6.5a1.5 1.5 0 0 1 3 0V11V4.5a1.5 1.5 0 0 1 3 0V11V5.5a1.5 1.5 0 0 1 3 0V12V8.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.5a6 6 0 0 1-4.6-2.2L4 14.5a1.5 1.5 0 0 1 2.3-1.9z' fill='white' stroke='black' stroke-width='1.1' stroke-linejoin='round'/>"), 12, 12, 'grab'),
+}
+
+/** The engine's CSS names for the Pen's cursors, and the drawn one for each. */
+const PEN_CURSORS: Readonly<Record<string, 'pen' | 'penAdd' | 'penDelete' | 'penClose' | 'penContinue'>> = {
+  crosshair: 'pen',
+  copy: 'penAdd',
+  'no-drop': 'penDelete',
+  alias: 'penClose',
+  cell: 'penContinue',
 }
 
 /**
@@ -36,6 +59,11 @@ export const DRAWN_CURSORS = {
  * tool's `pointer` is the hand over a frame's graphic (stage 6).
  */
 export function drawnCursor(tool: string, cursor: string) {
+  // The Pen says what a click does (plan stage 8): place, add, delete, close or continue.
+  if (tool === 'pen' || tool === 'addAnchor' || tool === 'deleteAnchor') {
+    const sign = PEN_CURSORS[cursor]
+    if (sign) return DRAWN_CURSORS[sign]
+  }
   if (tool === 'loadedText' && cursor === 'alias') return DRAWN_CURSORS.threadLink
   if (tool === 'loadedText' && cursor === 'no-drop') return DRAWN_CURSORS.unthread
   if (cursor === 'copy') {

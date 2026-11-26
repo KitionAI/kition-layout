@@ -22,11 +22,15 @@ pub struct Issue {
     pub item: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<usize>,
+    /// The values `message` names, by the kind (`chars`, `font`, `name`, `ppi`, `minPpi`,
+    /// `swatch`, `missing`, `more`): an editor words the issue in its own language from these.
+    #[serde(skip_serializing_if = "Value::is_null")]
+    pub details: Value,
 }
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![cmd!(query "preflight.run", "Preflight Document", ["Window", "Output", "Preflight"], None,
-        "{minPpi?: 150} → issues [{severity, kind, message, item?, page?}]", has_doc, run)]
+        "{minPpi?: 150} → issues [{severity, kind, message, item?, page? (0-based), details (what the message names, by kind)}]", has_doc, run)]
 }
 
 fn page_of(d: &Document, sr: SpreadRef, it: &Item) -> Option<usize> {
@@ -87,7 +91,14 @@ pub fn check(s: &Session, min_ppi: f64) -> Vec<Issue> {
             let last = story.frames.last().copied();
             let page = last.and_then(|f| d.find(f).zip(d.item(f))).and_then(|(loc, it)| page_of(d, loc.spread, it));
             let n = story.text[cs.overset_at.unwrap_or(0).min(story.len())..].chars().count();
-            out.push(Issue { severity: "error", kind: "overset", message: format!("Overset text: {n} characters"), item: last.map(|i| i.0), page });
+            out.push(Issue {
+                severity: "error",
+                kind: "overset",
+                message: format!("Overset text: {n} characters"),
+                item: last.map(|i| i.0),
+                page,
+                details: json!({"chars": n}),
+            });
         }
         let ranges = story.para_ranges();
         for (pi, pf) in story.paras.iter().enumerate() {
@@ -144,10 +155,17 @@ pub fn check(s: &Session, min_ppi: f64) -> Vec<Issue> {
         }
     }
     for f in missing_fonts {
-        out.push(Issue { severity: "error", kind: "missingFont", message: format!("Missing font: {f}"), item: None, page: None });
+        out.push(Issue {
+            severity: "error",
+            kind: "missingFont",
+            message: format!("Missing font: {f}"),
+            item: None,
+            page: None,
+            details: json!({"font": f}),
+        });
     }
     for message in unsupported_typography {
-        out.push(Issue { severity: "warning", kind: "unsupportedTypography", message, item: None, page: None });
+        out.push(Issue { severity: "warning", kind: "unsupportedTypography", message, item: None, page: None, details: Value::Null });
     }
     for (face, chars) in missing {
         let listed: Vec<String> = chars.iter().take(MISSING_GLYPHS_LISTED).map(char::to_string).collect();
@@ -159,6 +177,7 @@ pub fn check(s: &Session, min_ppi: f64) -> Vec<Issue> {
             message: format!("Missing glyphs in {} {}: {}{more}", face.family, face.style, listed.join(" ")),
             item: None,
             page: None,
+            details: json!({"font": format!("{} {}", face.family, face.style), "missing": listed, "more": chars.len().saturating_sub(MISSING_GLYPHS_LISTED)}),
         });
     }
     // Items.
@@ -168,15 +187,21 @@ pub fn check(s: &Session, min_ppi: f64) -> Vec<Issue> {
                 let page = page_of(d, SpreadRef::Doc(si), it);
                 match &it.content {
                     Content::Graphic(g) => match d.assets.get(&g.asset) {
-                        None => {
-                            out.push(Issue { severity: "error", kind: "missingLink", message: "Missing graphic".into(), item: Some(it.id.0), page })
-                        }
+                        None => out.push(Issue {
+                            severity: "error",
+                            kind: "missingLink",
+                            message: "Missing graphic".into(),
+                            item: Some(it.id.0),
+                            page,
+                            details: Value::Null,
+                        }),
                         Some(a) if a.data.is_empty() => out.push(Issue {
                             severity: "error",
                             kind: "missingLink",
                             message: format!("Missing link: {}", a.link.as_deref().unwrap_or(&a.name)),
                             item: Some(it.id.0),
                             page,
+                            details: json!({"name": a.link.as_deref().unwrap_or(&a.name)}),
                         }),
                         Some(a) => {
                             // Effective ppi: pixels per inch at the placed size. Placed PDF and
@@ -192,13 +217,21 @@ pub fn check(s: &Session, min_ppi: f64) -> Vec<Issue> {
                                         message: format!("{}: effective {ppi:.0} ppi (< {min_ppi:.0})", a.name),
                                         item: Some(it.id.0),
                                         page,
+                                        details: json!({"name": a.name, "ppi": ppi.round(), "minPpi": min_ppi.round()}),
                                     });
                                 }
                             }
                         }
                     },
                     Content::Text(tf) if d.story(tf.story).is_some_and(|s| s.is_empty()) => {
-                        out.push(Issue { severity: "warning", kind: "emptyText", message: "Empty text frame".into(), item: Some(it.id.0), page });
+                        out.push(Issue {
+                            severity: "warning",
+                            kind: "emptyText",
+                            message: "Empty text frame".into(),
+                            item: Some(it.id.0),
+                            page,
+                            details: Value::Null,
+                        });
                     }
                     _ => {}
                 }
@@ -215,6 +248,7 @@ pub fn check(s: &Session, min_ppi: f64) -> Vec<Issue> {
                     message: format!("RGB swatch in a print document: {}", sw.name),
                     item: None,
                     page: None,
+                    details: json!({"swatch": sw.name}),
                 });
             }
         }

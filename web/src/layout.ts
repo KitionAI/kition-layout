@@ -86,6 +86,8 @@ export type DocumentInfo = {
   tool: string
   /** The selected frame's placed graphic is selected, not the frame (plan stage 6). */
   selectionContent: boolean
+  /** Direct Selection's selected anchor points, `[item, subpath, anchor]` (plan stage 8). */
+  selectedAnchors: Array<[number, number, number]>
   /** The key object Align aligns to (one of the selected objects), if any. */
   keyObject: number | null
   /** The graphics in the place cursor, the one a click places first. */
@@ -103,7 +105,7 @@ type Inspected = {
   pageCount?: number
   spreads?: Array<{ index?: number; pages?: Array<Partial<Page>>; items?: Item[] }>
   canvas?: { spreads?: Array<{ x: number; y: number; width: number; height: number; guides?: unknown[] }> }
-  selection?: { items?: number[]; text?: { story?: number } | null }
+  selection?: { items?: number[]; text?: { story?: number } | null; anchors?: Array<[number, number, number]> }
   layers?: Layer[]
   activeLayer?: number
   swatches?: string[]
@@ -168,6 +170,7 @@ export function describe(info: KitEngineInfo): DocumentInfo {
     settings: { pageWidth: 612, pageHeight: 792, facingPages: false, intent: 'print', ...inspected.settings },
     tool: inspected.tool ?? 'selection',
     selectionContent: inspected.selectionContent ?? false,
+    selectedAnchors: inspected.selection?.anchors ?? [],
     keyObject: inspected.keyObject ?? null,
     placeQueue: inspected.placeQueue ?? [],
     styleDefs: inspected.styleDefs ?? { paragraph: [], character: [] },

@@ -86,8 +86,8 @@ fn path_options(s: &mut Session, p: &Value) -> Result<Value> {
     let p = p.clone();
     s.edit(|d, sel| {
         let it = d.item_mut(id).ok_or(kition_layout_doc::DocError::NoItem(id))?;
-        let Content::Text(tf) = &mut it.content else { return Err(bad("text.pathOptions", "not type on a path")) };
-        let Some(pt) = tf.options.path.as_mut() else { return Err(bad("text.pathOptions", "not type on a path")) };
+        let Content::Text(tf) = &mut it.content else { return Err(super::refused("text.pathOptions", "needTypeOnPath", "not type on a path")) };
+        let Some(pt) = tf.options.path.as_mut() else { return Err(super::refused("text.pathOptions", "needTypeOnPath", "not type on a path")) };
         if delete {
             let sid = tf.story;
             it.content = Content::Unassigned;

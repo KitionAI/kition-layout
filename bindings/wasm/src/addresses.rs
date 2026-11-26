@@ -324,6 +324,8 @@ fn declaration(command: &KitCommand) -> Declaration {
         // story's anchored objects or cross-references, a table's rows) or a page/spread number.
         "state.show" | "state.rename" | "anchored.options" | "anchored.release" | "xref.setFormat" => places.push("index"),
         "path.deleteAnchor" | "path.convertAnchor" => places.extend(["anchor", "subpath"]),
+        // The subpath a continued path's anchor goes on, the subpath closed.
+        "path.appendAnchor" | "path.close" => places.push("subpath"),
         "table.moveRow" | "table.moveColumn" => places.extend(["from", "to"]),
         "table.sortRows" => places.push("column"),
         "table.resizeBorder" => places.push("index"),

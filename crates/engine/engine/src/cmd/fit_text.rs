@@ -51,7 +51,7 @@ fn fit_text(s: &mut Session, p: &Value) -> Result<Value> {
     stories.sort_by_key(|s| s.0);
     stories.dedup();
     if stories.is_empty() {
-        return Err(bad(ID, "select a text frame"));
+        return Err(super::refused(ID, "needTextFrame", "select a text frame"));
     }
     let mut found = Vec::new();
     for sid in stories {

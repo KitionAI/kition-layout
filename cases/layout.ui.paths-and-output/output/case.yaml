@@ -1,0 +1,30 @@
+format: 1
+id: layout.ui.paths-and-output/output
+feature: layout.ui.paths-and-output
+intent: >-
+  A person putting a layout out, in Chinese: Export's PDF shows its options in Chinese; a page
+  range the document does not have is refused in Chinese with no English engine text, nothing is
+  written and the dialog stays open; PDF/X-4 with crop marks is written as a PDF 1.6; Preflight
+  lists an overset frame in Chinese with its page and a summary, and a click on the row selects the
+  frame; Check Spelling comes to a misspelled word, says so in Chinese with its suggestion and
+  selects it in its frame, Change replaces it in one undo step and goes on, Add puts a word in the
+  user dictionary and the check completes; the Links panel shows a placed PNG small, unembedded it
+  is linked and Embed keeps it in the document again; New Document with a primary text frame says
+  what it does and writes the file.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/output.mjs (plan 2026-11-25, stage 8)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/output.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-25"

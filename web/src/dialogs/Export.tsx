@@ -1,17 +1,19 @@
 import { useState } from 'react'
 import { Button, Checkbox, Choice, Dialog, NumberField, toast, useKitEditor, useKitStore } from '@kition/sdk/editor'
 import type { DocumentInfo } from '../layout'
-import { FORMATS, type Format, bytesOf, bytesRequest, decodeBase64, exportPath, scaleLabel, writeExports } from '../exporting'
+import { DEFAULT_PDF, FORMATS, PDF_STANDARDS, type Format, type PdfOptions, bytesOf, bytesRequest, decodeBase64, exportPath, scaleLabel, writeExports } from '../exporting'
+import { useErrorText } from '../errorWords'
 
 type Range = 'all' | 'current' | 'range' | 'sizes'
-export type ExportSettings = { format: Format; range: Range; pages: string; ppi: number; transparent: boolean; quality: number; bleed: boolean }
+export type ExportSettings = { format: Format; range: Range; pages: string; ppi: number; transparent: boolean; quality: number; bleed: boolean } & PdfOptions
 
-export const DEFAULT_EXPORT: ExportSettings = { format: 'png', range: 'all', pages: '', ppi: 72, transparent: false, quality: 90, bleed: false }
+export const DEFAULT_EXPORT: ExportSettings = { format: 'png', range: 'all', pages: '', ppi: 72, transparent: false, quality: 90, bleed: false, ...DEFAULT_PDF }
 
 function validSettings(raw: unknown): ExportSettings | undefined {
   if (!raw || typeof raw !== 'object') return undefined
   const value = { ...DEFAULT_EXPORT, ...(raw as Partial<ExportSettings>) }
   if (!FORMATS.includes(value.format) || !['all', 'current', 'range', 'sizes'].includes(value.range)) return undefined
+  if (!PDF_STANDARDS.includes(value.standard)) return undefined
   if (!Number.isFinite(value.ppi) || value.ppi < 1 || value.ppi > 2400 || !Number.isFinite(value.quality)) return undefined
   return value
 }
@@ -22,11 +24,24 @@ const safe = (name: string) => name.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'si
 /**
  * File › Export: PNG or JPEG pages (resolution, transparent background for PNG, JPEG quality),
  * PDF, IDML, EPUB or HTML, of every page, every size (alternate layouts), the page in view, or a
- * range; written next to the
- * document through the host. The choices are remembered for the document.
+ * range; written next to the document through the host. PDF also takes what the engine's PDF
+ * export does (plan stage 8): spreads, printer's marks, PDF/X-4 or PDF/A-2b, compressed images, a
+ * tagged file. The choices are remembered for the document; a refusal is said in the person's
+ * language.
  */
 export function ExportDialog({ info, page, onClose }: { info: DocumentInfo; page: number; onClose: () => void }) {
-  const { query, host, t } = useKitEditor()
+  const { session, host, t } = useKitEditor()
+  const words = useErrorText()
+  /** The engine's answer to an export query; its refusal in the person's words. */
+  const ask = async <R,>(command: string, params: Record<string, unknown>): Promise<R> => {
+    const open = session.doc
+    if (!open) throw new Error(t('exportFailed'))
+    try {
+      return JSON.parse(await open.execute(command, params)) as R
+    } catch (error) {
+      throw new Error(words(error))
+    }
+  }
   const key = `export:${host.init.document.path}`
   const [stored, setStored] = useKitStore<ExportSettings>('kit.layout', key, { initial: DEFAULT_EXPORT, validate: validSettings })
   const [settings, setSettings] = useState<ExportSettings>(stored)
@@ -46,7 +61,7 @@ export function ExportDialog({ info, page, onClose }: { info: DocumentInfo; page
     try {
       const files: Array<{ path: string; bytes: Uint8Array }> = []
       if (raster) {
-        const answer = await query<{ files: Array<{ page: number; layout: string | null; base64: string }> }>('file.exportImage', {
+        const answer = await ask<{ files: Array<{ page: number; layout: string | null; base64: string }> } | null>('file.exportImage', {
           format: settings.format,
           ...(pages ? { pages } : {}),
           ...(sizes ? { sizes: true } : {}),
@@ -67,8 +82,8 @@ export function ExportDialog({ info, page, onClose }: { info: DocumentInfo; page
         }
       } else {
         // PDF, IDML, EPUB and HTML: the engine answers the file's bytes, the host writes it.
-        const request = bytesRequest(settings.format, { pages, bleed: settings.bleed })
-        const bytes = bytesOf(await query<Record<string, unknown>>(request.command, request.params))
+        const request = bytesRequest(settings.format, { pages, bleed: settings.bleed, pdf: settings })
+        const bytes = bytesOf(await ask<Record<string, unknown> | null>(request.command, request.params))
         if (!bytes) throw new Error(t('exportFailed'))
         files.push({ path: exportPath(doc, settings.format), bytes })
       }
@@ -120,6 +135,24 @@ export function ExportDialog({ info, page, onClose }: { info: DocumentInfo; page
               </label>
             ) : null}
             <Checkbox label={t('includeBleed')} checked={settings.bleed} onChange={(bleed) => set({ bleed })} testId="layout-export-bleed" />
+          </>
+        ) : null}
+        {settings.format === 'pdf' ? (
+          <>
+            <Checkbox label={t('pdf.spreads')} checked={settings.spreads} onChange={(spreads) => set({ spreads })} testId="layout-export-spreads" />
+            <div className="layout-dialog-group-label">{t('pdf.marks')}</div>
+            <Checkbox label={t('pdf.cropMarks')} checked={settings.cropMarks} onChange={(cropMarks) => set({ cropMarks })} testId="layout-export-crop-marks" />
+            <Checkbox label={t('pdf.bleedMarks')} checked={settings.bleedMarks} onChange={(bleedMarks) => set({ bleedMarks })} testId="layout-export-bleed-marks" />
+            <Checkbox label={t('pdf.pageInfo')} checked={settings.pageInfo} onChange={(pageInfo) => set({ pageInfo })} testId="layout-export-page-info" />
+            <Choice
+              label={t('pdf.standard')}
+              value={settings.standard}
+              choices={PDF_STANDARDS.map((standard) => [standard, t(`pdf.standard.${standard}`)] as const)}
+              onChange={(standard) => set({ standard })}
+              testId="layout-export-standard"
+            />
+            <Checkbox label={t('pdf.compressImages')} checked={settings.compressImages} onChange={(compressImages) => set({ compressImages })} testId="layout-export-compress" />
+            <Checkbox label={t('pdf.tagged')} checked={settings.tagged} onChange={(tagged) => set({ tagged })} testId="layout-export-tagged" />
           </>
         ) : null}
         {raster ? (

@@ -53,3 +53,39 @@ export function movePlan({ pages, where, page, count }: { pages: readonly number
   })
   return steps
 }
+
+/** A page as `inspect()` reports it: its box on its spread, its side and margins. */
+export type InspectedPage = { bounds: number[]; side?: string; margins?: { top?: number; bottom?: number; inside?: number; outside?: number } }
+
+/** The margin box of `page` on its spread: the inside margin is on the left of a right-hand page and of a single one. */
+export function marginBox(page: InspectedPage): [number, number, number, number] {
+  const [x0, y0, x1, y1] = page.bounds
+  const m = page.margins ?? {}
+  const left = page.side === 'left' ? (m.outside ?? 0) : (m.inside ?? 0)
+  const right = page.side === 'left' ? (m.inside ?? 0) : (m.outside ?? 0)
+  return [x0 + left, y0 + (m.top ?? 0), x1 - right, y1 - (m.bottom ?? 0)]
+}
+
+/**
+ * New Document's Primary Text Frame (plan stage 8): a text frame filling each page's margins, with
+ * the document's columns, threaded page to page into one story that is the primary story (Smart
+ * Text Reflow adds pages for it), as the engine's own new document makes them, with its commands.
+ */
+export async function addPrimaryTextFrames(execute: (command: string, params: Record<string, unknown>) => Promise<string>, columns: number, gutter: number) {
+  const info = JSON.parse(await execute('file.inspect', {})) as { spreads?: Array<{ index?: number; pages?: InspectedPage[] }> }
+  let previous: number | null = null
+  let first: number | null = null
+  for (const [index, spread] of (info.spreads ?? []).entries()) {
+    for (const page of spread.pages ?? []) {
+      const frame = JSON.parse(await execute('frame.add', { spread: spread.index ?? index, rect: marginBox(page), content: 'text', caret: false })) as { id: number }
+      await execute('object.textFrameOptions', { ids: [frame.id], columns, gutter })
+      if (previous != null) await execute('frame.thread', { from: previous, to: frame.id })
+      else first = frame.id
+      previous = frame.id
+    }
+  }
+  if (first == null) return
+  await execute('select.set', { ids: [first] })
+  await execute('object.primaryTextFrame', { ids: [first], on: true })
+  await execute('select.set', { ids: [] })
+}

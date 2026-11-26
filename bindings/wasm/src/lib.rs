@@ -293,6 +293,12 @@ fn cursor_css(cursor: Cursor) -> String {
         Cursor::NotAllowed => "not-allowed",
         // Over a frame's content grabber or its selected graphic (the editor draws a hand).
         Cursor::ContentHand => "pointer",
+        // The Pen's states (the editor draws a pen with its sign): add an anchor on the outline,
+        // delete the anchor, close the path, continue the path from its end point.
+        Cursor::PenAdd => "copy",
+        Cursor::PenDelete => "no-drop",
+        Cursor::PenClose => "alias",
+        Cursor::PenContinue => "cell",
         _ => "default",
     }
     .to_owned()
@@ -1576,6 +1582,63 @@ mod tests {
         assert_eq!(cursor(&mut doc, 200.0, 350.0), "no-drop", "the linked frame: a click unthreads");
         assert_eq!(cursor(&mut doc, 420.0, 350.0), "alias", "an empty frame: a click threads");
         assert_eq!(cursor(&mut doc, 200.0, 600.0), "copy", "empty space: the loaded cursor");
+    }
+
+    /// Plan 2026-11-25, stage 8: the Pen's cursor says what a click on a selected path does (add,
+    /// delete, continue, close), as CSS names the editor draws as pens; Direct Selection drags the
+    /// points a marquee chose on two paths as one undo step, and the arrows move them.
+    #[test]
+    fn the_pen_and_direct_selection_on_selected_paths() {
+        let mut doc = LayoutDocument::create("Paths.klayout", 612, 792).unwrap();
+        let a = doc.execute("path.add", json!({ "anchors": [{ "p": [100, 100] }, { "p": [200, 100] }, { "p": [200, 200] }] })).unwrap()["id"]
+            .as_u64()
+            .unwrap();
+        doc.select_tool("pen", 1.0).unwrap();
+        let cursor = |doc: &mut LayoutDocument, x: f64, y: f64| doc.state(72.0 + x, 72.0 + y, ToolMods::default(), 1.0).cursor;
+        assert_eq!(cursor(&mut doc, 150.0, 100.0), "copy", "on the outline: add an anchor");
+        assert_eq!(cursor(&mut doc, 200.0, 100.0), "no-drop", "on an anchor: delete it");
+        assert_eq!(cursor(&mut doc, 200.0, 200.0), "cell", "on an end point: continue");
+        assert_eq!(cursor(&mut doc, 400.0, 400.0), "crosshair", "elsewhere: the pen");
+        let event = |action, x: f64, y: f64| ToolPointer { action, x: 72.0 + x, y: 72.0 + y, mods: ToolMods::default(), pressure: 1.0, zoom: 1.0 };
+        let click = |doc: &mut LayoutDocument, x: f64, y: f64| {
+            doc.pointer(&event(PointerAction::Down, x, y)).unwrap();
+            doc.pointer(&event(PointerAction::Up, x, y)).unwrap();
+        };
+        click(&mut doc, 200.0, 200.0);
+        click(&mut doc, 100.0, 200.0);
+        assert_eq!(cursor(&mut doc, 100.0, 100.0), "alias", "on the first anchor while drawing: close");
+        click(&mut doc, 100.0, 100.0);
+        let path = |doc: &LayoutDocument| doc.active().unwrap().doc.item(kition_layout_engine::doc::ItemId(a)).unwrap().path.subpaths[0].clone();
+        assert_eq!((path(&doc).anchors.len(), path(&doc).closed), (4, true));
+        // `inspect()` reads the path's points back on the spread, for the editor.
+        let read = doc.inspect().unwrap()["spreads"][0]["items"].as_array().unwrap().iter().find(|item| item["id"] == a).unwrap()["subpaths"].clone();
+        assert_eq!(read[0]["closed"], true);
+        assert_eq!(read[0]["anchors"].as_array().map(Vec::len), Some(4));
+        assert_eq!(read[0]["anchors"][1], json!([200.0, 100.0]), "on the spread");
+        let b = doc.execute("path.add", json!({ "anchors": [{ "p": [100, 400] }, { "p": [200, 400] }] })).unwrap()["id"].as_u64().unwrap();
+        doc.execute("select.set", json!({ "ids": [] })).unwrap();
+        doc.select_tool("directSelection", 1.0).unwrap();
+        doc.pointer(&event(PointerAction::Down, 180.0, 50.0)).unwrap();
+        doc.pointer(&event(PointerAction::Drag, 220.0, 450.0)).unwrap();
+        doc.pointer(&event(PointerAction::Up, 220.0, 450.0)).unwrap();
+        let inspected = doc.inspect().unwrap();
+        assert_eq!(inspected["selection"]["anchors"], json!([[a, 0, 1], [a, 0, 2], [b, 0, 1]]), "the points inside, of both paths");
+        let steps = |doc: &LayoutDocument| doc.active().unwrap().undo_steps();
+        let before = steps(&doc);
+        doc.pointer(&event(PointerAction::Down, 200.0, 400.0)).unwrap();
+        doc.pointer(&event(PointerAction::Drag, 200.0, 430.0)).unwrap();
+        doc.pointer(&event(PointerAction::Up, 200.0, 430.0)).unwrap();
+        assert_eq!(steps(&doc), before + 1, "one drag, one step");
+        let at = |doc: &LayoutDocument, id: u64, i: usize| {
+            let p = doc.active().unwrap().doc.item(kition_layout_engine::doc::ItemId(id)).unwrap().path.subpaths[0].anchors[i].p;
+            (p.x.round(), p.y.round())
+        };
+        // Both by the same drag (the dragged point may snap: the other follows it).
+        let (moved_a, moved_b) = (at(&doc, a, 1), at(&doc, b, 1));
+        assert_eq!((moved_a.1, moved_b.1, moved_a.0), (130.0, 430.0, moved_b.0));
+        doc.key("ArrowLeft", ToolMods::default(), 1.0).unwrap();
+        assert_eq!((at(&doc, a, 1), at(&doc, b, 1)), ((moved_a.0 - 1.0, 130.0), (moved_b.0 - 1.0, 430.0)));
+        assert_eq!(steps(&doc), before + 2);
     }
 
     /// Plan 2026-11-25, stage 7: the style options, Swatch Options and the Effects dialog read

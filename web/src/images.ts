@@ -53,6 +53,13 @@ export function unembedPath(documentPath: string, name: string): string {
   return `${folder}${leaf}`
 }
 
+/** The picture type the browser draws a link's thumbnail from, by the file's extension; null when it draws none. */
+export function thumbnailType(name: string): string | null {
+  const extension = /\.([A-Za-z0-9]+)$/.exec(name)?.[1]?.toLowerCase() ?? ''
+  const types: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' }
+  return types[extension] ?? null
+}
+
 /** Whether the host takes a graphic's file to keep (it writes only what the kit exports: PNG and JPEG). */
 export function unembeddable(name: string): boolean {
   return /\.(png|jpe?g)$/i.test(name)

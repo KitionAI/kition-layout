@@ -29,7 +29,7 @@ fn undo_scope(cmd: &str, p: &Value) -> Result<Option<UndoScope>> {
 fn has_clip(s: &Session) -> std::result::Result<(), String> {
     has_doc(s)?;
     let text = s.text_clipboard.is_some() && s.active().is_some_and(|d| d.selection.text.is_some());
-    if s.clipboard.is_some() || text { Ok(()) } else { Err("clipboard is empty".into()) }
+    if s.clipboard.is_some() || text { Ok(()) } else { Err(super::coded("needClipboard", "clipboard is empty")) }
 }
 
 fn has_clip_or_text(s: &Session) -> std::result::Result<(), String> {
@@ -104,7 +104,7 @@ fn paste_text(s: &mut Session, text: Option<String>, formatted: bool) -> Result<
             Ok(json!({"pos": end, "formatted": true}))
         });
     }
-    let text = text.or_else(|| clip.map(|(_, p)| p)).ok_or_else(|| super::bad("edit.paste", "clipboard is empty"))?;
+    let text = text.or_else(|| clip.map(|(_, p)| p)).ok_or_else(|| super::refused("edit.paste", "needClipboard", "clipboard is empty"))?;
     s.execute("text.insert", &json!({"text": text.replace("\r\n", "\n").replace('\r', "\n"), "raw": true}))
 }
 
@@ -133,8 +133,18 @@ pub fn specs() -> Vec<CommandSpec> {
             let label = s.undo_redo(false, scope)?.ok_or_else(|| super::bad("edit.redo", "nothing to redo"))?;
             Ok(json!({"redone": label}))
         }),
-        cmd!(noundo "select.set", "Select", [], None, "{ids: [id], add?: bool, content?: bool, key?: id|null (the key object Align aligns to: one of the selected objects; null drops it)}", has_doc, |s, p| {
+        cmd!(noundo "select.set", "Select", [], None, "{ids: [id], add?: bool, content?: bool, key?: id|null (the key object Align aligns to: one of the selected objects; null drops it), anchors?: [[id, subpath, anchor]] (Direct Selection's selected anchor points, of the selected paths)}", has_doc, |s, p| {
             let ids = ids_param(p, "ids").unwrap_or_default();
+            let anchors: Option<Vec<(ItemId, usize, usize)>> = match p.get("anchors") {
+                None | Some(Value::Null) => None,
+                Some(v) => Some(
+                    serde_json::from_value::<Vec<(u64, usize, usize)>>(v.clone())
+                        .map_err(|_| super::bad("select.set", "`anchors` is a list of [id, subpath, anchor]"))?
+                        .into_iter()
+                        .map(|(id, si, ai)| (ItemId(id), si, ai))
+                        .collect(),
+                ),
+            };
             let add = bool_or(p, "add", false);
             let content = bool_or(p, "content", false);
             let key = match p.get("key") {
@@ -158,6 +168,18 @@ pub fn specs() -> Vec<CommandSpec> {
             }
             if let Some(key) = key {
                 st.selection.key = key.filter(|k| st.selection.items.contains(k));
+            }
+            if let Some(anchors) = anchors {
+                // Only anchors that exist, of selected objects, each once.
+                let doc = &st.doc;
+                let mut chosen: Vec<(ItemId, usize, usize)> = if add { st.selection.anchors.clone() } else { Vec::new() };
+                for a in anchors {
+                    let exists = doc.item(a.0).and_then(|it| it.path.subpaths.get(a.1)).is_some_and(|sp| a.2 < sp.anchors.len());
+                    if exists && st.selection.items.contains(&a.0) && !chosen.contains(&a) {
+                        chosen.push(a);
+                    }
+                }
+                st.selection.anchors = chosen;
             }
             st.selection.text = None;
             st.selection.cells = None;
@@ -257,7 +279,7 @@ pub fn specs() -> Vec<CommandSpec> {
                     return paste_text(s, super::str_param(p, "text").map(str::to_string), true);
                 }
                 let Some(clip) = s.clipboard.clone() else {
-                    return Err(super::bad("edit.paste", "clipboard is empty"));
+                    return Err(super::refused("edit.paste", "needClipboard", "clipboard is empty"));
                 };
                 let off = if bool_or(p, "inPlace", false) { 0.0 } else { 12.0 };
                 let ids: Vec<ItemId> = clip.spreads.first().map(|sp| sp.items.iter().map(|i| i.id).collect()).unwrap_or_default();

@@ -1,0 +1,28 @@
+format: 1
+id: layout.ui.paths-and-output/paths
+feature: layout.ui.paths-and-output
+intent: >-
+  A person with paths: on a selected open path the Pen's cursor says add over the outline, delete
+  over an anchor, continue over an end point and close over the first anchor of the path it draws;
+  a click on the outline adds an anchor (one undo step), a click on that anchor deletes it, a click
+  on the end point and one beyond continue the same path (one step), a click on the first anchor
+  closes it; Direct Selection's marquee selects the anchor points of two paths, a drag of one moves
+  both (one step, the other points stay), the arrow moves both (one step) and one undo takes it
+  back, Delete deletes both points and keeps the paths (one step) and one undo brings them back.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/paths.mjs (plan 2026-11-25, stage 8)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/paths.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-25"

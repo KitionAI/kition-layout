@@ -45,7 +45,7 @@ const special = (character: string, label: string): Entry => v('text.insertSpeci
 
 const MENUS: ReadonlyArray<readonly [string, readonly Entry[]]> = [
   // File: New…, New from Template…, Document Setup… and Export… are the editor's own actions at the top (App).
-  ['File', [k('file.place', 'Place…', 'Cmd+D')]],
+  ['File', [k('file.place', 'Place…', 'Cmd+D'), '-', c('preflight.run', 'Preflight')]],
   [
     'Edit',
     [
@@ -70,6 +70,8 @@ const MENUS: ReadonlyArray<readonly [string, readonly Entry[]]> = [
       c('edit.findNext'),
       '-',
       '>Spelling',
+      c('spelling.check'),
+      '-',
       c('spelling.addWord'),
       c('hyphenation.addException'),
       '<',

@@ -73,6 +73,8 @@ enum Drag {
         /// None when that point could not be read. The live document during a drag is the
         /// previous preview, so the snap must not read the anchor from it again.
         at: Option<(SpreadRef, Point)>,
+        /// The other selected anchor points the drag moves with this one (id, subpath, anchor).
+        others: Vec<(u64, usize, usize)>,
     },
 }
 
@@ -104,6 +106,105 @@ pub fn anchor_at_in(cx: &ToolContext, ids: &[kition_layout_doc::ItemId], p: Poin
     None
 }
 
+/// The anchor points inside `r` (canvas) of the unlocked, visible paths, groups' members included.
+fn anchors_in(cx: &ToolContext, r: Rect) -> Vec<(ItemId, usize, usize)> {
+    fn walk(cx: &ToolContext, items: &[std::sync::Arc<kition_layout_doc::Item>], r: Rect, depth: usize, out: &mut Vec<(ItemId, usize, usize)>) {
+        // Groups nest only so deep.
+        if depth > 32 {
+            return;
+        }
+        for it in items {
+            let locked = it.locked || cx.doc.layer(it.layer).is_some_and(|l| l.locked || !l.visible);
+            if locked || it.hidden {
+                continue;
+            }
+            if let kition_layout_doc::Content::Group { items } = &it.content {
+                walk(cx, items, r, depth + 1, out);
+                continue;
+            }
+            let Some(xf) = cx.item_canvas_xf(it.id) else { continue };
+            let m = xf * it.xf;
+            for (si, ai, a) in it.path.anchors() {
+                let q = m * a.p;
+                if q.x >= r.x0 && q.x <= r.x1 && q.y >= r.y0 && q.y <= r.y1 {
+                    out.push((it.id, si, ai));
+                }
+            }
+        }
+    }
+    let mut out = Vec::new();
+    for slot in &cx.layout.slots {
+        if let Some(sp) = cx.doc.spread(slot.spread) {
+            walk(cx, &sp.items, r, 0, &mut out);
+        }
+    }
+    out
+}
+
+/// `select.set` params selecting `points`: their paths, and those points. `keep` (Shift): the
+/// objects already selected stay selected; otherwise only the paths of `points` are.
+fn anchor_selection(cx: &ToolContext, points: &[(ItemId, usize, usize)], keep: bool) -> Value {
+    let mut ids: Vec<u64> = if keep { cx.selection.items.iter().map(|i| i.0).collect() } else { Vec::new() };
+    for (i, _, _) in points {
+        if !ids.contains(&i.0) {
+            ids.push(i.0);
+        }
+    }
+    let anchors: Vec<Value> = points.iter().map(|(i, s, a)| json!([i.0, s, a])).collect();
+    json!({"ids": ids, "anchors": anchors, "content": true})
+}
+
+/// `path.moveAnchors` steps moving `points` by `d` on the canvas: one per path, each by the drag
+/// in its own spread (a turned spread view turns it).
+fn move_points_steps(cx: &ToolContext, points: &[(ItemId, usize, usize)], d: Vec2) -> Vec<(String, Value)> {
+    let mut by_item: Vec<(ItemId, Vec<Value>)> = Vec::new();
+    for (id, si, ai) in points {
+        match by_item.iter_mut().find(|(i, _)| i == id) {
+            Some((_, list)) => list.push(json!([si, ai])),
+            None => by_item.push((*id, vec![json!([si, ai])])),
+        }
+    }
+    by_item
+        .into_iter()
+        .map(|(id, anchors)| {
+            let v = cx.doc.find(id).map_or(d, |loc| cx.layout.delta_to_spread(loc.spread, d));
+            ("path.moveAnchors".to_string(), json!({"id": id.0, "anchors": anchors, "dx": v.x, "dy": v.y}))
+        })
+        .collect()
+}
+
+/// `path.deleteAnchor` steps deleting `points`: each path's subpaths from the last, each
+/// subpath's anchors from the last, so the indices still to come stay right. A subpath left with
+/// one anchor goes whole (the command removes it), so the anchors after that are not asked for.
+fn delete_points_steps(cx: &ToolContext, points: &[(ItemId, usize, usize)]) -> Vec<(String, Value)> {
+    let mut sorted = points.to_vec();
+    sorted.sort_by(|a, b| (a.0.0, b.1, b.2).cmp(&(b.0.0, a.1, a.2)));
+    sorted.dedup();
+    let mut out = Vec::new();
+    let mut left: Option<(ItemId, usize, usize)> = None;
+    for (id, si, ai) in sorted {
+        let count = match left {
+            Some((i, s, n)) if i == id && s == si => n,
+            _ => cx.doc.item(id).and_then(|it| it.path.subpaths.get(si)).map_or(0, |sp| sp.anchors.len()),
+        };
+        if count < 2 {
+            continue;
+        }
+        out.push(("path.deleteAnchor".to_string(), json!({"id": id.0, "subpath": si, "anchor": ai})));
+        left = Some((id, si, count - 1));
+    }
+    out
+}
+
+/// One command as itself, several as one undo step named `label`.
+fn as_one_step(label: &str, mut steps: Vec<(String, Value)>) -> Vec<Action> {
+    match steps.len() {
+        0 => vec![],
+        1 => steps.pop().map(|(cmd, p)| vec![Action::Exec(cmd, p)]).unwrap_or_default(),
+        _ => vec![Action::Steps(label.into(), steps)],
+    }
+}
+
 /// Spread holding the anchor, and the anchor in that spread's coordinates.
 fn anchor_spread_point(cx: &ToolContext, id: u64, si: usize, ai: usize) -> Option<(SpreadRef, Point)> {
     let item_id = ItemId(id);
@@ -130,6 +231,8 @@ pub struct SelectionTool {
     /// One of several selected objects to make (or stop being) the key object if this press never
     /// becomes a drag.
     key_release: Option<u64>,
+    /// Selected anchor point to take away if this Shift press never becomes a drag.
+    anchor_release: Option<(ItemId, usize, usize)>,
     /// The count of the last press (the editor's): a counted double click acted on its second
     /// press, so the editor's own double click event that follows changes nothing.
     last_clicks: u8,
@@ -147,6 +250,7 @@ impl SelectionTool {
             hover: None,
             guides: vec![],
             shift_release: None,
+            anchor_release: None,
             key_release: None,
             last_clicks: 1,
             event_double: false,
@@ -556,8 +660,37 @@ impl Tool for SelectionTool {
                     && let Some((id, si, ai, handle)) = anchor_at(cx, p)
                 {
                     let at = anchor_spread_point(cx, id, si, ai);
-                    self.drag = Drag::Anchor { id, si, ai, handle, start: p, at };
-                    return vec![Action::Begin(if handle.is_some() { "Move Direction Handle".into() } else { "Move Anchor".into() })];
+                    let mut out = vec![];
+                    let mut others = vec![];
+                    if handle.is_none() {
+                        // InDesign's anchor point selection: a click selects the point, Shift+click
+                        // adds it or takes it away, and dragging a selected point moves all of them.
+                        let me = (ItemId(id), si, ai);
+                        let mut points = cx.selection.anchors.clone();
+                        let was = points.contains(&me);
+                        if ev.mods.shift && was {
+                            // Kept selected so a Shift-drag still moves it; a click takes it away, on release.
+                            self.anchor_release = Some(me);
+                        } else if ev.mods.shift {
+                            points.push(me);
+                        } else if !was {
+                            points = vec![me];
+                        }
+                        if points != cx.selection.anchors {
+                            out.push(Action::Exec("select.set".into(), anchor_selection(cx, &points, ev.mods.shift)));
+                        }
+                        others = points.iter().filter(|a| **a != me).map(|(i, s, a)| (i.0, *s, *a)).collect();
+                    }
+                    let label = if handle.is_some() {
+                        "Move Direction Handle"
+                    } else if others.is_empty() {
+                        "Move Anchor"
+                    } else {
+                        "Move Anchors"
+                    };
+                    self.drag = Drag::Anchor { id, si, ai, handle, start: p, at, others };
+                    out.push(Action::Begin(label.into()));
+                    return out;
                 }
                 if !self.direct
                     && let Some((id, side)) = crate::thread::port_at(cx, p)
@@ -877,7 +1010,11 @@ impl Tool for SelectionTool {
                     // Screen y points down: a positive screen angle is clockwise.
                     vec![Action::Preview("transform.rotate".into(), json!({"angle": -a}))]
                 }
-                Drag::Anchor { id, si, ai, handle, start, at } => {
+                Drag::Anchor { id, si, ai, handle, start, at, others } => {
+                    // A Shift press on a selected point that drags moves it, and keeps it.
+                    if (p - start).hypot() >= cx.tol(3.0) {
+                        self.anchor_release = None;
+                    }
                     let d = p - start;
                     let mut dx = d.x;
                     let mut dy = d.y;
@@ -914,6 +1051,11 @@ impl Tool for SelectionTool {
                         }
                         self.guides = hit.guides;
                     }
+                    if handle.is_none() && !others.is_empty() {
+                        let points: Vec<(ItemId, usize, usize)> =
+                            std::iter::once((id, si, ai)).chain(others).map(|(i, s, a)| (ItemId(i), s, a)).collect();
+                        return vec![Action::PreviewSteps(move_points_steps(cx, &points, Vec2::new(dx, dy)))];
+                    }
                     let mut params = json!({"id": id, "anchors": [[si, ai]], "dx": dx, "dy": dy});
                     if let Some(h) = handle {
                         params["handle"] = json!(h);
@@ -926,8 +1068,14 @@ impl Tool for SelectionTool {
                 self.guides.clear();
                 let release = self.shift_release.take();
                 let key = self.key_release.take();
+                let anchor_release = self.anchor_release.take();
                 let d = std::mem::replace(&mut self.drag, Drag::None);
                 match d {
+                    // A Shift-click on a selected point that never became a drag takes it away.
+                    Drag::Anchor { .. } if anchor_release.is_some() => {
+                        let points: Vec<_> = cx.selection.anchors.iter().copied().filter(|a| Some(*a) != anchor_release).collect();
+                        vec![Action::Commit, Action::Exec("select.set".into(), anchor_selection(cx, &points, true))]
+                    }
                     Drag::Move { .. } | Drag::Resize { .. } | Drag::ContentResize { .. } | Drag::Anchor { .. } | Drag::Rotate { .. } => {
                         vec![Action::Commit]
                     }
@@ -944,6 +1092,21 @@ impl Tool for SelectionTool {
                     },
                     Drag::Marquee { start, cur } => {
                         let r = Rect::from_points(start, cur);
+                        // Direct Selection: the anchor points inside the marquee, on every path it
+                        // reaches (InDesign's way to select points of several paths at once).
+                        if self.direct {
+                            let mut points = anchors_in(cx, r);
+                            if !points.is_empty() {
+                                if ev.mods.shift {
+                                    for a in &cx.selection.anchors {
+                                        if !points.contains(a) {
+                                            points.push(*a);
+                                        }
+                                    }
+                                }
+                                return vec![Action::Exec("select.set".into(), anchor_selection(cx, &points, ev.mods.shift))];
+                            }
+                        }
                         // Items whose bounds intersect the marquee.
                         let mut ids: Vec<Value> = Vec::new();
                         for slot in &cx.layout.slots {
@@ -1003,6 +1166,20 @@ impl Tool for SelectionTool {
         };
         if cx.selection.items.is_empty() {
             return vec![];
+        }
+        // Direct Selection with anchor points selected: the arrows move the points, Delete and
+        // Backspace delete them (each one undo step).
+        if self.direct && !cx.selection.anchors.is_empty() {
+            let points = cx.selection.anchors.clone();
+            let nudge = |dx: f64, dy: f64| as_one_step("Move Anchors", move_points_steps(cx, &points, Vec2::new(dx, dy)));
+            match key {
+                ToolKey::Left => return nudge(-inc, 0.0),
+                ToolKey::Right => return nudge(inc, 0.0),
+                ToolKey::Up => return nudge(0.0, -inc),
+                ToolKey::Down => return nudge(0.0, inc),
+                ToolKey::Delete | ToolKey::Backspace => return as_one_step("Delete Anchor Points", delete_points_steps(cx, &points)),
+                _ => {}
+            }
         }
         // Escape from a selected graphic goes back to its frame.
         if key == ToolKey::Escape && cx.selection.content && !self.direct {

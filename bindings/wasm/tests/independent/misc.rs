@@ -10,7 +10,7 @@ pub fn rows() -> Vec<Row> {
             "path.addAnchor",
             "id:item; at:nearest path point in spread coordinates",
             "item path/shape/transform; every ancestor transform and ownership",
-            "path anchor and shape",
+            "path anchor and shape; selected anchors after it shift",
             &[],
         ),
         r(

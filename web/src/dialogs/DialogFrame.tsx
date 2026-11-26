@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { PreviewDialog, useKitEditor } from '@kition/sdk/editor'
 import type { CommandPreview } from './preview'
-import { refusalReason } from '../menus/context'
+import { useErrorText } from '../errorWords'
 
 /** The test id every command dialog has (its buttons: `-ok`, `-cancel`). */
 export const DIALOG_TEST_ID = 'layout-dialog'
@@ -23,20 +23,22 @@ export function useDialogPlace() {
 
 /**
  * Runs `command` with `params` in the editor's session, as one history step; a refusal throws
- * with its reason in the editor's language when it is one a person can meet (else the engine's
- * own words), so the dialog shows it and stays open.
+ * with its reason in the editor's language (plan stage 8: never the engine's English), so the
+ * dialog shows it and stays open.
  */
 export function useRunInDialog() {
   const { session, t } = useKitEditor()
+  const words = useErrorText()
   return async (command: string, params: Record<string, unknown>) => {
+    let result: string | null
     try {
-      const result = await session.run(command, params)
-      if (result === null) throw new Error(t('dialog.refused'))
-      return result
+      result = await session.run(command, params)
     } catch (error) {
-      const reason = refusalReason(error)
-      throw reason ? new Error(t(`hint.${reason}`)) : error
+      // In the person's language, never the engine's English.
+      throw new Error(words(error))
     }
+    if (result === null) throw new Error(t('dialog.refused'))
+    return result
   }
 }
 

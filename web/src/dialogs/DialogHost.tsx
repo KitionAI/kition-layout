@@ -15,6 +15,9 @@ import { LayerOptionsDialog } from './LayerOptions'
 import { dialogFor, type DialogKind } from './routes'
 import { TemplatesDialog } from './Templates'
 import { ConfirmDialog, FindChangeDialog, InsertTableDialog, lastFind } from './TextDialogs'
+import { PreflightDialog, SpellingDialog, type GoTo } from './OutputDialogs'
+import { findItem } from '../layout'
+import type { RasterRect } from '@kition/sdk/editor'
 
 /** The editor's own dialogs, opened by name (menus' `kit:` rows, Home, the Pages panel, the engine's tools). */
 export type OwnDialog = 'newDocument' | 'goToPage' | 'polygon' | 'sample' | 'export' | 'templates' | 'documentSetup' | 'preferences' | 'effects' | 'layerOptions'
@@ -83,7 +86,7 @@ async function clipboardText(): Promise<string | null> {
  * Holds the open dialog and answers `api` (which App passes to the menus, built outside the
  * editor's provider). `place` is where the person is (the page in view); `onShowPage` shows a page.
  */
-export function LayoutDialogs({ api, info, place, onShowPage }: { api: RefObject<Dialogs | null>; info: DocumentInfo | null; place: Place; onShowPage: (page: number) => void }) {
+export function LayoutDialogs({ api, info, place, onShowPage, onShowArea }: { api: RefObject<Dialogs | null>; info: DocumentInfo | null; place: Place; onShowPage: (page: number) => void; onShowArea: (area: RasterRect) => void }) {
   const editor = useKitEditor()
   const ui = useUi()
   const placing = usePlaceImage()
@@ -183,6 +186,15 @@ export function LayoutDialogs({ api, info, place, onShowPage }: { api: RefObject
 
   if (!open || !info) return null
   const close = () => setOpen(null)
+  // Preflight's and Check Spelling's rows go to their object: its spread is shown (and it is selected).
+  const goTo: GoTo = {
+    item: (id, keep) => {
+      const found = latest.current.info ? findItem(latest.current.info, id) : null
+      if (!keep) void editor.run('select.set', { ids: [id] })
+      if (found) onShowArea(found.spread.area)
+    },
+    page: onShowPage,
+  }
   const page = (open.place ?? latest.current.place).page
   const dialog = ((): ReactNode => {
     switch (open.kind) {
@@ -222,6 +234,10 @@ export function LayoutDialogs({ api, info, place, onShowPage }: { api: RefObject
         return <InsertTableDialog onClose={close} />
       case 'findChange':
         return <FindChangeDialog onClose={close} />
+      case 'preflight':
+        return <PreflightDialog goTo={goTo} onClose={close} />
+      case 'spelling':
+        return <SpellingDialog goTo={goTo} onClose={close} />
       case 'params':
         return <ParamsDialog command={open.command} info={info} values={open.values} fixed={placeParams(open.command.id, open.place ?? latest.current.place)} onClose={close} />
     }

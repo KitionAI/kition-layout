@@ -11,7 +11,7 @@ use kition_layout_doc::{
 use kition_layout_geom::{Affine, Point, Rect, Vec2, shapes};
 use serde_json::{Value, json};
 
-use super::{CommandSpec, bad, bool_or, cmd, f64_or, has_doc, has_selection, ok, point_param, rect_param, spread_param, str_param, targets};
+use super::{CommandSpec, bad, bool_or, cmd, f64_or, has_doc, has_selection, ok, point_param, rect_param, refused, spread_param, str_param, targets};
 use crate::{Result, Session};
 
 pub fn specs() -> Vec<CommandSpec> {
@@ -584,8 +584,16 @@ pub fn specs() -> Vec<CommandSpec> {
             step_and_repeat
         ),
         cmd!("path.add", "Create Path", [], None, "{spread?, anchors: [{p:[x,y], in?:[x,y], out?:[x,y]}], closed?: bool}", has_doc, path_create),
-        cmd!("path.appendAnchor", "Add Anchor", [], None, "{id, anchor: {p, in?, out?}} (spread coords)", has_doc, path_append),
-        cmd!("path.close", "Close Path", ["Object", "Paths"], None, "{id}", has_doc, path_close),
+        cmd!(
+            "path.appendAnchor",
+            "Add Anchor",
+            [],
+            None,
+            "{id, anchor: {p, in?, out?} (spread coords), subpath?: index (default the last), at?: end|start (start: before its first anchor, as the Pen continuing from that end adds)}",
+            has_doc,
+            path_append
+        ),
+        cmd!("path.close", "Close Path", ["Object", "Paths"], None, "{id, subpath?: index (default every subpath)}", has_doc, path_close),
         cmd!("path.moveAnchors", "Move Anchors", [], None, "{id, anchors: [[subpath, index]], dx, dy, handle?: in|out}", has_doc, path_move_anchors),
         cmd!(
             "object.align",
@@ -680,7 +688,7 @@ pub fn specs() -> Vec<CommandSpec> {
                 let sid = ids
                     .iter()
                     .find_map(|id| s.doc().ok()?.doc.item(*id)?.text_frame().map(|t| t.story))
-                    .ok_or_else(|| bad("object.primaryTextFrame", "select a text frame"))?;
+                    .ok_or_else(|| refused("object.primaryTextFrame", "needTextFrame", "select a text frame"))?;
                 let cur = s.doc()?.doc.settings.primary_story;
                 let on = p.get("on").and_then(Value::as_bool).unwrap_or(cur != Some(sid));
                 s.edit(|d, _| {
@@ -1114,7 +1122,7 @@ fn transform_again(s: &mut Session, p: &Value) -> Result<Value> {
     let ids = targets(s, p)?;
     let (list, _, _) = &s.transforms;
     if list.is_empty() {
-        return Err(bad("transform.again", "no transform to repeat"));
+        return Err(refused("transform.again", "needTransform", "no transform to repeat"));
     }
     let steps: Vec<(String, Value)> = if bool_or(p, "sequence", false) { list.clone() } else { list.last().cloned().into_iter().collect() };
     let mut groups: Vec<Vec<ItemId>> = if bool_or(p, "individually", false) { ids.iter().map(|i| vec![*i]).collect() } else { vec![ids.clone()] };
@@ -1369,10 +1377,10 @@ fn arrange(s: &mut Session, p: &Value) -> Result<Value> {
 fn group(s: &mut Session, p: &Value) -> Result<Value> {
     let ids = targets(s, p)?;
     if ids.len() < 2 {
-        return Err(bad("arrange.group", "select at least two objects"));
+        return Err(refused("arrange.group", "needTwo", "select at least two objects"));
     }
     s.edit(|d, sel| {
-        let first = ids.first().copied().ok_or_else(|| bad("arrange.group", "select at least two objects"))?;
+        let first = ids.first().copied().ok_or_else(|| refused("arrange.group", "needTwo", "select at least two objects"))?;
         let sr = d.find(first).map(|l| l.spread).ok_or(kition_layout_doc::DocError::NoItem(first))?;
         if ids.iter().any(|id| d.find(*id).is_none_or(|loc| loc.spread != sr || loc.path.len() != 1)) {
             return Err(bad("arrange.group", "group top-level objects on one spread"));
@@ -1748,7 +1756,7 @@ fn clipping_path(s: &mut Session, p: &Value) -> Result<Value> {
             // The tolerance is in image pixels; the grid cells are `step` pixels.
             let rings = kition_layout_geom::trace::trace(&mask, w, h, tol / step, 4.0);
             if rings.is_empty() {
-                return Err(bad(ID, "nothing to trace (the image is empty at this threshold)"));
+                return Err(refused(ID, "nothingToTrace", "nothing to trace (the image is empty at this threshold)"));
             }
             let (sx, sy) = (g.size.0 / w as f64, g.size.1 / h as f64);
             let subpaths = rings
@@ -1762,7 +1770,7 @@ fn clipping_path(s: &mut Session, p: &Value) -> Result<Value> {
         }
     }
     if paths.is_empty() {
-        return Err(bad(ID, "select a frame with a placed graphic"));
+        return Err(refused(ID, "needImage", "select a frame with a placed graphic"));
     }
     s.edit(|d, _| {
         let n = paths.len();
@@ -1934,7 +1942,7 @@ fn align(s: &mut Session, p: &Value) -> Result<Value> {
 fn distribute(s: &mut Session, p: &Value) -> Result<Value> {
     let ids = targets(s, p)?;
     if ids.len() < 3 && p.get("spacing").is_none() {
-        return Err(bad("object.distribute", "select at least three objects"));
+        return Err(refused("object.distribute", "needThree", "select at least three objects"));
     }
     let horizontal = str_param(p, "axis") != Some("vertical");
     let by_spacing = str_param(p, "by") == Some("spacing") || p.get("spacing").is_some();
@@ -2016,14 +2024,39 @@ fn path_create(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn path_append(s: &mut Session, p: &Value) -> Result<Value> {
-    let id = super::id_param(p, "id").ok_or_else(|| bad("path.appendAnchor", "missing id"))?;
-    let a = p.get("anchor").and_then(anchor_from).ok_or_else(|| bad("path.appendAnchor", "missing anchor"))?;
-    s.edit(|d, _| {
+    const ID: &str = "path.appendAnchor";
+    let id = super::id_param(p, "id").ok_or_else(|| bad(ID, "missing id"))?;
+    let a = p.get("anchor").and_then(anchor_from).ok_or_else(|| bad(ID, "missing anchor"))?;
+    // An omitted subpath is the last one; one given must name a subpath (never falls back).
+    let subpath = match p.get("subpath") {
+        None | Some(Value::Null) => None,
+        Some(v) => Some(v.as_u64().and_then(|i| usize::try_from(i).ok()).ok_or_else(|| bad(ID, "`subpath` must be a subpath index"))?),
+    };
+    let at_start = match p.get("at") {
+        None | Some(Value::Null) => false,
+        Some(v) if v.as_str() == Some("end") => false,
+        Some(v) if v.as_str() == Some("start") => true,
+        Some(_) => return Err(bad(ID, "`at` must be `start` or `end`")),
+    };
+    s.edit(|d, sel| {
         let loc = d.find(id).ok_or(kition_layout_doc::DocError::NoItem(id))?;
         let inv = (d.parent_xf(&loc) * d.item_at(&loc).map(|i| i.xf).unwrap_or_default()).inverse();
         let it = d.item_mut(id).ok_or(kition_layout_doc::DocError::NoItem(id))?;
-        let sp = it.path.subpaths.last_mut().ok_or_else(|| bad("path.appendAnchor", "empty path"))?;
-        sp.anchors.push(a.transform(inv));
+        let si = match subpath {
+            Some(i) if i < it.path.subpaths.len() => i,
+            Some(_) => return Err(bad(ID, "no such subpath")),
+            None => it.path.subpaths.len().checked_sub(1).ok_or_else(|| bad(ID, "empty path"))?,
+        };
+        let sp = it.path.subpaths.get_mut(si).ok_or_else(|| bad(ID, "no such subpath"))?;
+        if at_start {
+            sp.anchors.insert(0, a.transform(inv));
+            // The selected anchors of this subpath move up one place with the others.
+            for a in sel.anchors.iter_mut().filter(|a| a.0 == id && a.1 == si) {
+                a.2 = a.2.saturating_add(1);
+            }
+        } else {
+            sp.anchors.push(a.transform(inv));
+        }
         if it.shape == Shape::GraphicLine {
             it.shape = Shape::Path;
         }
@@ -2033,10 +2066,19 @@ fn path_append(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn path_close(s: &mut Session, p: &Value) -> Result<Value> {
     let id = super::id_param(p, "id").ok_or_else(|| bad("path.close", "missing id"))?;
+    let only = match p.get("subpath") {
+        None | Some(Value::Null) => None,
+        Some(v) => Some(v.as_u64().and_then(|i| usize::try_from(i).ok()).ok_or_else(|| bad("path.close", "`subpath` must be a subpath index"))?),
+    };
     s.edit(|d, _| {
         let it = d.item_mut(id).ok_or(kition_layout_doc::DocError::NoItem(id))?;
-        for sp in &mut it.path.subpaths {
-            sp.closed = true;
+        if only.is_some_and(|i| i >= it.path.subpaths.len()) {
+            return Err(bad("path.close", "no such subpath"));
+        }
+        for (i, sp) in it.path.subpaths.iter_mut().enumerate() {
+            if only.is_none_or(|o| o == i) {
+                sp.closed = true;
+            }
         }
         if it.shape == Shape::GraphicLine {
             it.shape = Shape::Path;

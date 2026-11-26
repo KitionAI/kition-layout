@@ -1,0 +1,26 @@
+format: 1
+id: layout.ui.paths-and-output/output-rules
+feature: layout.ui.paths-and-output
+intent: >-
+  The rules without a browser: an engine error is read by its kind, command and refusal code, and
+  none reaches the person in English; every preflight issue reads in both languages from its
+  details; Check Spelling goes on past what it changed, ignored or added, and Change All changes
+  each story from its end; the PDF options send only what the exporter reads; the primary text
+  frame fills the margins with the inside one by the spine, and in the engine its story adds pages
+  as text flows; the Pen's drawn cursors and the Links panel's thumbnail types; and in the engine
+  the refusal codes, preflight details, spelling frames and the anchor parameters.
+layer: gate
+source:
+  kind: probe
+  from: web/src/output.test.mjs (plan 2026-11-25, stage 8)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, --test, src/output.test.mjs]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+timeout_s: 60
+since: "2026-11-25"

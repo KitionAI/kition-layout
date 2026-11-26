@@ -110,9 +110,15 @@ pub enum ToolKey {
 pub enum Action {
     Begin(String),
     Preview(String, Value),
+    /// Several commands previewed together in the interaction (replacing the previous preview):
+    /// a drag that moves anchor points of several paths.
+    PreviewSteps(Vec<(String, Value)>),
     Commit,
     Cancel,
     Exec(String, Value),
+    /// Several commands run as one undo step named `.0` (the arrows moving the selected anchor
+    /// points of several paths, Delete deleting them).
+    Steps(String, Vec<(String, Value)>),
     /// Ask the UI to open a dialog.
     Dialog(String, Value),
     SwitchTool(String),
@@ -376,6 +382,14 @@ pub enum Cursor {
     Unthread,
     /// Over a frame's content grabber or its selected content: a press takes hold of the content.
     ContentHand,
+    /// The Pen over a selected path's outline: a click adds an anchor there.
+    PenAdd,
+    /// The Pen over a selected path's anchor: a click deletes it.
+    PenDelete,
+    /// The Pen over the first anchor of the path being drawn: a click closes it.
+    PenClose,
+    /// The Pen over an open path's end point: a click continues the path from there.
+    PenContinue,
 }
 
 pub trait Tool: Send {
@@ -480,5 +494,7 @@ pub(crate) fn spread_json(r: SpreadRef) -> Value {
 mod tests;
 #[cfg(test)]
 mod tests_content;
+#[cfg(test)]
+mod tests_paths;
 #[cfg(test)]
 mod tests_text;

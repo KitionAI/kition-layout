@@ -1,0 +1,23 @@
+format: 1
+id: layout.ui.paths-and-output/engine-paths
+feature: layout.ui.paths-and-output
+intent: >-
+  In the engine: select.set takes Direct Selection's anchor points (real ones of selected paths,
+  each once) and they follow anchors added and deleted; path.appendAnchor continues a chosen
+  subpath at either end and path.close closes one subpath; the Pen on a session continues a
+  selected open path, closes it, adds and deletes anchors on it, one undo step each; Direct
+  Selection's marquee, drag, arrows and Delete move or delete points of two paths as one undo step
+  each, and one undo takes a step back whole.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/src/tests_paths.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: tests_paths }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

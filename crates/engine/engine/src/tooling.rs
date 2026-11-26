@@ -197,10 +197,14 @@ impl Session {
             match a {
                 Action::Begin(label) => self.begin_interaction(&label)?,
                 Action::Preview(cmd, p) => self.preview(&cmd, p)?,
+                Action::PreviewSteps(steps) => self.preview_many(&steps)?,
                 Action::Commit => self.commit_interaction()?,
                 Action::Cancel => self.cancel_interaction(),
                 Action::Exec(cmd, p) => {
                     self.execute(&cmd, &p)?;
+                }
+                Action::Steps(label, steps) => {
+                    self.execute_steps(&label, &steps)?;
                 }
                 Action::Dialog(id, params) => self.ui_requests.push(UiRequest::Dialog { id, params }),
                 Action::SwitchTool(id) => self.set_tool(&id),
@@ -212,7 +216,8 @@ impl Session {
 
     pub fn begin_interaction(&mut self, label: &str) -> Result<()> {
         let st = self.doc_mut()?;
-        st.interaction = Some(Interaction { label: label.into(), doc: st.doc.clone(), selection: st.selection.clone(), preview: None });
+        st.interaction =
+            Some(Interaction { label: label.into(), doc: st.doc.clone(), selection: st.selection.clone(), preview: None, steps: Vec::new() });
         Ok(())
     }
 
@@ -233,6 +238,42 @@ impl Session {
             self.journal.pop();
         }
         r.map(|_| ())
+    }
+
+    /// Applies `steps` in order on top of the interaction's snapshot, replacing the previous
+    /// preview (a tool's drag that moves anchor points of several paths). A step that fails leaves
+    /// the snapshot showing. Committed, the steps are journaled in order.
+    pub fn preview_many(&mut self, steps: &[(String, Value)]) -> Result<()> {
+        let st = self.doc_mut()?;
+        let Some(it) = st.interaction.clone() else { return Err(EngineError::Other("no interaction".into())) };
+        st.doc = it.doc.clone();
+        st.selection = it.selection.clone();
+        if let Some(i) = st.interaction.as_mut() {
+            i.preview = None;
+            i.steps.clear();
+        }
+        let journaled = self.journal.len();
+        let mut failed = None;
+        for (cmd, params) in steps {
+            if let Err(error) = self.execute(cmd, params) {
+                failed = Some(error);
+                break;
+            }
+        }
+        // Journal only the committed result.
+        self.journal.truncate(journaled);
+        if let Some(error) = failed {
+            if let Ok(st) = self.doc_mut() {
+                st.doc = it.doc;
+                st.selection = it.selection;
+                st.revision = st.revision.saturating_add(1);
+            }
+            return Err(error);
+        }
+        if let Some(i) = self.active_mut().and_then(|st| st.interaction.as_mut()) {
+            i.steps = steps.to_vec();
+        }
+        Ok(())
     }
 
     /// A dialog's live preview (an editor's Preview check box): shows `cmd` with `params` on the
@@ -347,6 +388,7 @@ impl Session {
         if let Some((c, p)) = it.preview {
             self.journal.push((c, p));
         }
+        self.journal.extend(it.steps);
         // The interaction's last preview is the transform to repeat; the next one starts afresh.
         self.transforms.2 = false;
         // The gesture is one undo step: written now, unless a command is running it (its own

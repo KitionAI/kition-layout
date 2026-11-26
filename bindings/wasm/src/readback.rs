@@ -5,7 +5,8 @@
 //! the unnamed ones too (`colors`); and each story's words and the characters that do not fit.
 //! Stage 7 adds each object's blend mode and effects (the Effects dialog), every paragraph and
 //! character style's definition and resolved values (`styleDefs`, the style options), and how
-//! each colour swatch is made (process or spot, a tint's base and tint).
+//! each colour swatch is made (process or spot, a tint's base and tint). Stage 8 adds a drawn
+//! path's anchor points on its spread (`subpaths`), which the Pen and Direct Selection edit.
 
 use kition_layout_doc::color::{Color, SwatchValue, swatch};
 use kition_layout_doc::{Content, Document, Item, ItemId};
@@ -96,6 +97,7 @@ fn extend_item(entry: &mut Value, doc: &Document, depth: usize) {
     }
     if let Some(item) = entry.get("id").and_then(Value::as_u64).and_then(|id| doc.item(ItemId(id))) {
         add_item_fields(entry, item);
+        add_subpaths(entry, doc, item);
     }
     if let Some(children) = entry.get_mut("children").and_then(Value::as_array_mut) {
         for child in children {
@@ -121,6 +123,29 @@ fn add_item_fields(entry: &mut Value, item: &Item) {
         object.insert("blend".into(), blend);
     }
     object.insert("effects".into(), effects(&item.effects));
+}
+
+/// A drawn path's or line's subpaths (`subpaths`): whether each is closed and its anchor points
+/// on the spread, rounded to hundredths of a point.
+fn add_subpaths(entry: &mut Value, doc: &Document, item: &Item) {
+    if !matches!(item.shape, kition_layout_doc::Shape::Path | kition_layout_doc::Shape::GraphicLine) {
+        return;
+    }
+    let Some(loc) = doc.find(item.id) else { return };
+    let m = doc.parent_xf(&loc) * item.xf;
+    let round = |v: f64| (v * 100.0).round() / 100.0;
+    let subpaths: Vec<Value> = item
+        .path
+        .subpaths
+        .iter()
+        .map(|sp| {
+            let points: Vec<Value> = sp.anchors.iter().map(|a| m * a.p).map(|p| json!([round(p.x), round(p.y)])).collect();
+            json!({ "closed": sp.closed, "anchors": points })
+        })
+        .collect();
+    if let Some(object) = entry.as_object_mut() {
+        object.insert("subpaths".into(), Value::Array(subpaths));
+    }
 }
 
 /// Every effect with all its settings (the defaults too), for the Effects dialog.

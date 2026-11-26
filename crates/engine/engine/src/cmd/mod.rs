@@ -241,6 +241,17 @@ pub fn find_command(id: &str) -> Option<&'static CommandSpec> {
 pub(crate) fn bad(cmd: &str, msg: impl Into<String>) -> EngineError {
     EngineError::BadParams { cmd: cmd.into(), msg: msg.into() }
 }
+
+/// `msg` with the stable code of a refusal a person can meet (`[refusal:<code>]` at its end): an
+/// editor words the refusal in its own language by the code, never by the English text.
+pub(crate) fn coded(code: &str, msg: &str) -> String {
+    format!("{msg} [refusal:{code}]")
+}
+
+/// A refusal a person can meet ([`coded`]), as the command's parameter error.
+pub(crate) fn refused(cmd: &str, code: &str, msg: &str) -> EngineError {
+    bad(cmd, coded(code, msg))
+}
 /// `p` with `key` set to `v`. Parameters come from callers (control channel, MCP, scripts) and
 /// may not be an object: `p[key] = v` panics on an array or a string, so start from `{}` then.
 pub(crate) fn with_param(p: &Value, key: &str, v: Value) -> Value {

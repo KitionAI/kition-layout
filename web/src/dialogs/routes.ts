@@ -9,7 +9,7 @@ import { hiddenReason } from '../menus/hidden.ts'
  */
 
 /** The purpose-built dialogs, and `params`, the generic one drawn from a command's parameters. */
-export type DialogKind = 'documentSetup' | 'marginsColumns' | 'insertPages' | 'movePages' | 'deletePages' | 'textFrameOptions' | 'insertTable' | 'findChange' | 'params'
+export type DialogKind = 'documentSetup' | 'marginsColumns' | 'insertPages' | 'movePages' | 'deletePages' | 'textFrameOptions' | 'insertTable' | 'findChange' | 'preflight' | 'spelling' | 'params'
 
 /** Commands with a dialog of their own. */
 export const PURPOSE_BUILT: Readonly<Record<string, DialogKind>> = {
@@ -22,6 +22,9 @@ export const PURPOSE_BUILT: Readonly<Record<string, DialogKind>> = {
   'table.insert': 'insertTable',
   'edit.find': 'findChange',
   'edit.replace': 'findChange',
+  // Their results show in a dialog that stays open (plan stage 8).
+  'preflight.run': 'preflight',
+  'spelling.check': 'spelling',
 }
 
 /** Commands the generic dialog asks before they run. */

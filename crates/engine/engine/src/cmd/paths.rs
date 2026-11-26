@@ -96,7 +96,7 @@ fn orient_holes(path: &mut PathData) {
 fn make_compound(s: &mut Session, p: &Value) -> Result<Value> {
     let ids = targets(s, p)?;
     if ids.len() < 2 {
-        return Err(bad("object.makeCompoundPath", "select two or more paths"));
+        return Err(super::refused("object.makeCompoundPath", "needTwoShapes", "select two or more paths"));
     }
     s.edit(|d, sel| {
         // Back to front within the spread.
@@ -130,7 +130,7 @@ fn pathfinder(s: &mut Session, p: &Value) -> Result<Value> {
     let op = Op::parse(op_s).ok_or_else(|| bad("object.pathfinder", format!("unknown op `{op_s}`")))?;
     let ids = targets(s, p)?;
     if ids.len() < 2 {
-        return Err(bad("object.pathfinder", "select two or more shapes"));
+        return Err(super::refused("object.pathfinder", "needTwoShapes", "select two or more shapes"));
     }
     s.edit(|d, sel| {
         let (sr, _) = spread_xf(d, ids[0]).ok_or(kition_layout_doc::DocError::NoItem(ids[0]))?;
@@ -145,12 +145,14 @@ fn pathfinder(s: &mut Session, p: &Value) -> Result<Value> {
             })
             .unwrap_or_default();
         if order.len() < 2 {
-            return Err(bad("object.pathfinder", "select two or more shapes on one spread (not text frames or groups)"));
+            return Err(super::refused("object.pathfinder", "needTwoShapes", "select two or more shapes on one spread (not text frames or groups)"));
         }
         let keep = if op == Op::MinusBack { order[order.len() - 1] } else { order[0] };
         let shapes: Vec<PathData> =
             order.iter().filter_map(|id| spread_xf(d, *id).and_then(|(_, xf)| Some(d.item(*id)?.path.transformed(xf)))).collect();
-        let Some(result) = combine(op, &shapes) else { return Err(bad("object.pathfinder", "the shapes don't overlap: nothing is left")) };
+        let Some(result) = combine(op, &shapes) else {
+            return Err(super::refused("object.pathfinder", "noOverlap", "the shapes don't overlap: nothing is left"));
+        };
         let (_, kxf) = spread_xf(d, keep).ok_or(kition_layout_doc::DocError::NoItem(keep))?;
         for id in &order {
             if *id != keep {

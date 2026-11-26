@@ -1246,7 +1246,7 @@ fn fill_placeholder(s: &mut Session, p: &Value) -> Result<Value> {
             if let Some(f) = frame {
                 s.execute("object.content", &json!({"ids": [f.0], "type": "text"}))?;
             }
-            story_of(s, p).ok_or_else(|| bad("text.fillWithPlaceholder", "select a text frame"))?
+            story_of(s, p).ok_or_else(|| super::refused("text.fillWithPlaceholder", "needTextFrame", "select a text frame"))?
         }
     };
     // Fill until overset: repeat the filler sentences.

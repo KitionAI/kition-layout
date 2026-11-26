@@ -5,11 +5,14 @@
  * says why when the pointer rests on it (`hint.*` in `strings.ts`). Pure, so it is tested in Node.
  */
 
+// Imports carry `.ts` so `node --test` loads these modules as they are.
+import { reasonOf } from '../errors.ts'
+
 /** The selection as the rules read it: the selected items' kinds and whether each holds a placed graphic. */
 export type MenuContext = { items: ReadonlyArray<{ kind: string; image: boolean; story: boolean }>; editingText: boolean }
 
 /** A reason's key in the editor's strings (`hint.<key>`). */
-export type Reason = 'needTwo' | 'needThree' | 'needTwoShapes' | 'needImage' | 'needTypeOnPath' | 'needSelection' | 'needCaret' | 'needTextSelection' | 'needTable' | 'needClipboard' | 'nothingToUndo' | 'nothingToRedo' | 'needToc' | 'needIndex' | 'needFootnote' | 'needTransform' | 'needTextFrame' | 'needEmptyFrame' | 'needStoryText' | 'nothingToTrace' | 'textFrameShape' | 'noOverlap' | 'notNow'
+export type Reason = 'badPageRange' | 'needTwo' | 'needThree' | 'needTwoShapes' | 'needImage' | 'needTypeOnPath' | 'needSelection' | 'needCaret' | 'needTextSelection' | 'needTable' | 'needClipboard' | 'nothingToUndo' | 'nothingToRedo' | 'needToc' | 'needIndex' | 'needFootnote' | 'needTransform' | 'needTextFrame' | 'needEmptyFrame' | 'needStoryText' | 'nothingToTrace' | 'textFrameShape' | 'noOverlap' | 'notNow'
 
 /** Why `command` (an engine id) cannot run in `context` though the engine would try, or null. */
 export function contextReason(command: string, context: MenuContext): Reason | null {
@@ -53,27 +56,15 @@ export function disabledReason(command: string): Reason {
   return 'notNow'
 }
 
-/** The engine's refusals a person can meet from a menu, as the reason to show instead of the English text. */
-const ENGINE_REFUSALS: ReadonlyArray<readonly [RegExp, Reason]> = [
-  [/no transform to repeat/, 'needTransform'],
-  [/clipboard is empty/, 'needClipboard'],
-  [/select at least two objects/, 'needTwo'],
-  [/select at least three objects/, 'needThree'],
-  [/select two or more (paths|shapes)/, 'needTwoShapes'],
-  [/select a frame with a placed graphic/, 'needImage'],
-  [/not type on a path/, 'needTypeOnPath'],
-  [/not in a table|insertion point is not in a table/, 'needTable'],
-  [/go in story text, not tables/, 'needStoryText'],
-  [/nothing to trace/, 'nothingToTrace'],
-  [/a text frame (needs a closed path|can't become a line)/, 'textFrameShape'],
-  [/shapes don't overlap/, 'noOverlap'],
-  [/select a text frame/, 'needTextFrame'],
-]
+/** Every reason, as the engine's refusal codes name them (`[refusal:<code>]`). */
+export const REASONS: ReadonlySet<Reason> = new Set<Reason>(['needTwo', 'needThree', 'needTwoShapes', 'needImage', 'needTypeOnPath', 'needSelection', 'needCaret', 'needTextSelection', 'needTable', 'needClipboard', 'nothingToUndo', 'nothingToRedo', 'needToc', 'needIndex', 'needFootnote', 'needTransform', 'needTextFrame', 'needEmptyFrame', 'needStoryText', 'nothingToTrace', 'textFrameShape', 'noOverlap', 'badPageRange', 'notNow'])
 
-/** The reason behind an engine error a menu row can meet, or null for any other error. */
+/**
+ * The reason behind an engine refusal a person can meet, or null for any other error: by the
+ * refusal's code, else by its kind and command (`errors.ts`), never by its English words.
+ */
 export function refusalReason(error: unknown): Reason | null {
-  const text = error instanceof Error ? error.message : String(error)
-  return ENGINE_REFUSALS.find(([pattern]) => pattern.test(text))?.[1] ?? null
+  return reasonOf(error, REASONS) as Reason | null
 }
 
 /** Where the person is: the page in view (0-based) and its spread. */

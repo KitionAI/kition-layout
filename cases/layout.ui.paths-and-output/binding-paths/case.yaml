@@ -1,0 +1,21 @@
+format: 1
+id: layout.ui.paths-and-output/binding-paths
+feature: layout.ui.paths-and-output
+intent: >-
+  In the binding: the Pen's cursor over a selected path is a CSS name for each thing a click does
+  (copy add, no-drop delete, cell continue, alias close, crosshair place); clicks continue and close
+  the path, and inspect reads its points back on the spread; Direct Selection's marquee selects
+  the points of two paths, a drag moves both as one undo step and an arrow moves both.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/src/lib.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, filter: the_pen_and_direct_selection_on_selected_paths }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

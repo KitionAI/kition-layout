@@ -1,11 +1,15 @@
 //! Pen tool (P): click for corner points, drag for smooth points, click the first point to close,
 //! Enter/Esc (or switching tools) to finish an open path. Each anchor is its own undo step, as in
-//! InDesign.
+//! InDesign. Between paths, a click on a selected path's anchor deletes it and a click on its
+//! outline adds an anchor; a click on an end point of an open path continues that path from there
+//! (dragging from it first turns its direction lines). The cursor shows which.
 
-use kition_layout_doc::SpreadRef;
+use kition_layout_doc::{Content, ItemId, SpreadRef};
 use kition_layout_geom::{BezPath, Point};
 use serde_json::{Value, json};
 
+use crate::anchors::segment_at;
+use crate::select::anchor_at_in;
 use crate::{Action, Cursor, Mods, Overlay, PointerEvent, PointerKind, Tool, ToolContext, ToolKey, spread_json};
 
 #[derive(Default)]
@@ -13,26 +17,142 @@ pub struct PenTool {
     /// The path being drawn: (item id once created, spread, anchors in spread coords).
     path: Option<u64>,
     spread: Option<SpreadRef>,
-    /// Anchors as (p, in, out) in spread coordinates.
+    /// Anchors as (p, in, out) in spread coordinates, in drawing order.
     anchors: Vec<(Point, Point, Point)>,
     dragging: bool,
     hover: Point,
     /// Smart guides in canvas coordinates, as `snap_point` returned them.
     guides: Vec<Overlay>,
+    /// Continuing an existing path: the subpath the new anchors go on.
+    subpath: Option<usize>,
+    /// The press was on the continued path's end point: a drag turns its direction lines
+    /// instead of adding an anchor.
+    editing_end: bool,
+    /// The press on the end point has been dragged.
+    end_moved: bool,
+    /// Continuing from the subpath's first anchor: `anchors` run in drawing order, the reverse
+    /// of the path's, and new anchors go before its first one.
+    from_start: bool,
+}
+
+/// An end point of an open path under canvas point `p`: (item, subpath, whether it is the last
+/// anchor). The selection is checked first, then the frontmost item under the pointer.
+fn endpoint_at(cx: &ToolContext, p: Point) -> Option<(ItemId, usize, bool)> {
+    let tol = cx.tol(6.0);
+    let mut ids = cx.selection.items.clone();
+    if let Some((_, id)) = cx.hit(p)
+        && !ids.contains(&id)
+    {
+        ids.push(id);
+    }
+    for id in ids {
+        let Some(it) = cx.doc.item(id) else { continue };
+        if it.locked || it.is_group() || !matches!(it.content, Content::Unassigned) {
+            continue;
+        }
+        let Some(xf) = cx.item_canvas_xf(id).map(|m| m * it.xf) else { continue };
+        for (si, sp) in it.path.subpaths.iter().enumerate() {
+            if sp.closed {
+                continue;
+            }
+            let (Some(first), Some(last)) = (sp.anchors.first(), sp.anchors.last()) else { continue };
+            if (xf * last.p - p).hypot() <= tol {
+                return Some((id, si, true));
+            }
+            if (xf * first.p - p).hypot() <= tol {
+                return Some((id, si, false));
+            }
+        }
+    }
+    None
 }
 
 fn anchor_json(a: &(Point, Point, Point)) -> Value {
     json!({"p": [a.0.x, a.0.y], "in": [a.1.x, a.1.y], "out": [a.2.x, a.2.y]})
 }
 
+/// What a pen click at the pointer does.
+#[derive(Debug, PartialEq)]
+enum Hover {
+    /// Place an anchor (start a path, or add to the one being drawn).
+    Place,
+    /// Close the path being drawn (the pointer is on its first anchor).
+    Close,
+    /// Delete anchor (subpath, anchor) of a selected path.
+    Delete(u64, usize, usize),
+    /// Add an anchor on a selected path's outline.
+    Add(ItemId),
+    /// Continue subpath `.1` of open path `.0` from its last (`.2`) or first anchor.
+    Continue(ItemId, usize, bool),
+}
+
 impl PenTool {
+    /// What a click at canvas point `p` does.
+    fn hover_at(&self, cx: &ToolContext, p: Point) -> Hover {
+        if let Some(sr) = self.spread {
+            if self.anchors.len() >= 2
+                && let Some(first) = self.anchors.first()
+                && (first.0 - cx.layout.to_spread(sr, p)).hypot() <= cx.tol(6.0)
+            {
+                return Hover::Close;
+            }
+            return Hover::Place;
+        }
+        if !self.anchors.is_empty() {
+            return Hover::Place;
+        }
+        if let Some((id, si, at_end)) = endpoint_at(cx, p) {
+            return Hover::Continue(id, si, at_end);
+        }
+        let ids = &cx.selection.items;
+        if let Some((id, si, ai, None)) = anchor_at_in(cx, ids, p) {
+            return Hover::Delete(id, si, ai);
+        }
+        segment_at(cx, ids, p).map_or(Hover::Place, Hover::Add)
+    }
+
     fn finish(&mut self) -> Vec<Action> {
         self.path = None;
         self.spread = None;
         self.anchors.clear();
         self.dragging = false;
         self.guides.clear();
+        self.subpath = None;
+        self.editing_end = false;
+        self.end_moved = false;
+        self.from_start = false;
         vec![]
+    }
+
+    /// Starts continuing subpath `si` of `id` from its last (`at_end`) or first anchor: the
+    /// anchors so far are its other end and the end point, in spread coordinates.
+    fn continue_from(&mut self, cx: &ToolContext, id: ItemId, si: usize, at_end: bool) -> Vec<Action> {
+        let (Some(it), Some(loc)) = (cx.doc.item(id), cx.doc.find(id)) else { return vec![] };
+        let Some(sp) = it.path.subpaths.get(si) else { return vec![] };
+        let (Some(first), Some(last)) = (sp.anchors.first(), sp.anchors.last()) else { return vec![] };
+        let xf = cx.doc.parent_xf(&loc) * it.xf;
+        let at = |a: &kition_layout_geom::Anchor, flip: bool| {
+            let (i, o) = if flip { (a.h_out, a.h_in) } else { (a.h_in, a.h_out) };
+            (xf * a.p, xf * i, xf * o)
+        };
+        // From the first anchor the anchors run backwards (handles swapped); new ones go before
+        // the first, so the path keeps its direction (and its arrowheads their ends).
+        let (other, end) = if at_end { (at(first, false), at(last, false)) } else { (at(last, true), at(first, true)) };
+        self.path = Some(id.0);
+        self.subpath = Some(si);
+        self.spread = Some(loc.spread);
+        self.anchors = vec![other, end];
+        self.editing_end = true;
+        self.end_moved = false;
+        self.dragging = true;
+        self.from_start = !at_end;
+        // The path continued is the one selected (its anchors show).
+        if cx.selection.items == [id] { vec![] } else { vec![Action::Exec("select.set".into(), json!({"ids": [id.0]}))] }
+    }
+
+    /// Anchor `a` (drawing order) in the path's order.
+    fn path_anchor(&self, a: &(Point, Point, Point)) -> (Point, Point, Point) {
+        if self.from_start { (a.0, a.2, a.1) } else { *a }
     }
 
     /// Shift constrains first. The stored point is the snapped spread point. Guides are already canvas.
@@ -53,9 +173,30 @@ impl PenTool {
                 let anchors: Vec<Value> = self.anchors.iter().map(anchor_json).collect();
                 vec![Action::Exec("path.add".into(), json!({"spread": spread_json(sr), "anchors": anchors, "closed": false, "notifyPen": true}))]
             }
-            Some(id) => vec![Action::Exec("path.appendAnchor".into(), json!({"id": id, "anchor": anchor_json(last)}))],
+            Some(id) => {
+                let mut p = json!({"id": id, "anchor": anchor_json(&self.path_anchor(last))});
+                if let Some(si) = self.subpath {
+                    p["subpath"] = json!(si);
+                }
+                if self.from_start {
+                    p["at"] = json!("start");
+                }
+                vec![Action::Exec("path.appendAnchor".into(), p)]
+            }
             None => vec![],
         }
+    }
+
+    /// The continued end point dragged: its direction lines turn to the pointer (the path's
+    /// order: from the first anchor the drag sets the in handle).
+    fn turn_end(&self, cx: &ToolContext) -> Vec<Action> {
+        let (Some(id), Some(si), Some(&(p, _, out))) = (self.path, self.subpath, self.anchors.last()) else { return vec![] };
+        if (out - p).hypot() < 1e-9 {
+            return vec![];
+        }
+        let Some(count) = cx.doc.item(ItemId(id)).and_then(|it| it.path.subpaths.get(si)).map(|sp| sp.anchors.len()) else { return vec![] };
+        let (index, to) = if self.from_start { (0, p - (out - p)) } else { (count.saturating_sub(1), out) };
+        vec![Action::Exec("path.convertAnchor".into(), json!({"id": id, "subpath": si, "anchor": index, "to": [to.x, to.y]}))]
     }
 }
 
@@ -87,17 +228,29 @@ impl Tool for PenTool {
                 vec![]
             }
             PointerKind::Down => {
-                // Close on the first anchor.
-                if self.anchors.len() >= 2
-                    && let Some(first) = self.anchors.first()
-                    && (first.0 - sp).hypot() <= cx.tol(6.0)
-                {
-                    let out = match self.path {
-                        Some(id) => vec![Action::Exec("path.close".into(), json!({"id": id}))],
-                        None => vec![],
-                    };
-                    self.finish();
-                    return out;
+                match self.hover_at(cx, ev.pos) {
+                    Hover::Close => {
+                        let out = match self.path {
+                            Some(id) => {
+                                let mut p = json!({"id": id});
+                                if let Some(si) = self.subpath {
+                                    p["subpath"] = json!(si);
+                                }
+                                vec![Action::Exec("path.close".into(), p)]
+                            }
+                            None => vec![],
+                        };
+                        self.finish();
+                        return out;
+                    }
+                    Hover::Continue(id, si, at_end) => return self.continue_from(cx, id, si, at_end),
+                    Hover::Delete(id, si, ai) => {
+                        return vec![Action::Exec("path.deleteAnchor".into(), json!({"id": id, "subpath": si, "anchor": ai}))];
+                    }
+                    Hover::Add(id) => {
+                        return vec![Action::Exec("path.addAnchor".into(), json!({"id": id.0, "at": [sp.x, sp.y], "tolerance": cx.tol(5.0)}))];
+                    }
+                    Hover::Place => {}
                 }
                 let p = self.snap_click(cx, snap_spread, sp, ev.mods.shift);
                 if self.anchors.is_empty() {
@@ -108,6 +261,10 @@ impl Tool for PenTool {
                 vec![]
             }
             PointerKind::Drag => {
+                if !self.dragging {
+                    return vec![];
+                }
+                self.end_moved |= self.editing_end;
                 if let Some(a) = self.anchors.last_mut() {
                     // Smooth point: out handle follows the pointer, in handle mirrors it.
                     a.2 = sp;
@@ -120,6 +277,10 @@ impl Tool for PenTool {
                     return vec![];
                 }
                 self.dragging = false;
+                // The continued path's end point: a drag turned its direction lines.
+                if std::mem::take(&mut self.editing_end) {
+                    return if std::mem::take(&mut self.end_moved) { self.turn_end(cx) } else { vec![] };
+                }
                 self.commit_anchor()
             }
             _ => vec![],
@@ -144,29 +305,43 @@ impl Tool for PenTool {
             return out;
         };
         let xf = cx.layout.xf(sr);
+        let blue = [79, 153, 255];
         if let Some(last) = self.anchors.last()
             && !self.dragging
         {
-            // Rubber band to the pointer.
-            out.push(Overlay::Line { a: xf * last.0, b: self.hover, color: [79, 153, 255], dashed: true });
+            // Rubber band to the pointer: straight from a corner, curved out of a smooth
+            // point's direction line.
+            if (last.2 - last.0).hypot() > 1e-9 {
+                let mut path = BezPath::new();
+                path.move_to(xf * last.0);
+                path.curve_to(xf * last.2, self.hover, self.hover);
+                out.push(Overlay::Path { path, color: blue, dashed: true });
+            } else {
+                out.push(Overlay::Line { a: xf * last.0, b: self.hover, color: blue, dashed: true });
+            }
         }
         if self.path.is_none() && self.anchors.len() == 1 {
             let a = self.anchors[0];
-            out.push(Overlay::Line { a: xf * a.1, b: xf * a.2, color: [79, 153, 255], dashed: false });
+            out.push(Overlay::Line { a: xf * a.1, b: xf * a.2, color: blue, dashed: false });
         }
         if self.dragging
             && let Some(a) = self.anchors.last()
         {
-            out.push(Overlay::Line { a: xf * a.1, b: xf * a.2, color: [79, 153, 255], dashed: false });
-            let _ = BezPath::new();
+            out.push(Overlay::Line { a: xf * a.1, b: xf * a.2, color: blue, dashed: false });
         }
         // Guides are already canvas. Do not run them through the spread transform again.
         out.extend(self.guides.iter().cloned());
         out
     }
 
-    fn cursor(&self, _cx: &ToolContext, _p: Point, _m: Mods) -> Cursor {
-        Cursor::Pen
+    fn cursor(&self, cx: &ToolContext, p: Point, _m: Mods) -> Cursor {
+        match self.hover_at(cx, p) {
+            Hover::Place => Cursor::Pen,
+            Hover::Close => Cursor::PenClose,
+            Hover::Continue(..) => Cursor::PenContinue,
+            Hover::Delete(..) => Cursor::PenDelete,
+            Hover::Add(_) => Cursor::PenAdd,
+        }
     }
 
     fn busy(&self) -> bool {

@@ -67,12 +67,12 @@ pub(super) fn export_html(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn has_story_target(s: &Session) -> std::result::Result<(), String> {
-    super::text::story_of(s, &Value::Null).map(|_| ()).ok_or_else(|| "edit text or select a text frame".into())
+    super::text::story_of(s, &Value::Null).map(|_| ()).ok_or_else(|| super::coded("needTextFrame", "edit text or select a text frame"))
 }
 
 fn export_text(s: &mut Session, p: &Value) -> Result<Value> {
     const ID: &str = "file.exportText";
-    let sid = super::text::story_of(s, p).ok_or_else(|| bad(ID, "edit text or select a text frame"))?;
+    let sid = super::text::story_of(s, p).ok_or_else(|| super::refused(ID, "needTextFrame", "edit text or select a text frame"))?;
     let doc = &s.doc()?.doc;
     let story = doc.stories.get(&sid).ok_or_else(|| bad(ID, format!("no story {}", sid.0)))?;
     let path = str_param(p, "path");
@@ -172,7 +172,9 @@ pub(crate) fn options(p: &Value, page_count: usize) -> Result<PdfOptions> {
 
     let pages = match p.get("pages") {
         None | Some(Value::Null) => None,
-        Some(Value::String(s)) => Some(kition_layout_pdf::parse_page_range(s, page_count).map_err(|e| bad(ID, e.to_string()))?),
+        Some(Value::String(s)) => {
+            Some(kition_layout_pdf::parse_page_range(s, page_count).map_err(|e| super::refused(ID, "badPageRange", &e.to_string()))?)
+        }
         Some(Value::Array(a)) => {
             let mut v = Vec::new();
             for x in a {

@@ -11,7 +11,7 @@ use crate::{Result, Session};
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!(query "spelling.check", "Check Spelling…", ["Edit", "Spelling"], Some("Cmd+I"),
-            "{story?, suggestions?: true} → [{story, start, end, word, suggestions}]", has_doc, check),
+            "{story?, suggestions?: true} → [{story, start, end (byte offsets), word, suggestions, frame (the frame showing it, null when overset)}]", has_doc, check),
         cmd!(
             "hyphenation.addException",
             "Add Hyphenation Exception",
@@ -214,10 +214,14 @@ fn check(s: &mut Session, p: &Value) -> Result<Value> {
     let mut out = Vec::new();
     for sid in stories {
         let Some(story) = d.story(sid) else { continue };
-        for r in misspellings(d, story, &d.user_words) {
-            let word = &story.text[r.clone()];
+        let found = misspellings(d, story, &d.user_words);
+        // The frame showing each word (none when it is overset), so an editor can go to it.
+        let composed = if found.is_empty() { None } else { Some(s.cache.get(d, sid, None)) };
+        for r in found {
+            let Some(word) = story.text.get(r.clone()) else { continue };
             let sugg = if want_sugg { suggest(dict, &word.to_lowercase()) } else { vec![] };
-            out.push(json!({"story": sid.0, "start": r.start, "end": r.end, "word": word, "suggestions": sugg}));
+            let frame = composed.as_ref().and_then(|cs| cs.frames.iter().find(|f| f.range.contains(&r.start))).map(|f| f.frame.0);
+            out.push(json!({"story": sid.0, "start": r.start, "end": r.end, "word": word, "suggestions": sugg, "frame": frame}));
         }
     }
     Ok(Value::Array(out))

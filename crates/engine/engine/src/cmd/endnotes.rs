@@ -99,7 +99,7 @@ fn insert(s: &mut Session, p: &Value) -> Result<Value> {
     let st = s.doc()?;
     let ts = st.selection.text.ok_or_else(|| bad(ID, "place the insertion point in text"))?;
     if ts.cell.is_some() {
-        return Err(bad(ID, "endnotes go in story text, not tables or footnotes"));
+        return Err(super::refused(ID, "needStoryText", "endnotes go in story text, not tables or footnotes"));
     }
     if st.doc.endnote_story == Some(ts.story) {
         return Err(bad(ID, "the endnote frame lists the endnotes"));

@@ -84,6 +84,8 @@ const TABLE: &[(&str, &str, Class)] = &[
     ("file.close", "index", Quantity),    // an open document in the session, not an object of this one
     ("file.exportBytes", "author", Other),
     ("file.exportBytes", "language", Other),
+    // Printer's marks: true or which marks (PDF, plan 2026-11-25 stage 8); no address.
+    ("file.exportBytes", "marks", Other),
     ("file.exportBytes", "pages", Place),
     ("file.exportBytes", "ppi", Quantity),
     ("file.exportBytes", "quality", Quantity),
@@ -310,7 +312,9 @@ const TABLE: &[(&str, &str, Class)] = &[
     ("path.appendAnchor", "anchor.out", Other),
     ("path.appendAnchor", "anchor.p", Other),
     ("path.appendAnchor", "id", Id),
+    ("path.appendAnchor", "subpath", Place),
     ("path.close", "id", Id),
+    ("path.close", "subpath", Place),
     ("path.convertAnchor", "anchor", Place),
     ("path.convertAnchor", "id", Id),
     ("path.convertAnchor", "subpath", Place),
@@ -333,6 +337,9 @@ const TABLE: &[(&str, &str, Class)] = &[
     ("prefs.set", "story", Id),
     ("select.set", "ids", Id),
     ("select.set", "key", Id),
+    // Direct Selection's selected anchor points ([id, subpath, anchor]): the editor's, as the
+    // engine's ids; editor state, no address an agent resolves.
+    ("select.set", "anchors", Other),
     ("select.toggle", "id", Id),
     ("snippet.place", "base64", Other),
     ("snippet.place", "spread", Place),

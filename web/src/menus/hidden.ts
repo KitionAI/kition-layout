@@ -42,9 +42,6 @@ export const HIDDEN: Readonly<Record<string, string>> = {
   'snippet.export': NO_OUTPUT,
   // Edit › Find/Change… has Change All.
   'edit.replace': 'Edit › Find/Change… has Change All.',
-  // Spelling results have nowhere to show yet (a later stage).
-  'spelling.check': 'Its results have nowhere to show yet.',
-  'preflight.run': 'Its results have nowhere to show yet.',
   // The Links panel works on the link chosen in it.
   'linkedFile.relink': 'The Links panel relinks the link chosen in it.',
   'linkedFile.relinkFolder': LOCAL_FILE,

@@ -622,6 +622,7 @@ impl Session {
             return Ok(damage);
         }
         let preview = st.interaction.as_ref().and_then(|it| it.preview.clone());
+        let steps = st.interaction.as_ref().map(|it| it.steps.clone()).unwrap_or_default();
         match st.interaction.as_mut() {
             Some(_) => {
                 let Some(kdm) = st.link.kdm.as_ref() else { return Ok(damage) };
@@ -640,6 +641,9 @@ impl Session {
         if let Some((cmd, params)) = preview
             && self.preview(&cmd, params).is_err()
         {
+            self.cancel_interaction();
+        }
+        if !steps.is_empty() && self.preview_many(&steps).is_err() {
             self.cancel_interaction();
         }
         Ok(damage)

@@ -63,6 +63,9 @@ pub struct Interaction {
     pub doc: Arc<Document>,
     pub selection: Selection,
     pub preview: Option<(String, Value)>,
+    /// A preview of several commands together (a tool's drag of anchor points on several
+    /// paths): journaled in order on commit, in place of `preview`.
+    pub steps: Vec<(String, Value)>,
 }
 
 #[derive(Clone, Debug)]
@@ -658,6 +661,8 @@ mod tests_idml;
 mod tests_images;
 #[cfg(test)]
 mod tests_panels;
+#[cfg(test)]
+mod tests_paths;
 #[cfg(test)]
 mod tests_roundtrip;
 #[cfg(test)]

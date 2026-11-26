@@ -161,7 +161,7 @@ fn convert(it: &mut Item, to: &str, sides: u32, inset: f64) -> std::result::Resu
         "ellipse" => (shapes::ellipse(r), Shape::Oval, CornerOptions::default()),
         "triangle" => (super::object::polygon_in(r, 3, 0.0), Shape::Polygon, CornerOptions::default()),
         "polygon" => (super::object::polygon_in(r, sides, inset), Shape::Polygon, CornerOptions::default()),
-        "line" | "orthogonalLine" if text => return Err("a text frame can't become a line".into()),
+        "line" | "orthogonalLine" if text => return Err(super::coded("textFrameShape", "a text frame can't become a line")),
         "line" => (shapes::line(Point::new(r.x0, r.y0), Point::new(r.x1, r.y1)), Shape::GraphicLine, CornerOptions::default()),
         "orthogonalLine" => {
             let c = r.center();
@@ -172,7 +172,7 @@ fn convert(it: &mut Item, to: &str, sides: u32, inset: f64) -> std::result::Resu
         "openPath" | "closedPath" => {
             let closed = to == "closedPath";
             if !closed && text {
-                return Err("a text frame needs a closed path".into());
+                return Err(super::coded("textFrameShape", "a text frame needs a closed path"));
             }
             let mut path = it.path.clone();
             for sp in &mut path.subpaths {

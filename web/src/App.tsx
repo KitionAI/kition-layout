@@ -39,6 +39,8 @@ import { VIEW_ACTIONS, VIEW_KEY_ALIASES, viewMove, type ViewAction } from './vie
 import { ZoomEntry } from './ZoomEntry'
 import { PlaceCursorBadge } from './PlaceCursorBadge'
 import { escapeAction } from './images'
+import { errorText } from './errors'
+import { errorWords } from './errorWords'
 import { drawnCursor } from './cursors'
 import { useInputMethod } from './ime'
 import { LIST_ROWS, nextListType, type ListKind } from './lists'
@@ -60,7 +62,18 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   const t = useMemo(() => createKitStrings(CATALOGS, host.init.locale), [host])
   const manifest = useMemo(engineManifest, [])
   const session = useKitSession(host, manifest, describe)
-  const own = useKitEditorState(session, host, t, 'layout', phrase)
+  // Every failure the frame reports is worded in the person's language, never the engine's
+  // English (plan stage 8); the commands' titles are read when one fails.
+  const titles = useRef<(command: string) => string | undefined>(() => undefined)
+  const report = useCallback(
+    (title: string, error: unknown) => {
+      console.warn(title, error)
+      toast('error', title, errorText(error, errorWords(t, phrase, titles.current)))
+    },
+    [t, phrase],
+  )
+  const own = useKitEditorState(session, host, t, 'layout', phrase, undefined, { report })
+  titles.current = (command) => own.byId.get(command)?.title
   const { doc, change, state } = session
   // A row greys out where the selection is not one it works on (Group with one object), and a
   // variant row (Align Left) as its engine command does.
@@ -248,6 +261,13 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
       })()
       return true
     }
+    // Direct Selection's selected anchor points take Delete and Backspace (the points go, not
+    // their paths; plan stage 8), before the frame's Delete runs Clear.
+    if ((event.key === 'Delete' || event.key === 'Backspace') && !command && tools.active === 'directSelection' && state?.selectedAnchors.length && !tools.wantsText && !inField(event.target) && !host.readOnly) {
+      const zoomNow = canvas.current?.view()?.zoom ?? zoom
+      void session.tool('toolKey', [event.key, JSON.stringify({ shift: event.shiftKey, alt: event.altKey, command: false, control: false, space: false }), zoomNow], true)
+      return true
+    }
     // A selected ruler guide takes the arrows, Delete and Escape.
     if (!tools.wantsText && !inField(event.target) && guideGestures.guideKey(event)) return true
     // Several graphics in the place cursor: the arrows bring the next (or the previous) to the front.
@@ -370,7 +390,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
             </KitDocumentCanvas>
           </CanvasFrame>
         </div>
-        <LayoutDialogs api={dialogs} info={state} place={place} onShowPage={showPage} />
+        <LayoutDialogs api={dialogs} info={state} place={place} onShowPage={showPage} onShowArea={(area) => canvas.current?.show(area)} />
         <MenuHints info={state} />
         <PolygonDoubleClick onOpen={() => showDialog('polygon')} />
         <CanvasShims info={state} canvas={canvas} workspace={workspace} typing={() => typing.current()} onOpen={openMenu} spread={() => spread?.index ?? 0} />

@@ -15,7 +15,7 @@ pub const FORMATS: &[&str] = &["pdf", "png", "jpg", "html", "idml", "epub"];
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![cmd!(query "file.exportBytes", "Export as Bytes", [], None,
-        "{format: pdf|png|jpg|html|idml|epub, pages?: \"1-3,5\" | [1,3] (PDF, PNG, JPEG: 1-based; pictures default to the first page), bleed?: bool, ppi?: 72 (PNG, JPEG), background?: paper|transparent (PNG), quality?: 1..100 (JPEG), title?, author?, language?, cover?: bool (EPUB), fixedLayout?: bool (EPUB), embedImages?: bool (IDML), tagged?: bool (PDF)} — the file as base64, without writing it → {format, data, bytes, files?: [{page, data}] (pictures of several pages)}",
+        "{format: pdf|png|jpg|html|idml|epub, pages?: \"1-3,5\" | [1,3] (PDF, PNG, JPEG: 1-based; pictures default to the first page), bleed?: bool, ppi?: 72 (PNG, JPEG), background?: paper|transparent (PNG), quality?: 1..100 (JPEG), title?, author?, language?, cover?: bool (EPUB), fixedLayout?: bool (EPUB), embedImages?: bool (IDML), tagged?: bool (PDF), spreads?: bool (PDF: each spread on one sheet), marks?: bool | {crop?: bool, bleed?: bool, pageInfo?: bool} (PDF printer's marks), standard?: none|x4|a2b (PDF/X-4, PDF/A-2b), compressImages?: bool (PDF: images as JPEG)} — the file as base64, without writing it → {format, data, bytes, files?: [{page, data}] (pictures of several pages)}",
         has_doc, export_bytes)]
 }
 

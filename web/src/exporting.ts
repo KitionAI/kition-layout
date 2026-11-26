@@ -11,10 +11,34 @@ export type Format = (typeof FORMATS)[number]
 /** Each format's file extension, as `kit.json` `exports[].extension` declares it. */
 export const EXTENSION: Record<Format, string> = { png: 'png', jpeg: 'jpg', pdf: 'pdf', idml: 'idml', epub: 'epub', html: 'html' }
 
+/** PDF/X-4 and PDF/A-2b, or none: the standards the engine's PDF export writes. */
+export const PDF_STANDARDS = ['none', 'x4', 'a2b'] as const
+export type PdfStandard = (typeof PDF_STANDARDS)[number]
+
+/**
+ * The PDF options the engine's export takes besides pages and bleed (plan stage 8): each spread on
+ * one sheet, printer's marks (crop, bleed, page information), a standard, images compressed as
+ * JPEG, a tagged (accessible) file. Nothing the exporter ignores.
+ */
+export type PdfOptions = { spreads: boolean; cropMarks: boolean; bleedMarks: boolean; pageInfo: boolean; standard: PdfStandard; compressImages: boolean; tagged: boolean }
+
+export const DEFAULT_PDF: PdfOptions = { spreads: false, cropMarks: false, bleedMarks: false, pageInfo: false, standard: 'none', compressImages: false, tagged: false }
+
+/** The engine's PDF parameters for `options`: only those that differ from the engine's defaults. */
+export function pdfParams(options: PdfOptions): Record<string, unknown> {
+  const params: Record<string, unknown> = {}
+  if (options.spreads) params.spreads = true
+  if (options.cropMarks || options.bleedMarks || options.pageInfo) params.marks = { crop: options.cropMarks, bleed: options.bleedMarks, pageInfo: options.pageInfo }
+  if (options.standard !== 'none') params.standard = options.standard
+  if (options.compressImages) params.compressImages = true
+  if (options.tagged) params.tagged = true
+  return params
+}
+
 /** A one-file export: `file.exportBytes` answers the file as base64 in `data`. */
-export function bytesRequest(format: Format, options: { pages?: string; bleed: boolean }): { command: string; params: Record<string, unknown> } {
+export function bytesRequest(format: Format, options: { pages?: string; bleed: boolean; pdf?: PdfOptions }): { command: string; params: Record<string, unknown> } {
   const params: Record<string, unknown> = { format: EXTENSION[format] }
-  if (format === 'pdf') Object.assign(params, options.pages ? { pages: options.pages } : {}, { bleed: options.bleed })
+  if (format === 'pdf') Object.assign(params, options.pages ? { pages: options.pages } : {}, { bleed: options.bleed }, options.pdf ? pdfParams(options.pdf) : {})
   return { command: 'file.exportBytes', params }
 }
 

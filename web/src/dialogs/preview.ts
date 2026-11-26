@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useKitEditor, type PreviewDialogPreview } from '@kition/sdk/editor'
 import { useEditorView } from '../viewContext'
-import { refusalReason } from '../menus/context'
+import { useErrorText } from '../errorWords'
 
 /**
  * A dialog's live preview, with `keep`: what OK calls first (true when it kept the preview as the
@@ -41,11 +41,12 @@ type PreviewDoc = NonNullable<ReturnType<typeof useKitEditor>['session']['doc']>
 
 function usePreview(key: string, params: Record<string, unknown> | null, showDraft: (doc: PreviewDoc, draft: Record<string, unknown>) => Promise<unknown>): CommandPreview | undefined {
   const command = key
-  const { session, t } = useKitEditor()
+  const { session } = useKitEditor()
   const { repaint } = useEditorView()
+  const words = useErrorText()
   const doc = session.doc
-  const latest = useRef({ params, repaint, t })
-  latest.current = { params, repaint, t }
+  const latest = useRef({ params, repaint, words })
+  latest.current = { params, repaint, words }
   const shown = params && Object.keys(params).length ? params : null
   const api = useMemo<Omit<CommandPreview, 'draft'> | null>(() => {
     if (!doc) return null
@@ -65,7 +66,7 @@ function usePreview(key: string, params: Record<string, unknown> | null, showDra
         clearTimeout(ending)
         ending = null
       }
-      const { params: now, t: words } = latest.current
+      const { params: now, words } = latest.current
       const draft = now && Object.keys(now).length ? now : null
       if (!draft) return cancel()
       try {
@@ -73,8 +74,7 @@ function usePreview(key: string, params: Record<string, unknown> | null, showDra
         await showDraft(doc, draft)
         showing = JSON.stringify(draft)
       } catch (error) {
-        const reason = refusalReason(error)
-        throw reason ? new Error(words(`hint.${reason}`)) : error
+        throw new Error(words(error))
       } finally {
         await settle()
       }

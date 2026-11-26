@@ -268,7 +268,11 @@ fn in_table_or_ids(s: &Session) -> std::result::Result<(), String> {
 
 fn in_cell(s: &Session) -> std::result::Result<(), String> {
     has_doc(s)?;
-    if s.active().is_some_and(|d| d.selection.text.is_some_and(|t| t.cell.is_some())) { Ok(()) } else { Err("not in a table cell".into()) }
+    if s.active().is_some_and(|d| d.selection.text.is_some_and(|t| t.cell.is_some())) {
+        Ok(())
+    } else {
+        Err(super::coded("needTable", "not in a table cell"))
+    }
 }
 
 /// The table a command acts on and its target cell range.
@@ -305,7 +309,10 @@ fn target(s: &Session, p: &Value, cmd: &str) -> Result<Tgt> {
         match t.cell {
             Some(c) => (t.story, c.table, Some(CellRange::cell(c.row, c.col))),
             None => {
-                let tid = doc.story(t.story).and_then(|x| x.table_at(t.focus)).ok_or_else(|| bad(cmd, "the insertion point is not in a table"))?;
+                let tid = doc
+                    .story(t.story)
+                    .and_then(|x| x.table_at(t.focus))
+                    .ok_or_else(|| super::refused(cmd, "needTable", "the insertion point is not in a table"))?;
                 (t.story, tid, None)
             }
         }
