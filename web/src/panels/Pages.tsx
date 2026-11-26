@@ -21,12 +21,12 @@ const NAMES = 22
 const AROUND = 14
 
 /**
- * The square a spread's thumbnail fits in (phase 12): as wide as the panel and as tall as the room
- * the spreads have, less the page numbers under it, so the first spread shows whole with its
- * numbers however the panel is sized.
+ * The square a spread's thumbnail fits in (phase 12): as wide as the panel, and small enough that
+ * two spreads show whole with their page numbers in the room the spreads have (a page is dragged
+ * onto another in view), so the first spread shows whole however the panel is sized.
  */
 export function thumbBox(width: number, height: number) {
-  const fit = Math.min(width - 2 * AROUND, height - NAMES - AROUND)
+  const fit = Math.min(width - 2 * AROUND, (height - 2 * (NAMES + AROUND)) / 2 - 4)
   return Math.round(Math.max(THUMB_MIN, Math.min(THUMB_MAX, fit)))
 }
 
