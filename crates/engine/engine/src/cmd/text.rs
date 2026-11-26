@@ -390,6 +390,7 @@ fn place(s: &mut Session, p: &Value, extend: bool) -> Result<Value> {
     if !extend {
         s.text_drag = s.doc()?.selection.text.is_some_and(|t| t.story == sid && t.cell == cell && !t.range().is_empty() && t.range().contains(&b));
         if s.text_drag {
+            s.text_drag_from = b;
             return Ok(json!({"story": sid.0, "dragging": true}));
         }
     } else if s.text_drag {
@@ -482,8 +483,19 @@ fn release(s: &mut Session, p: &Value) -> Result<Value> {
     let Some(t) = s.doc()?.selection.text else { return ok() };
     let Some((sid, b, cell)) = hit_byte(s, frame, pt) else { return ok() };
     let r = t.range();
-    if sid != t.story || cell != t.cell || (r.contains(&b) && !copy) {
+    if sid != t.story || cell != t.cell {
         return ok();
+    }
+    if r.contains(&b) && !copy {
+        // Dropped back in the dragged text: nothing moves; the drag selects from its press to
+        // here, as a drag outside a selection does (after several clicks selected a line, a
+        // paragraph or the story, a new drag in it selects characters again).
+        let from = floor_char_boundary(s.doc()?.doc.text_story(sid, cell).map_or("", |story| story.text.as_str()), s.text_drag_from);
+        s.text_unit = None;
+        let st = s.doc_mut()?;
+        st.selection = Selection::text(TextSel { story: sid, anchor: from, focus: b, frame: Some(frame), cell });
+        st.revision += 1;
+        return Ok(json!({"story": sid.0, "anchor": from, "focus": b}));
     }
     s.edit(|d, sel| {
         let st = d.text_story_mut(sid, cell).ok_or(kition_layout_doc::DocError::NoStory(sid))?;
@@ -1540,6 +1552,33 @@ mod drag_text_tests {
         s.execute("text.release", &json!({"frame": fid, "point": at(&s, 2), "moved": false})).unwrap();
         let t = s.doc().unwrap().selection.text.unwrap();
         assert_eq!(t.anchor, t.focus);
+    }
+
+    /// Plan 2026-11-25, phase 9 (walkthrough: after five clicks selected the story, a new drag in
+    /// it still left the whole story selected): a drag that starts in the selected text and ends
+    /// in it again moves nothing; it selects from the press to the release, as a drag elsewhere
+    /// does, not the units of the clicks before.
+    #[test]
+    fn a_drag_within_the_selected_text_selects_anew() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({})).unwrap();
+        let r = s.execute("frame.add", &json!({"rect": [72, 72, 500, 200], "content": "text", "text": "Hello brave world"})).unwrap();
+        let (fid, sid) = (r["id"].as_u64().unwrap(), r["story"].as_u64().unwrap());
+        let at = |s: &Session, b: usize| {
+            let d = &s.doc().unwrap().doc;
+            let cs = kition_layout_compose::compose_story(d, kition_layout_doc::StoryId(sid), &Default::default());
+            let l = &cs.frames[0].lines[0];
+            let g = l.glyphs.iter().find(|g| g.byte == b).unwrap();
+            json!([g.x + g.adv * 0.25, l.baseline - 3.0])
+        };
+        // Five clicks: the story.
+        s.execute("text.selectWord", &json!({"frame": fid, "point": at(&s, 8), "unit": "story"})).unwrap();
+        s.execute("text.placeCaret", &json!({"frame": fid, "point": at(&s, 2)})).unwrap();
+        s.execute("text.extendTo", &json!({"frame": fid, "point": at(&s, 10)})).unwrap();
+        s.execute("text.release", &json!({"frame": fid, "point": at(&s, 10), "moved": true})).unwrap();
+        let t = s.doc().unwrap().selection.text.unwrap();
+        assert_eq!((t.anchor, t.focus), (2, 10), "from the press to the release");
+        assert_eq!(s.doc().unwrap().doc.story(kition_layout_doc::StoryId(sid)).unwrap().text, "Hello brave world", "nothing moved");
     }
 }
 

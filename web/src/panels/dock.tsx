@@ -17,7 +17,8 @@ type DockSpec = ReadonlyArray<{ group: string; tabs: readonly { id: string; labe
  * bottom edge; the last one takes the rest of the column, and the others give way in a short
  * window down to their minimums (then the dock scrolls). Properties, Pages (with Sizes) and Layers
  * each have a group of their own, as a person uses them together (select in Layers, set in
- * Properties, add a page); Swatches shares one with Links, and the two style lists share the last.
+ * Properties, add a page) in a tall window; Swatches shares one with Links, and the two style
+ * lists share the last. Shorter windows have three groups (`MEDIUM_DOCK`, `SHORT_DOCK`).
  * The dock remembers its tabs and heights per kit in the browser.
  */
 export const LAYOUT_DOCK: DockSpec = [
@@ -67,13 +68,48 @@ export const SHORT_DOCK: DockSpec = [
   },
 ]
 
+/**
+ * A window of ordinary height (1440 × 900, plan 2026-11-25, phase 9): five groups left each panel
+ * 100–113 pixels (Layers showed two rows), so three groups here too, each tall enough to work in:
+ * Properties; Layers with Pages; Swatches, Styles and Links taking the rest of the column.
+ */
+export const MEDIUM_DOCK: DockSpec = [
+  { group: 'properties', tabs: [{ id: 'properties', label: 'Properties' }], defaultHeight: 330, compactHeight: 250, minHeight: 150 },
+  {
+    group: 'layers-pages',
+    tabs: [
+      { id: 'layers', label: 'Layers' },
+      { id: 'pages', label: 'Pages' },
+    ],
+    defaultHeight: 240,
+    compactHeight: 200,
+    minHeight: 160,
+  },
+  {
+    group: 'swatches-styles-links',
+    tabs: [
+      { id: 'swatches', label: 'Swatches' },
+      { id: 'styles', label: 'Styles' },
+      { id: 'links', label: 'Links' },
+    ],
+    defaultHeight: 220,
+    compactHeight: 180,
+    minHeight: 150,
+    preferredFill: 200,
+  },
+]
+
 /** Below this window height the dock has three groups (`SHORT_DOCK`). */
 const SHORT_WINDOW = '(max-height: 799px)'
+/** Below this one, three taller groups (`MEDIUM_DOCK`); five from here up (`LAYOUT_DOCK`). */
+const MEDIUM_WINDOW = '(max-height: 1099px)'
 
 /** The dock beside the canvas; `spread` is the one in view (Layers lists its objects). */
 export function LayoutDock({ info, spread, onShow, onSetup, dock }: { info: DocumentInfo; spread: Spread | null; onShow: (spread: Spread) => void; onSetup: () => void; dock?: RefObject<DockAreaHandle | null> }) {
   const { phrase } = useKitEditor()
-  const spec = useMediaQuery(SHORT_WINDOW) ? SHORT_DOCK : LAYOUT_DOCK
+  const short = useMediaQuery(SHORT_WINDOW)
+  const medium = useMediaQuery(MEDIUM_WINDOW)
+  const spec = short ? SHORT_DOCK : medium ? MEDIUM_DOCK : LAYOUT_DOCK
   const content: Record<string, () => ReactNode> = {
     properties: () => <PropertiesPanel info={info} />,
     pages: () => (

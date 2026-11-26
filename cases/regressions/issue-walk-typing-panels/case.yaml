@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-walk-typing-panels
+feature: layout.ui.text-and-tables
+intent: >-
+  Typing in a long threaded story: the Pages panel drew every page's thumbnail after every change
+  once keys came slower than its delay, and each panel asked its queries after every key (each
+  answered with a whole inspection of the layout). The thumbnails now wait for a pause and only
+  those in view are drawn; the typed text arrives.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (walkthrough after phase 8, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, typing]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-25"

@@ -1,0 +1,21 @@
+format: 1
+id: regressions/issue-walk-wrap-column
+feature: layout.object.options
+intent: >-
+  Beside a picture wrapped across the gutter of a two-column frame, a line ran out of its column
+  onto the facing page: the line breaker sized lines with the wrap slots estimated at other heights
+  than the lines were placed at. A line whose real slot differs is broken again for it, so no line
+  runs over the picture or out of its column.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (walkthrough after phase 8, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-compose, filter: wrapped_lines_stay_in_their_column }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

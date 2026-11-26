@@ -1,5 +1,6 @@
 import { CaseUpperIcon, CaseSensitiveIcon, StrikethroughIcon, SubscriptIcon, SuperscriptIcon, UnderlineIcon } from '@kition/tessera/icons/react'
-import { Choice, IconButton, NumberField, toast, useEngineQuery, useKitEditor } from '@kition/sdk/editor'
+import { Choice, IconButton, NumberField, toast, useKitEditor } from '@kition/sdk/editor'
+import { usePanelQuery } from '../query'
 import type { DocumentInfo } from '../../layout'
 import { ColorWell } from '../ColorWell'
 import { colorParam, swatchColor, type PickedColor } from '../colors'
@@ -45,9 +46,9 @@ function styleChoices(styles: readonly string[], current: string | undefined) {
  */
 export function CharacterGroup({ info, chars }: { info: DocumentInfo; chars: CharAttrs }) {
   const { run, t, session } = useKitEditor()
-  const families = useEngineQuery<string[]>('font.families', {}, session.doc ? 'families' : null) ?? []
+  const families = usePanelQuery<string[]>('font.families', {}, session.doc ? 'families' : null) ?? []
   const family = chars.fontFamily ?? ''
-  const styles = useEngineQuery<{ styles: string[] }>('font.families', { family }, family)
+  const styles = usePanelQuery<{ styles: string[] }>('font.families', { family }, family)
   const char = (next: Record<string, unknown>) => void run('text.char', { attrs: next })
   const familyChoices = families.map((name) => [name, name] as const)
   if (family && !familyChoices.some(([name]) => name === family)) familyChoices.unshift([family, family])

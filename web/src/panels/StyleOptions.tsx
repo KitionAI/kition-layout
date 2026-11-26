@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
-import { Checkbox, Choice, useEngineQuery, useKitEditor } from '@kition/sdk/editor'
+import { Checkbox, Choice, useKitEditor } from '@kition/sdk/editor'
+import { usePanelQuery } from './query'
 import type { DocumentInfo } from '../layout'
 import { DialogFrame, useRunInDialog } from '../dialogs/DialogFrame'
 import { useCommandPreview } from '../dialogs/preview'
@@ -22,7 +23,7 @@ const PICKED_CHARS = ['fontFamily', 'fontStyle', 'size', 'fill', 'tracking'] as 
 export function StyleOptionsDialog({ info, kind, name, make, onClose, onMade }: { info: DocumentInfo; kind: StyleKind; name: string; make?: NewStyle; onClose: () => void; onMade?: (name: string) => void }) {
   const { t, phrase: p, session } = useKitEditor()
   const run = useRunInDialog()
-  const families = useEngineQuery<string[]>('font.families', {}, session.doc ? 'families' : null) ?? []
+  const families = usePanelQuery<string[]>('font.families', {}, session.doc ? 'families' : null) ?? []
   const defs = kind === 'paragraph' ? info.styleDefs.paragraph : info.styleDefs.character
   const names = kind === 'paragraph' ? info.paragraphStyles : info.characterStyles
   // The values it opens with stay fixed: the preview changes `info` as the person types.

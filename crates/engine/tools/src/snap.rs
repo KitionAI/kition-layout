@@ -53,6 +53,11 @@ pub fn snap(cx: &ToolContext, req: SnapRequest<'_>) -> Snap {
     if !rect_finite(req.rect) || !cx.snap.any() {
         return Snap::default();
     }
+    // The targets are the document as the gesture found it: its preview (a shape being drawn at
+    // the size of the step before) is not something to snap to (plan 2026-11-25, phase 9: a
+    // rectangle drawn 60 pt tall ended 56 pt, its own height a moment earlier, with no guide).
+    let shown = ToolContext { doc: cx.before.unwrap_or(cx.doc), before: None, ..*cx };
+    let cx = &shown;
     let Some(tol) = zone_tol(cx) else {
         return Snap::default();
     };
@@ -1474,7 +1479,17 @@ mod tests {
     }
 
     fn ctx_on<'a>(doc: &'a Document, sel: &'a Selection, cache: &'a Cache, layout: &'a CanvasLayout) -> ToolContext<'a> {
-        ToolContext { doc, selection: sel, cache, layout, zoom: 1.0, layer: doc.default_layer(), snap: SnapView::FACTORY, unit: Unit::Points }
+        ToolContext {
+            doc,
+            selection: sel,
+            cache,
+            layout,
+            zoom: 1.0,
+            layer: doc.default_layer(),
+            snap: SnapView::FACTORY,
+            unit: Unit::Points,
+            before: None,
+        }
     }
 
     fn y_req(rect: Rect) -> SnapRequest<'static> {

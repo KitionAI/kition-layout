@@ -135,3 +135,15 @@ export function defaultFillStroke(ids: readonly number[]): Array<[string, Record
     ['object.stroke', { swatch: '[Black]', tint: 1, weight: 1, ids: [...ids] }],
   ]
 }
+
+/**
+ * Whether anything of a spread's objects lies on one of its pages (`bounds` in spread points, as
+ * `file.inspect` gives them): the Pages panel's trash asks first then, as Layout › Pages › Delete
+ * Pages… does (plan 2026-11-25, phase 9); an empty page goes at once.
+ */
+export function pageHasObjects(spread: { pages: ReadonlyArray<{ index: number; bounds: readonly number[] }>; items: ReadonlyArray<{ bounds: readonly number[] }> }, page: number) {
+  const on = spread.pages.find((item) => item.index === page)
+  if (!on) return false
+  const [x0, y0, x1, y1] = on.bounds
+  return spread.items.some(({ bounds: [a, b, c, d] }) => a < x1 && c > x0 && b < y1 && d > y0)
+}

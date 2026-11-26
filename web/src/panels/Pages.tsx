@@ -7,38 +7,97 @@ import { useEditorView } from '../viewContext'
 import { PanelHeading } from './fields'
 import { dropSide, moveTarget } from './reorder'
 import { useRowDrag, type DragOver } from './rowDrag'
+import { useDialogs } from './dialogsContext'
+import { pageHasObjects } from './panelLogic'
 
 /** What a drag in the Pages panel carries: a page (to move it) or a parent (to apply it). */
 type Dragged = { kind: 'page'; index: number } | { kind: 'parent'; label: string | null }
 
 const THUMB = 92
 
-/** A spread's thumbnail, drawn by the engine a moment after each change. */
+/**
+ * How long the document stays still before the thumbnails are drawn again. Typing in a long story
+ * changes it with every key: the thumbnails wait for a pause, as InDesign's do, so the engine
+ * spends its time on the text (plan 2026-11-25, phase 9).
+ */
+export const THUMB_IDLE_MS = 600
+
+/**
+ * The thumbnails are drawn one at a time, each after the document has been still for
+ * `THUMB_IDLE_MS`: a change while one waits drops it (the next pause draws it again), so a burst
+ * of changes costs no thumbnail at all, and only the thumbnails in view are queued.
+ */
+const thumbQueue = (() => {
+  let tail: Promise<void> = Promise.resolve()
+  let changedAt = 0
+  return {
+    changed() {
+      changedAt = performance.now()
+    },
+    /** Queues `draw` (it runs unless `stale()` by its turn, after a still moment). */
+    add(draw: () => Promise<void>, stale: () => boolean) {
+      tail = tail.then(async () => {
+        for (;;) {
+          if (stale()) return
+          const wait = changedAt + THUMB_IDLE_MS - performance.now()
+          if (wait <= 0) break
+          await new Promise((done) => window.setTimeout(done, wait))
+        }
+        await draw().catch(() => undefined)
+      })
+    },
+  }
+})()
+
+/** Whether an element is in view (in its scrolling panel and on the screen). */
+function useInView(element: Element | null) {
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    if (!element || typeof IntersectionObserver === 'undefined') {
+      setShown(Boolean(element))
+      return undefined
+    }
+    const observer = new IntersectionObserver((entries) => setShown(entries.some((entry) => entry.isIntersecting)), { rootMargin: '64px' })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [element])
+  return shown
+}
+
+/**
+ * A spread's thumbnail, drawn by the engine once the document is still after a change, and only
+ * while it is in view; one scrolled into view after a change is drawn then.
+ */
 function SpreadThumb({ spread }: { spread: Spread }) {
   const { session } = useKitEditor()
   const { doc, change } = session
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null)
+  const shown = useInView(canvas)
+  /** The revision this thumbnail shows. */
+  const [drawn, setDrawn] = useState<string | null>(null)
   const width = spread.area.x1 - spread.area.x0
   const height = spread.area.y1 - spread.area.y0
   const scale = Math.min(THUMB / Math.max(1, width), THUMB / Math.max(1, height))
   const w = Math.max(1, Math.round(width * scale))
   const h = Math.max(1, Math.round(height * scale))
+  const wanted = `${change.revision}:${spread.area.x0}:${spread.area.y0}:${w}:${h}`
+  useEffect(() => thumbQueue.changed(), [change.revision])
   useEffect(() => {
-    if (!doc || !canvas) return undefined
+    if (!doc || !canvas || !shown || drawn === wanted) return undefined
     let stale = false
-    const timer = window.setTimeout(async () => {
+    thumbQueue.add(async () => {
       const rgba = await doc.render(spread.area.x0, spread.area.y0, scale, w, h).catch(() => null)
       if (stale || !rgba) return
       canvas.width = w
       canvas.height = h
       canvas.getContext('2d')?.putImageData(new ImageData(new Uint8ClampedArray(rgba.buffer as ArrayBuffer, rgba.byteOffset, rgba.byteLength), w, h), 0, 0)
-    }, 300)
+      setDrawn(wanted)
+    }, () => stale)
     return () => {
       stale = true
-      window.clearTimeout(timer)
     }
-  }, [canvas, change.revision, doc, h, scale, spread.area.x0, spread.area.y0, w])
-  return <canvas ref={setCanvas} width={w} height={h} className="layout-thumb" />
+  }, [canvas, doc, drawn, h, scale, shown, spread.area.x0, spread.area.y0, w, wanted])
+  return <canvas ref={setCanvas} width={w} height={h} className="layout-thumb" data-drawn={drawn ?? undefined} />
 }
 
 /**
@@ -76,6 +135,13 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
     if (to != null) void run('layout.pages.move', { from: source.index, to }).then(() => setChosen(to))
   }
   const drag = useRowDrag<Dragged>(drop)
+  const dialogs = useDialogs()
+  /** The trash: a page with objects on it is asked about first (in the Delete Pages dialog, as from the menu). */
+  const deletePage = (index: number) => {
+    const spread = info.spreads.find((item) => item.pages.some((one) => one.index === index))
+    if (spread && pageHasObjects(spread, index) && dialogs?.current) dialogs.current.invoke('layout.pages.delete', { place: { page: index, spread: spread.index } })
+    else void run('layout.pages.delete', { pages: [index] })
+  }
   /** Edit a parent: the canvas shows the parent spreads (and the panel lists them) until Back to Pages. */
   const editParents = async (on: boolean, label?: string | null) => {
     await run('layout.parents.edit', { on })
@@ -203,7 +269,7 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
           <>
             <IconButton icon={Settings2} label={p('Document Setup')} disabled={readOnly} onClick={onSetup} data-testid="layout-document-setup" />
             <IconButton icon={Copy} label={t('duplicateSpread')} disabled={readOnly || editing || !spreadOf} onClick={() => spreadOf && void run('layout.pages.duplicateSpread', { spread: spreadOf.index })} data-testid="layout-duplicate-spread" />
-            <IconButton icon={Trash} label={t('deletePage')} disabled={readOnly || editing || info.pageCount < 2} onClick={() => void run('layout.pages.delete', { pages: [page] })} data-testid="layout-delete-page" />
+            <IconButton icon={Trash} label={t('deletePage')} disabled={readOnly || editing || info.pageCount < 2} onClick={() => deletePage(page)} data-testid="layout-delete-page" />
           </>
         }
       />

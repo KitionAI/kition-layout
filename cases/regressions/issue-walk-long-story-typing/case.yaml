@@ -1,0 +1,21 @@
+format: 1
+id: regressions/issue-walk-long-story-typing
+feature: layout.ui.text-and-tables
+intent: >-
+  200 characters typed at the start of a 22-page threaded story arrived 179 s after the last key:
+  the editor inspects the layout after every command (its panels' queries included), and each
+  inspect composed every story again in a scratch session with a composition cache of its own. A
+  typed character now composes its story once, however often the layout is inspected after it.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (walkthrough after phase 8, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, filter: a_typed_character_composes_a_long_story_once }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

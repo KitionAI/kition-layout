@@ -161,6 +161,13 @@ export function useCanvasWheel(canvas: RefObject<KitCanvasHandle | null>, typing
         event.preventDefault()
         event.stopPropagation()
         handle.panTo(view.x + event.deltaY / view.zoom, view.y)
+      } else if (event.deltaX) {
+        // A trackpad's sideways swipe (and a tilted wheel) pans both ways at once (phase 9: the
+        // canvas only followed the vertical part).
+        event.preventDefault()
+        event.stopPropagation()
+        const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? event.target.clientHeight : 1
+        handle.panTo(view.x + (event.deltaX * unit) / view.zoom, view.y + (event.deltaY * unit) / view.zoom)
       }
     }
     const press = (event: PointerEvent) => {
@@ -268,6 +275,90 @@ export function useFocusOnOpen(ready: boolean) {
     window.focus()
     app.focus({ preventScroll: true })
   }, [ready])
+}
+
+/**
+ * Whether the keyboard has no home (plan 2026-11-25, phase 9): focus left on the body (or
+ * nowhere), or still in kit-editor's hidden text field after text editing ended. The editor's keys
+ * are read where they land in the editor (`.kui-app`), and kit-editor does not give a key typed
+ * into a text field to the tools, so both leave every shortcut and tool key dead until a click on
+ * the canvas. `typing` is whether text is being edited now.
+ */
+export function keyboardAdrift(active: Element | null, sink: Element | null, typing: boolean, body: Element | null) {
+  if (active === null || active === body || active === body?.parentElement) return true
+  return active === sink && !typing
+}
+
+/**
+ * The keyboard comes back to the editor whenever it has no home (`keyboardAdrift`): after any
+ * dialog, menu or popover closes by OK, Cancel or Esc (it took its focused button with it, so the
+ * browser left focus on the body), and after Esc or a tool key ends text editing (focus stayed in
+ * the hidden text field). One rule for all of them, not one per dialog: whenever the page's
+ * elements change, focus leaves an element or typing starts or stops, the editor (or the hidden
+ * text field while typing) takes the keyboard again. Not while the frame does not have the
+ * keyboard (the host's own field has it), and not while a dialog or a menu backdrop is up.
+ */
+export function useKeyboardHome(typing: () => boolean, wantsText: boolean) {
+  const latest = useRef(typing)
+  latest.current = typing
+  const check = useRef<() => void>(() => undefined)
+  useEffect(() => {
+    let queued = 0
+    const settle = () => {
+      queued = 0
+      if (!document.hasFocus()) return
+      const app = document.querySelector<HTMLElement>('.kui-app')
+      const sink = document.querySelector<HTMLTextAreaElement>('.kui-text-sink')
+      const now = latest.current()
+      if (!app || !keyboardAdrift(document.activeElement, sink, now, document.body)) return
+      // A dialog up keeps it (a click on a modeless one's text leaves focus on the body, where
+      // its Esc closes it); its closing brings the keyboard home.
+      if (document.querySelector('.kui-dialog, .kui-dialog-backdrop')) return
+      ;(sink && now ? sink : app).focus({ preventScroll: true })
+    }
+    const queue = () => {
+      if (!queued) queued = window.setTimeout(settle, 0)
+    }
+    check.current = queue
+    const observer = new MutationObserver(queue)
+    observer.observe(document.body, { childList: true, subtree: true })
+    document.addEventListener('focusout', queue, true)
+    return () => {
+      observer.disconnect()
+      document.removeEventListener('focusout', queue, true)
+      window.clearTimeout(queued)
+      check.current = () => undefined
+    }
+  }, [])
+  useEffect(() => check.current(), [wantsText])
+}
+
+/**
+ * A tool's flyout chooses by press, drag and release too (phase 9), as InDesign's: the press held
+ * on a rail button opens its flyout (kit-editor), and releasing over one of its tools chooses it
+ * (the browser makes no click of a press and a release on different elements).
+ */
+export function useToolFlyoutDrag() {
+  useEffect(() => {
+    let fromRail = false
+    const press = (event: PointerEvent) => {
+      const target = event.target instanceof Element ? event.target : null
+      fromRail = event.button === 0 && target?.closest('.kui-tool-slot') != null && target.closest('.kui-tool-flyout') == null
+    }
+    const release = (event: PointerEvent) => {
+      if (!fromRail) return
+      fromRail = false
+      const target = event.target instanceof Element ? event.target : null
+      const item = target?.closest<HTMLButtonElement>('.kui-tool-flyout [role="menuitemradio"]')
+      if (item && !item.disabled) item.click()
+    }
+    window.addEventListener('pointerdown', press, true)
+    window.addEventListener('pointerup', release, true)
+    return () => {
+      window.removeEventListener('pointerdown', press, true)
+      window.removeEventListener('pointerup', release, true)
+    }
+  }, [])
 }
 
 /** After Enter in a panel's number or text field, the keys go back to the canvas (or the text being typed). */

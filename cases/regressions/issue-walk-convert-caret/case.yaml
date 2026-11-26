@@ -1,0 +1,19 @@
+format: 1
+id: regressions/issue-walk-convert-caret
+feature: layout.ui.text-and-tables
+intent: >-
+  After Table > Convert Text to Table the caret stayed outside the new table. It goes into the first
+  cell, as after Insert Table, so typing goes on there.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (walkthrough after phase 8, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: convert_text_to_table_leaves_the_caret_in_the_first_cell }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

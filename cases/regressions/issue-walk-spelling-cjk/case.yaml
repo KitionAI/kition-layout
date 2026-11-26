@@ -1,0 +1,19 @@
+format: 1
+id: regressions/issue-walk-spelling-cjk
+feature: layout.ui.paths-and-output
+intent: >-
+  Check Spelling stopped on every Chinese phrase: Chinese, Japanese and Korean letters were judged
+  against the English dictionary. They are skipped; the English words beside them are checked.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (walkthrough after phase 8, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: check_skips_chinese_japanese_and_korean }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

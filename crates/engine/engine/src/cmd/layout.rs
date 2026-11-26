@@ -206,12 +206,26 @@ pub fn specs() -> Vec<CommandSpec> {
                     p.get("pages").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_u64).map(|v| v as usize).collect());
                 let p = p.clone();
                 let adjust = p.get("adjustLayout").and_then(Value::as_bool).unwrap_or(false);
+                // Editing parents (the canvas shows the parent spreads), the parents' pages take
+                // the margins and columns, as the pages the person sees (`pages` counts them in
+                // the parents' order).
+                let parents = s.doc()?.editing_parents;
                 s.edit(|d, _| {
-                    let before = adjust.then(|| margin_boxes(d));
-                    let all: Vec<usize> = pages.clone().unwrap_or_else(|| (0..d.page_count()).collect());
-                    for abs in all {
-                        let Some((si, pi)) = d.page_loc(abs) else { continue };
-                        let pg = &mut std::sync::Arc::make_mut(&mut d.spreads[si]).pages[pi];
+                    let before = (adjust && !parents).then(|| margin_boxes(d));
+                    let locs: Vec<(usize, usize)> = if parents {
+                        d.parents.iter().enumerate().flat_map(|(si, sp)| (0..sp.pages.len()).map(move |pi| (si, pi))).collect()
+                    } else {
+                        (0..d.page_count()).filter_map(|abs| d.page_loc(abs)).collect()
+                    };
+                    let chosen: Vec<(usize, usize)> = match &pages {
+                        Some(list) if parents => list.iter().filter_map(|i| locs.get(*i).copied()).collect(),
+                        Some(list) => list.iter().filter_map(|abs| d.page_loc(*abs)).collect(),
+                        None => locs,
+                    };
+                    for (si, pi) in chosen {
+                        let spreads = if parents { &mut d.parents } else { &mut d.spreads };
+                        let Some(spread) = spreads.get_mut(si) else { continue };
+                        let Some(pg) = std::sync::Arc::make_mut(spread).pages.get_mut(pi) else { continue };
                         match p.get("margins") {
                             Some(Value::Number(n)) => pg.margins = Margins::uniform(n.as_f64().unwrap_or(36.0)),
                             Some(v @ Value::Object(_)) => {
@@ -927,5 +941,27 @@ mod adjust_tests {
         s.execute("layout.marginsAndColumns", &json!({"margins": 36})).unwrap();
         let b2 = s.doc().unwrap().doc.item(kition_layout_doc::ItemId(id)).unwrap().bounds();
         assert_eq!(b, b2);
+    }
+
+    /// Plan 2026-11-25, phase 9 (walkthrough: New Document's margins and columns did not reach
+    /// A-Parent): editing parents, Margins and Columns sets the parents' pages (what the canvas
+    /// shows), not the document's; back on the pages it sets the pages and leaves the parents.
+    #[test]
+    fn margins_and_columns_while_editing_parents_set_the_parents() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({"pages": 2, "facingPages": true})).unwrap();
+        let parent = |s: &Session| {
+            s.doc().unwrap().doc.parents[0].pages.iter().map(|p| (p.margins.top, p.columns.count, p.columns.gutter)).collect::<Vec<_>>()
+        };
+        let page = |s: &Session| s.doc().unwrap().doc.page(0).map(|p| (p.margins.top, p.columns.count)).unwrap();
+        let before = page(&s);
+        s.execute("layout.parents.edit", &json!({"on": true})).unwrap();
+        s.execute("layout.marginsAndColumns", &json!({"margins": 50, "columns": 3, "gutter": 10})).unwrap();
+        assert!(parent(&s).iter().all(|m| *m == (50.0, 3, 10.0)), "{:?}", parent(&s));
+        assert_eq!(page(&s), before, "the document's pages keep theirs");
+        s.execute("layout.parents.edit", &json!({"on": false})).unwrap();
+        s.execute("layout.marginsAndColumns", &json!({"margins": 20})).unwrap();
+        assert_eq!(page(&s).0, 20.0);
+        assert!(parent(&s).iter().all(|m| m.0 == 50.0), "the parents keep theirs");
     }
 }

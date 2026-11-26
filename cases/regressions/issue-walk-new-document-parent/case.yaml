@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-walk-new-document-parent
+feature: layout.file.new-document
+intent: >-
+  New Document's margins and columns did not reach A-Parent (it kept half an inch and one column):
+  Margins and Columns set the document's pages even while the parents were edited. Editing parents,
+  it sets the parents' pages, and New Document uses that for A-Parent.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (walkthrough after phase 8, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: margins_and_columns_while_editing_parents_set_the_parents }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

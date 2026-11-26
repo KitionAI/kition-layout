@@ -1,0 +1,23 @@
+format: 1
+id: regressions/issue-walk-new-document
+feature: layout.file.new-document
+intent: >-
+  File > New in millimetres with two columns and 20 mm margins: the pages and A-Parent have them,
+  and the layout opens in millimetres (the rulers and fields fell back to points).
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (walkthrough after phase 8, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, newDocument]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-25"

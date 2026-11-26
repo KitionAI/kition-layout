@@ -1,4 +1,5 @@
-import { Button, Choice, useEngineQuery, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { Button, Choice, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { usePanelQuery } from './query'
 import { findItem, type DocumentInfo } from '../layout'
 import { AppearanceGroup, type InspectedItem } from './properties/Appearance'
 import { ArrangeGroups, TextFrameGroup } from './properties/Arrange'
@@ -48,7 +49,7 @@ export function PropertiesPanel({ info }: { info: DocumentInfo }) {
 /** Character, Paragraph, the styles at the selection, and Fit Text to Frame. */
 function TextGroups({ info }: { info: DocumentInfo }) {
   const { run, phrase: p } = useKitEditor()
-  const attrs = useEngineQuery<TextAttrs>('text.selectionAttrs', {}, `${info.selection.join(',')}:${info.editingText}`)
+  const attrs = usePanelQuery<TextAttrs>('text.selectionAttrs', {}, `${info.selection.join(',')}:${info.editingText}`)
   if (!attrs) return null
   return (
     <div data-testid="layout-typography">

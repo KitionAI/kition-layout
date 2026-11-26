@@ -51,6 +51,7 @@ export function documentFileName(name: string, fallback: string) {
  */
 export function NewDocumentDialog({ onClose }: { onClose: () => void }) {
   const { t, host } = useKitEditor()
+  const { setView } = useEditorView()
   const words = useErrorText()
   const [primary, setPrimary] = useState(false)
   const [name, setName] = useState(() => t('dialog.untitled'))
@@ -84,8 +85,15 @@ export function NewDocumentDialog({ onClose }: { onClose: () => void }) {
     try {
       await engine.execute('layout.documentSetup', { width, height, pages, facingPages: facing, bleed })
       await engine.execute('layout.marginsAndColumns', { margins, columns, gutter })
+      // A-Parent takes them too (phase 9: it kept the engine's half inch and one column): Margins
+      // and Columns sets the parents' pages while the parents are edited.
+      await engine.execute('layout.parents.edit', { on: true })
+      await engine.execute('layout.marginsAndColumns', { margins, columns, gutter })
+      await engine.execute('layout.parents.edit', { on: false })
       if (primary) await addPrimaryTextFrames((command, params) => engine.execute(command, params), columns, gutter)
       const path = await host.exportFile(file, await engine.save())
+      // The rulers and fields go on in the unit the layout was made in (they fell back to points).
+      setView((view) => ({ ...view, unit }))
       toast('success', t('dialog.created', { path }))
     } catch (error) {
       toast('error', t('dialog.createFailed'), words(error))

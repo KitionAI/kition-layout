@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FileInputIcon as FileInput, FileOutputIcon as FileOutput, ImageIcon, ImagePlusIcon as ImagePlus, Link2Icon as Link2, RefreshCwIcon as RefreshCw, RotateCwIcon as RotateCw } from '@kition/tessera/icons/react'
-import { IconButton, PanelFooter, PICTURE_TYPES, base64, toast, useEngineQuery, useHostPick, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { IconButton, PanelFooter, PICTURE_TYPES, base64, toast, useHostPick, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { usePanelQuery } from './query'
 import type { DocumentInfo } from '../layout'
 import { thumbnailType, unembedPath, unembeddable } from '../images'
 import { useErrorText } from '../errorWords'
@@ -26,7 +27,7 @@ export function LinksSection({ info }: { info: DocumentInfo }) {
   const { can: canPick, pick } = useHostPick()
   // Placing and relinking edit the layout: a viewer only goes to links.
   const can = canPick && !readOnly
-  const links = useEngineQuery<Link[]>('linkedFile.list', {}) ?? []
+  const links = usePanelQuery<Link[]>('linkedFile.list', {}) ?? []
   const place = async (frame?: number) => {
     const file = await pick(t('placePurpose'), PLACE_TYPES)
     if (!file) return

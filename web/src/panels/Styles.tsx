@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CopyIcon as Copy, EraserIcon as Eraser, PencilIcon as Pencil, PlusIcon as Plus, RefreshCwIcon as Redefine, Settings2Icon as Settings2, TrashIcon as Trash } from '@kition/tessera/icons/react'
-import { Choice, IconButton, PanelFooter, useEngineQuery, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { Choice, IconButton, PanelFooter, useKitEditor, useReadOnly } from '@kition/sdk/editor'
+import { usePanelQuery } from './query'
 import { PanelHeading } from './fields'
 import type { DocumentInfo } from '../layout'
 import { DialogFrame, useRunInDialog } from '../dialogs/DialogFrame'
@@ -28,7 +29,7 @@ export function StylesSection({ info, kind }: { info: DocumentInfo; kind: StyleK
   const readOnly = useReadOnly()
   const names = kind === 'paragraph' ? info.paragraphStyles : info.characterStyles
   const defs = kind === 'paragraph' ? info.styleDefs.paragraph : info.styleDefs.character
-  const at = useEngineQuery<Selected>('text.selectionAttrs', {}, `${info.selection.join(',')}:${info.editingText}`)
+  const at = usePanelQuery<Selected>('text.selectionAttrs', {}, `${info.selection.join(',')}:${info.editingText}`)
   const current = kind === 'paragraph' ? at?.paragraphStyle : at?.characterStyle
   const overrides = (kind === 'paragraph' ? (at?.paraOverrides ?? 0) + (at?.charOverrides ?? 0) : (at?.charOverrides ?? 0)) > 0
   const [chosen, setChosen] = useState<string | null>(null)

@@ -447,8 +447,20 @@ pub fn frame_specs(doc: &Document, sid: StoryId) -> Vec<FrameSpec> {
     out
 }
 
+thread_local! {
+    /// How many stories this thread has composed ([`compose_story`]).
+    static COMPOSED: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// How many stories the calling thread has composed so far: tests bound the work an edit costs
+/// with it (a typed character composes its story once), not with a clock.
+pub fn compositions_on_this_thread() -> u64 {
+    COMPOSED.with(std::cell::Cell::get)
+}
+
 /// Compose a story of `doc` through its frames.
 pub fn compose_story(doc: &Document, sid: StoryId, opts: &ComposeOptions) -> ComposedStory {
+    COMPOSED.with(|count| count.set(count.get().saturating_add(1)));
     let specs = frame_specs(doc, sid);
     match doc.story(sid) {
         Some(st) => compose(doc, st, &specs, opts),
@@ -867,6 +879,10 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
         let mut col_first_line = 0usize;
         let has_tabs = glyphs.iter().any(|g| g.ch == '\t');
         let mut first_line_rect: Option<(usize, f64, f64, f64)> = None; // frame, baseline, ascent, x-span
+        // Around a wrap: the slot the line starting at a glyph really has (glyph, baseline, x0, x1),
+        // when the breaker's estimate for it was another one; the rest of the paragraph is broken
+        // again from that line with it.
+        let mut slot_hint: Option<(usize, f64, f64, f64)> = None;
         loop {
             if cur.fi >= frames.len() {
                 if let Some(j) = trial_failed(&mut trial, &mut limits, balance_runs < balance_budget) {
@@ -888,7 +904,11 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
             let col = cur.split_rect(col);
             // Estimate slots for the breaker with the paragraph's base leading.
             let est_first = cur.next_baseline(f, col, base_leading, base_chars.size * 0.75, &pp);
-            let slots = estimate_slots(f, col, est_first, base_leading, base_chars.size, &glyphs[g0..], &pp, line_no);
+            let hint = slot_hint.filter(|hint| hint.0 == g0);
+            let mut slots = estimate_slots(f, col, hint.map_or(est_first, |hint| hint.1), base_leading, base_chars.size, &glyphs[g0..], &pp, line_no);
+            if let (Some((_, _, x0, x1)), Some(first)) = (hint, slots.first_mut()) {
+                *first = (x0, x1);
+            }
             let width = |j: usize| -> f64 {
                 let (x0, x1) = slots.get(j).copied().unwrap_or((col.x0, col.x1));
                 let ind = pp.left_indent + pp.right_indent + if line_no + j == 0 { pp.first_line_indent } else { 0.0 };
@@ -946,6 +966,18 @@ fn compose_with_db(doc: &Document, story: &Story, frames: &[FrameSpec], opts: &C
                                 }
                             }
                         }
+                    }
+                }
+                // The line was broken for the slot estimated at another height than it sits at
+                // (pushed down past a wrap, or a band of other metrics): break it again for the
+                // slot it has, once, so no line runs over the object or out of its column.
+                if !f.exclusions.is_empty() && baseline + desc <= col.y1 {
+                    let estimated = slots.get(k).copied().unwrap_or((col.x0, col.x1));
+                    if ((estimated.0 - x0).abs() > 0.5 || (estimated.1 - x1).abs() > 0.5) && slot_hint.is_none_or(|hint| hint.0 != s) {
+                        slot_hint = Some((s, baseline, x0, x1));
+                        g0 = s;
+                        moved = true;
+                        break;
                     }
                 }
                 let capped = cur.split.is_none() && line_cap[pi] == Some(line_no) && line_no > col_first_line;

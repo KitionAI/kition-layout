@@ -13,6 +13,7 @@ import { LAYER_COLORS, dropSide, layerEdit, moveTarget, reorderIndex } from './r
 import { contextRows, OWN_DIALOG_ROWS } from '../menus/contextRows.ts'
 import { layoutMenus } from '../menus/catalog.ts'
 import { asks } from '../dialogs/routes.ts'
+import { pageHasObjects } from './panelLogic.ts'
 import { CATALOGS, PHRASES, withEllipsis } from '../strings.ts'
 
 const body = {
@@ -187,4 +188,12 @@ test('the engine takes every edit the dialogs make and reads it back', { skip },
   const layer = inspected().layers[0]
   run('layer.set', layerEdit(layer.id, { ...layer }, { ...layer, name: 'Renamed', printable: false, color: [255, 0, 0] }))
   assert.deepEqual(inspected().layers[0], { ...inspected().layers[0], name: 'Renamed', printable: false, color: [255, 0, 0] })
+})
+
+test("the Pages panel's trash asks first only for a page with objects on it (phase 9)", () => {
+  const spread = { pages: [{ index: 2, bounds: [0, 0, 600, 800] }, { index: 3, bounds: [600, 0, 1200, 800] }], items: [{ bounds: [100, 100, 200, 200] }] }
+  assert.equal(pageHasObjects(spread, 2), true, 'an object on the left page')
+  assert.equal(pageHasObjects(spread, 3), false, 'the right page is empty')
+  assert.equal(pageHasObjects({ ...spread, items: [{ bounds: [550, 10, 650, 50] }] }, 3), true, 'an object across the spine is on both')
+  assert.equal(pageHasObjects(spread, 9), false, 'a page not in the spread')
 })

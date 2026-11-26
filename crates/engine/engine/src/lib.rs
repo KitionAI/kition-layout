@@ -266,6 +266,9 @@ pub struct Session {
     pub(crate) transforms: (Vec<(String, Value)>, Vec<kition_layout_doc::ItemId>, bool),
     /// Drag and drop text editing: the press landed in the selected text.
     pub(crate) text_drag: bool,
+    /// Where that press landed (the byte in its story): a drop back in the selected text selects
+    /// from here instead of moving anything.
+    pub(crate) text_drag_from: usize,
     /// The open Object Library (File › New / Open Library).
     pub library: Option<cmd::library::Library>,
     /// The open book (File › Open Book).
@@ -324,6 +327,7 @@ impl Session {
             place_queue: Vec::new(),
             transforms: Default::default(),
             text_drag: false,
+            text_drag_from: 0,
             library: None,
             conveyor: Vec::new(),
             book: None,

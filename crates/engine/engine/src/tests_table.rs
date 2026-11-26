@@ -125,6 +125,23 @@ fn convert_text_to_table_and_back() {
     assert_eq!(s.doc().unwrap().doc.story(kition_layout_doc::StoryId(sid)).unwrap().text, "Ink\tCoverage\nPlum\t80%\nSunset\t45%\nAfter");
 }
 
+/// Plan 2026-11-25, phase 9 (walkthrough: after Convert Text to Table the caret stayed outside
+/// the table): the caret goes into the new table's first cell, so typing goes on there.
+#[test]
+fn convert_text_to_table_leaves_the_caret_in_the_first_cell() {
+    let (mut s, sid, _) = session_with_frame();
+    s.execute("story.setText", &json!({"story": sid, "text": "Ink\tCoverage\nPlum\t80%\nAfter"})).unwrap();
+    s.execute("text.select", &json!({"story": sid, "anchor": 0, "focus": 16})).unwrap();
+    let r = s.execute("table.convertFromText", &json!({})).unwrap();
+    let table = r["table"].as_u64().unwrap();
+    let sel = s.doc().unwrap().selection.text.unwrap();
+    let cell = sel.cell.expect("the caret is in a cell");
+    assert_eq!((cell.table, cell.row, cell.col, sel.anchor, sel.focus), (table, 0, 0, 0, 0));
+    s.execute("text.insert", &json!({"text": "Black "})).unwrap();
+    let t = s.execute("table.get", &json!({"table": table})).unwrap();
+    assert_eq!(t["cells"][0]["text"], "Black Ink");
+}
+
 #[test]
 fn caret_placement_in_cells_and_cell_formatting() {
     let (mut s, sid, fid) = session_with_frame();

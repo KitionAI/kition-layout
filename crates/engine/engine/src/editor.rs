@@ -20,6 +20,8 @@ pub struct EditorSnapshot {
     place_queue: Vec<(AssetId, (f64, f64))>,
     transforms: (Vec<(String, Value)>, Vec<ItemId>, bool),
     text_drag: bool,
+    #[serde(default)]
+    text_drag_from: usize,
     untitled: u32,
     library: Option<crate::cmd::library::Library>,
     book: Option<crate::cmd::book::Book>,
@@ -85,6 +87,7 @@ impl Session {
             place_queue: self.place_queue.clone(),
             transforms: self.transforms.clone(),
             text_drag: self.text_drag,
+            text_drag_from: self.text_drag_from,
             untitled: self.untitled,
             library: self.library.clone(),
             book: self.book.clone(),
@@ -120,6 +123,7 @@ impl Session {
         self.place_queue = saved.place_queue;
         self.transforms = saved.transforms;
         self.text_drag = saved.text_drag;
+        self.text_drag_from = saved.text_drag_from;
         self.untitled = saved.untitled;
         self.library = saved.library;
         self.book = saved.book;

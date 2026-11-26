@@ -45,6 +45,9 @@ export function ParamsDialog({ command, info, values: given, fixed, onClose }: {
       }),
     [command, info, variables],
   )
+  // Choices that are the document's names (a parent, a paragraph style) show as they are; a
+  // schema's choices (a numbering style: arabic, upperRoman…) in the editor's words (phase 9).
+  const named = useMemo(() => new Set(paramFields(command).filter((field) => field.kind === 'text' && documentChoices(command.id, field.key, info, variables)).map((field) => field.key)), [command, info, variables])
   const defaults = useMemo(() => initialValues(fields), [fields])
   const required = useMemo(() => requiredKeys(command), [command])
   const [values, setValues] = useState<ParamValues>(() => initialValues(fields, { ...remembered.get(command.id), ...given }))
@@ -79,7 +82,7 @@ export function ParamsDialog({ command, info, values: given, fixed, onClose }: {
               if (field.unit === 'pt') return <LengthRow key={field.key} label={label(field.key)} value={typeof value === 'number' ? value : null} unit={view.unit} placeholder={words.t('dialog.engineDefault')} onChange={(next) => set(field.key, next)} testId={testId(field.key)} />
               return <NumberRow key={field.key} label={label(field.key)} value={typeof value === 'number' ? value : null} min={field.min} max={field.max} decimals={field.decimals} unit={field.unit ?? undefined} placeholder={words.t('dialog.engineDefault')} onChange={(next) => set(field.key, next)} testId={testId(field.key)} />
             case 'choice':
-              return <ChoiceRow key={field.key} label={label(field.key)} value={typeof value === 'string' ? value : field.initial} choices={field.options.map((option) => [option, field.key === 'parent' || field.key === 'style' ? option || optionLabel(words, '') : optionLabel(words, option)] as const)} onChange={(next) => set(field.key, next)} testId={testId(field.key)} />
+              return <ChoiceRow key={field.key} label={label(field.key)} value={typeof value === 'string' ? value : field.initial} choices={field.options.map((option) => [option, named.has(field.key) ? option || optionLabel(words, '') : optionLabel(words, option)] as const)} onChange={(next) => set(field.key, next)} testId={testId(field.key)} />
             case 'check':
               return <CheckRow key={field.key} label={label(field.key)} checked={value === true} onChange={(next) => set(field.key, next)} testId={testId(field.key)} />
             case 'color':

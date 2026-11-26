@@ -1,4 +1,5 @@
-import { Choice, NumberField, useEngineQuery, useKitEditor } from '@kition/sdk/editor'
+import { Choice, NumberField, useKitEditor } from '@kition/sdk/editor'
+import { usePanelQuery } from '../query'
 import type { DocumentInfo } from '../../layout'
 import { useEditorView } from '../../viewContext'
 import { LengthField, PropertyGroup } from '../fields'
@@ -24,7 +25,7 @@ export type TableInfo = {
 export function TableGroup({ info }: { info: DocumentInfo }) {
   const { run, t } = useKitEditor()
   const { unit } = useEditorView().view
-  const table = useEngineQuery<TableInfo>('table.get', {}, `${info.textStory}:${info.editingText}`)
+  const table = usePanelQuery<TableInfo>('table.get', {}, `${info.textStory}:${info.editingText}`)
   if (!table?.rows?.length || !table.columns?.length) return null
   const range = table.range ?? { r0: 0, c0: 0, r1: 0, c1: 0 }
   const row = table.rows[range.r0] ?? table.rows[0]

@@ -229,6 +229,10 @@ pub struct ToolContext<'a> {
     pub layer: kition_layout_doc::LayerId,
     pub snap: SnapView,
     pub unit: Unit,
+    /// The document as it was when the gesture under way began (the engine previews a gesture in
+    /// `doc`): what snapping aligns to, so a shape being drawn never snaps to its own preview.
+    /// None between gestures.
+    pub before: Option<&'a Document>,
 }
 
 impl ToolContext<'_> {

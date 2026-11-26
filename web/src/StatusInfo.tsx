@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useEngineQuery, useKitEditor } from '@kition/sdk/editor'
+import { useKitEditor } from '@kition/sdk/editor'
+import { usePanelQuery } from './panels/query'
 import { findItem, type DocumentInfo } from './layout'
 import { rulerOrigin } from './Rulers'
 import { formatLength, type Unit } from './units'
@@ -14,7 +15,7 @@ export function StatusInfo({ info, views, unit }: { info: DocumentInfo; views: V
   const { t } = useKitEditor()
   const pointer = usePointer(info, views)
   const ids = info.selection
-  const size = useEngineQuery<{ width: number; height: number }>('transform.info', { ids }, ids.length && !info.editingText ? ids.join(',') : null)
+  const size = usePanelQuery<{ width: number; height: number }>('transform.info', { ids }, ids.length && !info.editingText ? ids.join(',') : null)
   const first = ids.length ? findItem(info, ids[0])?.item : null
   const storyId = info.textStory ?? first?.story ?? null
   const story = storyId != null ? info.stories.find((entry) => entry.id === storyId) : undefined

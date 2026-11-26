@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-walk-panel-height
+feature: layout.ui.panels-and-styles
+intent: >-
+  At 1440 x 900 the dock's five groups left each panel 100 to 113 pixels (Layers showed two rows)
+  and an object's row could not be dragged onto a layer out of view. A window of that height has
+  three taller groups, the Layers list fills its group, and a row held at the list's edge scrolls
+  it.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (walkthrough after phase 8, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, panels]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-25"

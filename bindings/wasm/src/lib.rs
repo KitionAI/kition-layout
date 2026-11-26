@@ -528,6 +528,11 @@ impl KitDocument for LayoutDocument {
         let state = self.active()?;
         place::history::remember(&state.doc);
         let mut scratch = files::session();
+        // The scratch session reads the compositions the session already has (the copy holds the
+        // same story, style and item allocations, which the cache keys on): with a cache of its
+        // own it composed every story again on every inspect, which the editor asks for after
+        // every command (plan 2026-11-25, phase 9: typing in a long threaded story).
+        scratch.cache = self.session.cache.clone();
         let mut copy = DocState::new((*state.doc).clone(), None);
         copy.selection = state.selection.clone();
         // The active layer is editor state too: new objects go on it (the Layers panel marks it).
@@ -1201,6 +1206,51 @@ mod tests {
         let frame = doc.execute("frame.add", json!({ "rect": [72, 72, 216, 144], "content": "unassigned" })).unwrap();
         doc.execute("object.fill", json!({ "swatch": "Red", "ids": [frame["id"]] })).unwrap();
         doc.save(None).unwrap()
+    }
+
+    /// A long story threaded through a frame on each of many pages (Smart Text Reflow adds them),
+    /// with the Type tool's caret at its start: the walkthrough's 22-page story (phase 9).
+    fn long_threaded_story() -> (LayoutDocument, u64) {
+        let mut doc = LayoutDocument::create("Long.klayout", 612, 792).unwrap();
+        let frame = doc.execute("frame.add", json!({ "rect": [36, 36, 576, 756], "content": "text", "caret": false })).unwrap();
+        let (id, story) = (frame["id"].as_u64().unwrap(), frame["story"].as_u64().unwrap());
+        doc.execute("select.set", json!({ "ids": [id] })).unwrap();
+        doc.execute("object.primaryTextFrame", json!({ "ids": [id], "on": true })).unwrap();
+        let para = "The aurora is a natural light display in the sky, seen mostly in high-latitude regions. It forms when the solar wind disturbs the magnetosphere and charged particles fall into the upper atmosphere. ";
+        let text: Vec<String> = (1..=160).map(|i| format!("{i}. {para}{para}")).collect();
+        doc.execute("text.select", json!({ "story": story, "anchor": 0, "focus": 0 })).unwrap();
+        doc.execute("text.insert", json!({ "text": text.join("\n") })).unwrap();
+        doc.execute("text.select", json!({ "story": story, "anchor": 0, "focus": 0 })).unwrap();
+        doc.select_tool("type", 1.0).unwrap();
+        (doc, story)
+    }
+
+    /// Plan 2026-11-25, phase 9 (walkthrough: 200 characters typed at the start of a 22-page
+    /// story arrived 179 s late): a typed character composes the story once. The editor inspects
+    /// the layout after every command, its panels' queries included; each inspect composed every
+    /// story again in a scratch session with a cache of its own.
+    #[test]
+    fn a_typed_character_composes_a_long_story_once() {
+        let (mut doc, story) = long_threaded_story();
+        assert!(doc.inspect().unwrap()["pageCount"].as_u64().unwrap() >= 10, "a long threaded story");
+        let composed = |_: &LayoutDocument| kition_layout_engine::compose::compositions_on_this_thread();
+        let start = composed(&doc);
+        let began = std::time::Instant::now();
+        for letter in ["T", "y", "p", "e", "d"] {
+            kition_kit::tools::KitTools::text(&mut doc, letter, 1.0).unwrap();
+            // What the editor asks after a key: the info after the change, the panels' queries
+            // (each answered with the info again) and a picture of the page.
+            for _ in 0..5 {
+                doc.inspect().unwrap();
+            }
+            doc.execute("text.selectionAttrs", json!({})).unwrap();
+            doc.render(0.0, 0.0, 1.0, 400, 300).unwrap();
+        }
+        let per_key = (composed(&doc) - start) as f64 / 5.0;
+        eprintln!("compositions per key {per_key}, {:?} a key", began.elapsed() / 5);
+        assert!(per_key <= 1.0, "a typed character composes the story once, not {per_key} times");
+        let text = doc.execute("story.get", json!({ "story": story })).unwrap()["text"].as_str().unwrap().to_owned();
+        assert!(text.starts_with("Typed1. "), "{}", &text[..20]);
     }
 
     #[test]

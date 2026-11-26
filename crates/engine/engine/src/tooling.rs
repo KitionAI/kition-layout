@@ -84,6 +84,7 @@ impl Session {
         let doc = st.doc.clone();
         let sel = st.selection.clone();
         let layer = st.active_layer;
+        let before = st.interaction.as_ref().map(|interaction| interaction.doc.clone());
         let layout = CanvasLayout::new(&doc, st.editing_parents);
         let cache = self.cache.clone();
         let cx = ToolContext {
@@ -95,6 +96,7 @@ impl Session {
             layer,
             snap: view.snap,
             unit: view.unit,
+            before: before.as_deref(),
         };
         Some(f(self.tool.as_mut(), &cx))
     }

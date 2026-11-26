@@ -9,7 +9,17 @@ use kition_layout_geom::{Point, Rect, Unit};
 use super::*;
 
 fn ctx<'a>(d: &'a Document, s: &'a Selection, c: &'a Cache, l: &'a CanvasLayout) -> ToolContext<'a> {
-    ToolContext { doc: d, selection: s, cache: c, layout: l, zoom: 1.0, layer: d.default_layer(), snap: SnapView::OFF, unit: Unit::Points }
+    ToolContext {
+        doc: d,
+        selection: s,
+        cache: c,
+        layout: l,
+        zoom: 1.0,
+        layer: d.default_layer(),
+        snap: SnapView::OFF,
+        unit: Unit::Points,
+        before: None,
+    }
 }
 
 #[test]
@@ -748,4 +758,44 @@ fn pen_click_snaps_to_a_guide() {
     assert_eq!(cmd, "path.add");
     let x = p["anchors"][0]["p"][0].as_f64().unwrap();
     assert!((x - 100.0).abs() < 1e-6, "anchor x {x}");
+}
+
+/// Plan 2026-11-25, phase 9 (walkthrough: on page 2 of the sample a rectangle dragged from 60 to
+/// 120 ended at 116, with no guide shown): the engine previews a shape being drawn in the
+/// document, so at each step the shape of the step before was a snap target, and Smart
+/// Dimensions matched the new height to its own earlier one. Snapping reads the document as the
+/// gesture found it.
+#[test]
+fn a_shape_being_drawn_does_not_snap_to_its_own_preview() {
+    let mut start = Document::new(&NewDocument { pages: 2, facing_pages: false, ..NewDocument::default() });
+    for rect in [Rect::new(54.0, 72.0, 558.0, 160.0), Rect::new(54.0, 180.0, 558.0, 420.0)] {
+        add_rect(&mut start, rect);
+    }
+    // The preview of the step before: the rectangle 56 pt tall on page 2.
+    let mut previewed = start.clone();
+    let layer = previewed.default_layer();
+    let id = ItemId(previewed.alloc());
+    previewed
+        .insert_item(SpreadRef::Doc(1), Item::new(id, layer, Shape::Rectangle, shapes::rectangle(Rect::new(350.0, 60.0, 450.0, 116.0))), None)
+        .unwrap();
+    let (sel, cache) = (Selection::default(), Cache::new());
+    let layout = CanvasLayout::new(&previewed, false);
+    let mut cx = ctx(&previewed, &sel, &cache, &layout);
+    // The editor's snapping with the grids hidden.
+    cx.snap = SnapView { snap_to_baseline_grid: false, snap_to_document_grid: false, ..SnapView::FACTORY };
+    cx.before = Some(&start);
+    let on_two = |x: f64, y: f64| layout.to_canvas(SpreadRef::Doc(1), Point::new(x, y));
+    let mut t = create("rectangle");
+    let (a, b) = (on_two(350.0, 60.0), on_two(450.0, 120.0));
+    t.pointer(&cx, &PointerEvent::new(PointerKind::Down, a.x, a.y));
+    let actions = t.pointer(&cx, &PointerEvent::new(PointerKind::Drag, b.x, b.y));
+    let rect = actions
+        .iter()
+        .find_map(|act| match act {
+            Action::Preview(cmd, p) if cmd == "frame.add" => p["rect"].as_array().cloned(),
+            _ => None,
+        })
+        .unwrap();
+    let got: Vec<f64> = rect.iter().map(|v| v.as_f64().unwrap()).collect();
+    assert_eq!(got, vec![350.0, 60.0, 450.0, 120.0], "the drawn size is the dragged size");
 }

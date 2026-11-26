@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-walk-numbering-words
+feature: layout.ui.dialogs
+intent: >-
+  Two dialogs (Numbering & Section Options, footnote and endnote options) listed the numbering
+  styles as raw English names (arabic, upperRoman); View's Extras read as 附注 (notes). The styles
+  show as 1, 2, 3, 4… and I, II, III, IV…, and Extras as 额外内容.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (walkthrough after phase 8, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, words]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-25"

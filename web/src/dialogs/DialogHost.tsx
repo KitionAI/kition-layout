@@ -147,14 +147,6 @@ export function LayoutDialogs({ api, info, place, onShowPage, onShowArea }: { ap
           return
         }
         const params = { ...placeParams(command, where), ...variant?.params, ...options.params }
-        if (command === 'table.convertFromText') {
-          void run(command, params).then((answer) => {
-            // The caret goes into the new table's first cell, so typing goes on there.
-            const table = answer ? (JSON.parse(answer) as { table?: number }).table : undefined
-            if (table != null) void run('table.select', { table, rows: [0, 0], cols: [0, 0], what: 'cell' })
-          })
-          return
-        }
         if ((command === 'edit.paste' || command === 'edit.pasteWithoutFormatting') && infoNow?.editingText) {
           // In text, Paste takes the system clipboard's text where the browser gives it.
           void clipboardText().then((text) => run(command, text ? { ...params, text } : params))

@@ -42,11 +42,11 @@ type PreviewDoc = NonNullable<ReturnType<typeof useKitEditor>['session']['doc']>
 function usePreview(key: string, params: Record<string, unknown> | null, showDraft: (doc: PreviewDoc, draft: Record<string, unknown>) => Promise<unknown>): CommandPreview | undefined {
   const command = key
   const { session } = useKitEditor()
-  const { repaint } = useEditorView()
+  const { repaint, settle: told } = useEditorView()
   const words = useErrorText()
   const doc = session.doc
-  const latest = useRef({ params, repaint, words })
-  latest.current = { params, repaint, words }
+  const latest = useRef({ params, repaint, words, told })
+  latest.current = { params, repaint, words, told }
   const shown = params && Object.keys(params).length ? params : null
   const api = useMemo<Omit<CommandPreview, 'draft'> | null>(() => {
     if (!doc) return null
@@ -106,6 +106,9 @@ function usePreview(key: string, params: Record<string, unknown> | null, showDra
           showing = null
           const kept = await doc.invoke<boolean>('commitPreview')
           await settle()
+          // The panels follow the kept change (phase 9: a swatch's chips kept its old colour):
+          // `refreshInfo` brings the engine's info up to date but tells the editor nothing.
+          await latest.current.told()
           return kept
         }
         await cancel()

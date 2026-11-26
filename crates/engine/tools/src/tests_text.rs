@@ -11,7 +11,17 @@ use serde_json::json;
 use super::*;
 
 fn ctx<'a>(d: &'a Document, s: &'a Selection, c: &'a Cache, l: &'a CanvasLayout) -> ToolContext<'a> {
-    ToolContext { doc: d, selection: s, cache: c, layout: l, zoom: 1.0, layer: d.default_layer(), snap: SnapView::OFF, unit: Unit::Points }
+    ToolContext {
+        doc: d,
+        selection: s,
+        cache: c,
+        layout: l,
+        zoom: 1.0,
+        layer: d.default_layer(),
+        snap: SnapView::OFF,
+        unit: Unit::Points,
+        before: None,
+    }
 }
 
 fn add_rect(doc: &mut Document, rect: Rect) -> ItemId {

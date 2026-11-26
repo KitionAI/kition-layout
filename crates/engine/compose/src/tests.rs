@@ -150,6 +150,58 @@ fn wrap_pushes_text_aside() {
     assert!(below.x0 < 1.0);
 }
 
+/// Plan 2026-11-25, phase 9 (walkthrough: a line of a two-column frame ran past the frame onto
+/// the facing page beside a wrapped picture): a picture across the gutter of a two-column frame
+/// wraps its text; every line stays inside its own column, beside the picture or below it.
+#[test]
+fn wrapped_lines_stay_in_their_column() {
+    let text =
+        ["Warm boots, a tripod, spare batteries, a red torch and patience. Check the forecast for cloud cover and the Kp index before you go."; 14]
+            .join(" ");
+    let (mut d, sid, fid) = doc_with(&text, Rect::new(36.0, 36.0, 396.0, 500.0), ParaAttrs::default());
+    if let Some(tf) = d.item_mut(fid).and_then(|item| item.text_frame_mut()) {
+        tf.options.columns = 2;
+        tf.options.gutter = 12.0;
+    }
+    let lid = d.default_layer();
+    for top in [60.0, 63.0, 66.5, 70.0, 140.0] {
+        let mut d = d.clone();
+        let id = ItemId(d.alloc());
+        // Across the gutter: most of the first column's right part and a third of the second.
+        let mut it = kition_layout_doc::Item::new(
+            id,
+            lid,
+            kition_layout_doc::Shape::Rectangle,
+            kition_layout_geom::shapes::rectangle(Rect::new(100.0, top, 270.0, top + 72.0)),
+        );
+        it.wrap.mode = WrapMode::BoundingBox;
+        d.insert_item(SpreadRef::Doc(0), it, None).unwrap();
+        let cs = compose_story(&d, sid, &ComposeOptions::default());
+        let frame = &cs.frames[0];
+        assert_eq!(frame.columns.len(), 2);
+        for line in &frame.lines {
+            let column = frame.columns[line.column as usize];
+            assert!(
+                line.end_x <= column.x1 + 0.5 && line.x0 >= column.x0 - 0.5,
+                "picture at {top}: a line from {} to {} leaves its column {}..{}",
+                line.x0,
+                line.end_x,
+                column.x0,
+                column.x1
+            );
+            let beside = line.baseline + line.descent > top && line.baseline - line.ascent < top + 72.0;
+            if beside {
+                assert!(
+                    line.end_x <= 100.0 + 0.5 || line.x0 >= 270.0 - 0.5,
+                    "picture at {top}: a line from {} to {} runs over the picture",
+                    line.x0,
+                    line.end_x
+                );
+            }
+        }
+    }
+}
+
 #[test]
 fn paragraph_composer_is_no_worse_than_greedy() {
     // Sum of squared slack over lines (excluding last) should not exceed the greedy result.

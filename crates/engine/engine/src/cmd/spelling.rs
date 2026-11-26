@@ -161,6 +161,27 @@ pub fn suggest(dict: &Dictionary, w: &str) -> Vec<String> {
 }
 
 /// Misspelled words of a story: byte ranges (acronyms skipped; the user dictionary counts).
+/// A letter of a word the English dictionary can judge: Chinese, Japanese and Korean letters are
+/// not (plan 2026-11-25, phase 9: Check Spelling stopped on every Chinese phrase), whatever
+/// language the text is tagged with.
+fn word_letter(c: char) -> bool {
+    let cjk = matches!(c as u32,
+        0x1100..=0x11FF // Hangul Jamo
+        | 0x2E80..=0x2FDF // CJK radicals
+        | 0x3040..=0x30FF // Hiragana, Katakana
+        | 0x3100..=0x312F // Bopomofo
+        | 0x3130..=0x318F // Hangul compatibility Jamo
+        | 0x31A0..=0x31FF // Bopomofo extended, Katakana phonetic extensions
+        | 0x3400..=0x4DBF // CJK extension A
+        | 0x4E00..=0x9FFF // CJK unified ideographs
+        | 0xA960..=0xA97F // Hangul Jamo extended A
+        | 0xAC00..=0xD7FF // Hangul syllables
+        | 0xF900..=0xFAFF // CJK compatibility ideographs
+        | 0xFF66..=0xFF9F // halfwidth Katakana
+        | 0x20000..=0x3FFFF); // CJK extensions B and later
+    c.is_alphabetic() && !cjk
+}
+
 pub fn misspellings(doc: &kition_layout_doc::Document, story: &kition_layout_doc::Story, user: &[String]) -> Vec<std::ops::Range<usize>> {
     // Text in other languages isn't checked against the English dictionary.
     let foreign: Vec<std::ops::Range<usize>> = {
@@ -180,14 +201,14 @@ pub fn misspellings(doc: &kition_layout_doc::Document, story: &kition_layout_doc
     let mut out = Vec::new();
     let mut i = 0;
     while i < bytes.len() {
-        if !bytes[i].1.is_alphabetic() {
+        if !word_letter(bytes[i].1) {
             i += 1;
             continue;
         }
         let start = bytes[i].0;
         let mut j = i;
         while j < bytes.len()
-            && (bytes[j].1.is_alphabetic() || ((bytes[j].1 == '\'' || bytes[j].1 == '’') && j + 1 < bytes.len() && bytes[j + 1].1.is_alphabetic()))
+            && (word_letter(bytes[j].1) || ((bytes[j].1 == '\'' || bytes[j].1 == '’') && j + 1 < bytes.len() && word_letter(bytes[j + 1].1)))
         {
             j += 1;
         }
@@ -269,6 +290,22 @@ mod tests {
         assert!(r[0]["suggestions"].as_array().unwrap().iter().any(|v| v == "the"));
         s.execute("spelling.addWord", &json!({"word": "jumpd"})).unwrap();
         assert_eq!(s.execute("spelling.check", &json!({})).unwrap().as_array().unwrap().len(), 1);
+    }
+
+    /// Plan 2026-11-25, phase 9 (walkthrough: Check Spelling stopped on every Chinese phrase):
+    /// Chinese, Japanese and Korean text is skipped, the English words beside it are checked.
+    #[test]
+    fn check_skips_chinese_japanese_and_korean() {
+        let mut s = Session::new();
+        s.execute("file.new", &json!({})).unwrap();
+        s.execute(
+            "frame.add",
+            &json!({"rect": [36, 36, 300, 200], "content": "text", "text": "极光是什么 Thw 北极光（aurora）とオーロラ 오로라 jumpd。"}),
+        )
+        .unwrap();
+        let r = s.execute("spelling.check", &json!({})).unwrap();
+        let words: Vec<&str> = r.as_array().unwrap().iter().map(|m| m["word"].as_str().unwrap()).collect();
+        assert_eq!(words, vec!["Thw", "jumpd"]);
     }
 }
 

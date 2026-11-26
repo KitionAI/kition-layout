@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ArrowLeftRightIcon as ArrowLeftRight, ArrowUpDownIcon as ArrowUpDown, LinkIcon as Link, UnlinkIcon as Unlink } from '@kition/tessera/icons/react'
-import { IconButton, NumberField, useEngineQuery, useKitEditor } from '@kition/sdk/editor'
+import { IconButton, NumberField, useKitEditor } from '@kition/sdk/editor'
+import { usePanelQuery } from '../query'
 import type { DocumentInfo, Item } from '../../layout'
 import { useEditorView } from '../../viewContext'
 import { LengthField, PropertyGroup } from '../fields'
@@ -31,7 +32,7 @@ export function TransformGroup({ info, item }: { info: DocumentInfo; item: Item 
   }
   const ids = info.selection
   const content = info.selectionContent
-  const measured = useEngineQuery<Measured>('transform.info', content ? { ids, content: true } : { ids }, `${ids.join(',')}:${content}`)
+  const measured = usePanelQuery<Measured>('transform.info', content ? { ids, content: true } : { ids }, `${ids.join(',')}:${content}`)
   if (!measured) return null
   const at = shownPosition(measured, ref)
   const set = (params: Record<string, unknown>) => void run('transform.set', { ...params, ref, ids, ...(content ? { content: true } : {}) })

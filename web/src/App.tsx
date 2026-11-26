@@ -33,7 +33,7 @@ import { RULER, Ruler, rulerOrigin } from './Rulers'
 import { LayoutDialogs, type Dialogs, type OwnDialog } from './dialogs/DialogHost'
 import { MenuHints, layoutMenuTabs, menuEnabled, menuKey } from './menus/layoutMenus'
 import { LayoutContextMenu, MenuOpenerProvider, useCanvasContextMenu, type MenuOpener, type OpenMenu } from './menus/ContextMenus'
-import { LAYOUT_ZOOM_TOOL, useBlinkingCaret, useCanvasWheel, useEngineModifiers, useFocusOnOpen, usePanelEnterReturnsFocus, useViewToolDoubleClicks } from './canvasInput'
+import { LAYOUT_ZOOM_TOOL, useBlinkingCaret, useCanvasWheel, useEngineModifiers, useFocusOnOpen, useKeyboardHome, usePanelEnterReturnsFocus, useToolFlyoutDrag, useViewToolDoubleClicks } from './canvasInput'
 import { useFileDrop, useSystemClipboard } from './clipboard'
 import { VIEW_ACTIONS, VIEW_KEY_ALIASES, viewMove, type ViewAction } from './view'
 import { ZoomEntry } from './ZoomEntry'
@@ -101,6 +101,10 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   useCanvasWheel(canvas, () => typing.current())
   useFocusOnOpen(doc != null)
   usePanelEnterReturnsFocus(() => typing.current())
+  // After a dialog, a menu or text editing ends, the keys come back to the editor (phase 9).
+  useKeyboardHome(() => typing.current(), tools.wantsText)
+  // A tool's flyout chooses by press, drag and release (phase 9).
+  useToolFlyoutDrag()
   // The view options (plan stage 3): the editor's, kept for the person, told to the engine.
   const [viewOptions, setViewOptions] = useState<ViewState>(() => loadView(browserStorage()))
   const viewShown = useRef(viewOptions)

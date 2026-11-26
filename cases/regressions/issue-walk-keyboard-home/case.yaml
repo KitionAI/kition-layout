@@ -1,0 +1,27 @@
+format: 1
+id: regressions/issue-walk-keyboard-home
+feature: layout.ui.keys-and-view
+intent: >-
+  After Document Setup, Export, Margins and Columns, Check Spelling or Preflight closed (by OK,
+  Cancel or Esc), Cmd+S did not save and the tool keys did nothing until a click on the canvas: the
+  closed dialog took its focused button with it and left the keyboard on the page's body, where the
+  editor reads no keys. After Esc out of text the letter tool keys did nothing: the keyboard stayed
+  in the hidden text field. The keyboard now comes back to the editor whenever it has no home, for
+  every dialog, menu and text session alike.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (walkthrough after phase 8, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, focus]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-25"

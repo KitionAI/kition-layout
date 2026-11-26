@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-walk-swatch-chips
+feature: layout.ui.panels-and-styles
+intent: >-
+  After Swatch Options changed a swatch's colour the page changed but its chips in the panels kept
+  the old colour: a dialog's kept preview brought the engine's info up to date without telling the
+  editor. The panels follow it now.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-after.md (walkthrough after phase 8, 2026-11-25)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, swatches]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-25"

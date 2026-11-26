@@ -464,8 +464,9 @@ fn convert_from_text(s: &mut Session, p: &Value) -> Result<Value> {
         let mut table = Table::from_strings(id, &data, width, &pf, &cf);
         table.options.direction = direction;
         st.delete(a..b);
-        let anchor = st.insert_table(a, table);
-        *sel = Selection::text(TextSel::caret(t.story, anchor));
+        st.insert_table(a, table);
+        // The caret goes into the first cell, as after Insert Table, so typing goes on there.
+        *sel = Selection::text(TextSel { story: t.story, anchor: 0, focus: 0, frame: t.frame, cell: Some(CellAddr { table: id, row: 0, col: 0 }) });
         Ok(json!({"table": id, "rows": data.len()}))
     })
 }

@@ -1919,7 +1919,7 @@ export const PHRASES: Record<string, Record<string, string>> = {
     '<line>': '<直线>',
     '<path>': '<路径>',
     'Show Text Threads': '显示文本串接',
-    Extras: '附注',
+    Extras: '额外内容',
     'Fit Text to Frame': '使文本适合框架',
     Fitting: '适合',
     // Menus, tools and dialog titles (plan 2026-11-25, stage 1).
