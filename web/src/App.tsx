@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import {
   EditorFrame,
   EngineToolRail,
@@ -39,12 +39,13 @@ import { VIEW_ACTIONS, VIEW_KEY_ALIASES, viewMove, type ViewAction } from './vie
 import { ZoomEntry } from './ZoomEntry'
 import { PlaceCursorBadge } from './PlaceCursorBadge'
 import { escapeAction } from './images'
+import { useCalmValue } from './calm'
 import { errorText } from './errors'
 import { errorWords } from './errorWords'
 import { drawnCursor } from './cursors'
 import { useInputMethod } from './ime'
 import { LIST_ROWS, nextListType, type ListKind } from './lists'
-import { findItem, type DocumentInfo, type Item } from './layout'
+import { findItem, type DocumentInfo, type Item, type Spread } from './layout'
 import { GuideOverlay, guidesOf, useGuideGestures } from './GuideLayer'
 import { EditorViewProvider, type EditorView } from './viewContext'
 import { browserStorage, engineView, loadView, saveView, viewChange, viewChecked, type GuideRef, type ViewState } from './viewOptions'
@@ -358,6 +359,26 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
     [commands, phrase, t],
   )
 
+  // The panels follow the document a moment after the canvas (plan 2026-11-25, phase 12: a key
+  // took 94–108 ms to reach the screen, the dock's panels rendering again before the page was
+  // repainted). Each change renders the canvas first; the dock renders with the change in a
+  // deferred render React runs after that, and while text is typed at most every `CALM_MS`.
+  const typingNow = Boolean(state?.editingText)
+  const dockEditor = useDeferredValue(useCalmValue(editor, typingNow))
+  const dockTools = useDeferredValue(useCalmValue(tools, typingNow))
+  const dockInfo = useDeferredValue(useCalmValue(state, typingNow))
+  const dockSpread = useDeferredValue(useCalmValue(spread, typingNow))
+  const showSpread = useCallback((next: Spread) => canvas.current?.show(next.area), [])
+  const openSetup = useCallback(() => dialogs.current?.show('documentSetup'), [])
+  const dock = useMemo(
+    () =>
+      dockInfo ? (
+        <KitEditorProvider editor={dockEditor} tools={dockTools}>
+          <LayoutDock info={dockInfo} spread={dockSpread} onShow={showSpread} onSetup={openSetup} />
+        </KitEditorProvider>
+      ) : null,
+    [dockEditor, dockTools, dockInfo, dockSpread, showSpread, openSetup],
+  )
   return (
     <KitEditorProvider editor={editor} tools={tools}>
       <EditorViewProvider value={editorView}>
@@ -387,7 +408,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
           </>
         }
         rail={<EngineToolRail hidden={HIDDEN_TOOLS} />}
-        panels={state ? <LayoutDock info={state} spread={spread} onShow={(next) => canvas.current?.show(next.area)} onSetup={() => showDialog('documentSetup')} /> : null}
+        panels={dock}
       >
         <div ref={workspace} className="kui-row" data-testid="layout-workspace" data-view={view ? `${view.zoom} ${view.x} ${view.y}` : undefined}>
           <CanvasFrame showRulers={rulers} rulers={(

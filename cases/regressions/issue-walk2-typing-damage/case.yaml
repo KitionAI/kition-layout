@@ -1,0 +1,19 @@
+format: 1
+id: regressions/issue-walk2-typing-damage
+feature: layout.ui.text-and-tables
+intent: >-
+  A typed character, Enter or Backspace answers the document area it changed (for most characters a band of lines),
+  and the view drawn whole afterwards differs from the one before only inside it.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-w2.md (second walkthrough, after phase 11, 2026-11-26)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, filter: a_typed_character_answers_the_lines_it_changed }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

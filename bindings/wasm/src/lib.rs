@@ -79,6 +79,17 @@ pub struct LayoutDocument {
     /// renderer for those patches (its own canvas size, so the view's stays allocated).
     painted: RefCell<Option<Painted>>,
     patcher: RefCell<Renderer>,
+    /// The document and canvas as the tool event in progress found them, for the area it changed
+    /// (`take_damage`, plan 2026-11-25 phase 12: the page repainted the whole view after a key).
+    event_start: Option<EventStart>,
+}
+
+/// What a tool event started from: the document, where its spreads sat on the canvas, and the
+/// canvas origin.
+struct EventStart {
+    doc: std::sync::Arc<kition_layout_doc::Document>,
+    slots: Vec<Placed>,
+    origin: Point,
 }
 
 /// A picture `draw` made: what it showed and how.
@@ -96,6 +107,9 @@ struct Painted {
 
 /// Bumped whenever fonts are added: text already drawn may now draw in another face.
 static FONT_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Document pixels added around a tool event's damage (antialiased edges, a caret's overhang).
+const DAMAGE_MARGIN: f64 = 2.0;
 
 /// A patch is drawn when it covers less than this share of the view; above, the whole view is.
 const PATCH_SHARE: f64 = 0.6;
@@ -130,6 +144,7 @@ impl LayoutDocument {
             clicks: 1,
             painted: RefCell::new(None),
             patcher: RefCell::new(Renderer::new()),
+            event_start: None,
         };
         document.commands();
         document
@@ -285,6 +300,42 @@ impl LayoutDocument {
         last.doc = doc.clone();
         last.patch = Some((pw, ph));
         Some(last.pixels.clone())
+    }
+
+    /// Where the spreads sit on the canvas now.
+    fn slots(&self) -> Vec<Placed> {
+        self.session.layout().slots.iter().map(|slot| Placed { spread: slot.spread, xf: slot.xf }).collect()
+    }
+
+    /// Notes the document a tool event starts from (`take_damage` compares with it).
+    fn start_event(&mut self) {
+        self.event_start = self.active().ok().map(|state| EventStart { doc: state.doc.clone(), slots: self.slots(), origin: self.origin() });
+    }
+
+    /// The document pixels the last tool event changed: the parts of the spreads it changed
+    /// (the composed lines that differ, objects added, moved or changed), or `None` when it cannot
+    /// tell or the canvas itself changed (spreads added or moved, a graphic's ghost, Preview).
+    fn event_damage(&mut self) -> Option<Rect> {
+        let start = self.event_start.take()?;
+        let state = self.active().ok()?;
+        if std::sync::Arc::ptr_eq(&start.doc, &state.doc) || self.session.content_ghost().is_some() || self.view.screen_mode != ScreenMode::Normal {
+            return None;
+        }
+        let slots = self.slots();
+        let origin = self.origin();
+        if slots != start.slots || origin != start.origin {
+            return None;
+        }
+        let regions = kition_layout_render::damage::damage_with(&start.doc, &state.doc, Some(&self.session.cache))?;
+        let mut area: Option<Rect> = None;
+        for (spread, rect) in regions {
+            let at = slots.iter().find(|p| p.spread == spread)?;
+            let r = at.xf.transform_rect_bbox(rect);
+            area = Some(area.map_or(r, |a| a.union(r)));
+        }
+        // A pixel more on each side: antialiased edges reach past the shapes' bounds.
+        let area = area?.inflate(DAMAGE_MARGIN, DAMAGE_MARGIN);
+        Some(Rect::new(area.x0 - origin.x, area.y0 - origin.y, area.x1 - origin.x, area.y1 - origin.y))
     }
 
     /// The engine's answer after an event: its requests, overlays with the selection and text
@@ -797,6 +848,7 @@ impl KitTools for LayoutDocument {
     }
 
     fn select_tool(&mut self, id: &str, zoom: f64) -> Result<ToolResponse, String> {
+        self.start_event();
         // A tool a command started (the loaded text or place cursor, off the rail) stays as it is
         // when the editor confirms the engine's switch to it.
         if id == self.session.tool_id() {
@@ -811,6 +863,7 @@ impl KitTools for LayoutDocument {
     }
 
     fn pointer(&mut self, event: &ToolPointer) -> Result<ToolResponse, String> {
+        self.start_event();
         let at = self.to_canvas(event.x, event.y);
         let kind = match event.action {
             PointerAction::Down => PointerKind::Down,
@@ -830,6 +883,7 @@ impl KitTools for LayoutDocument {
     }
 
     fn key(&mut self, key: &str, mods: ToolMods, zoom: f64) -> Result<ToolResponse, String> {
+        self.start_event();
         let before = self.session.tool_id();
         if let Some(engine_key) = key_in(key) {
             let view = self.view(zoom);
@@ -840,6 +894,7 @@ impl KitTools for LayoutDocument {
 
     /// Typed text goes into the story at the caret, as the Type tool does.
     fn text(&mut self, text: &str, zoom: f64) -> Result<ToolResponse, String> {
+        self.start_event();
         let before = self.session.tool_id();
         if self.session.wants_text() {
             // Typing joins one undo step per word (the editor ends it at a pause: `endTyping`).
@@ -849,9 +904,16 @@ impl KitTools for LayoutDocument {
     }
 
     fn state(&mut self, x: f64, y: f64, mods: ToolMods, zoom: f64) -> ToolResponse {
+        self.event_start = None;
         let at = self.to_canvas(x, y);
         let before = self.session.tool_id();
         self.respond(before, Some(at), mods_in(mods), zoom)
+    }
+
+    /// The area the last event changed (plan 2026-11-25, phase 12): a typed key repaints the
+    /// lines it changed, not the whole view, so the change reaches the screen sooner.
+    fn take_damage(&mut self) -> Option<kition_kit::tools::ToolDamage> {
+        self.event_damage().map(|area| kition_kit::tools::ToolDamage { x0: area.x0, y0: area.y0, x1: area.x1, y1: area.y1 })
     }
 }
 
@@ -1383,6 +1445,66 @@ mod tests {
             }
         }
         assert!(patched > 40, "most characters repaint a patch, not the view: {patched}");
+    }
+
+    /// Plan 2026-11-25, phase 12 (walkthrough 2: 94–108 ms from a key to the screen, the page
+    /// rendering its whole view after every key): a typed character answers the area it changed,
+    /// for most characters a band of lines well under a quarter of the view, and the view drawn
+    /// whole afterwards differs from the one before only inside that area.
+    #[test]
+    fn a_typed_character_answers_the_lines_it_changed() {
+        let (mut doc, _) = long_threaded_story();
+        let (w, h) = (900u32, 700u32);
+        let (mut answered, mut small) = (0, 0);
+        for letter in "Typed at the start, enough to move words to the next line and add one: ".split_inclusive(|_: char| true) {
+            *doc.painted.borrow_mut() = None;
+            let before = doc.render(0.0, 0.0, 1.0, w, h).unwrap();
+            kition_kit::tools::KitTools::text(&mut doc, letter, 1.0).unwrap();
+            let Some(area) = kition_kit::tools::KitTools::take_damage(&mut doc) else { continue };
+            assert!(kition_kit::tools::KitTools::take_damage(&mut doc).is_none(), "the damage is taken once");
+            // In view: a band of lines for most characters (a line that wraps anew moves every line
+            // after it, which the area covers too).
+            let shown = (area.x1.min(f64::from(w)) - area.x0.max(0.0)).max(0.0) * (area.y1.min(f64::from(h)) - area.y0.max(0.0)).max(0.0);
+            if shown * 4.0 < f64::from(w) * f64::from(h) {
+                small += 1;
+            }
+            *doc.painted.borrow_mut() = None;
+            let after = doc.render(0.0, 0.0, 1.0, w, h).unwrap();
+            let mut outside = 0;
+            for (i, (a, b)) in before.chunks(4).zip(after.chunks(4)).enumerate() {
+                let (x, y) = ((i as u32 % w) as f64 + 0.5, (i as u32 / w) as f64 + 0.5);
+                let inside = x >= area.x0 && x <= area.x1 && y >= area.y0 && y <= area.y1;
+                if !inside && a.iter().zip(b).any(|(p, q)| p.abs_diff(*q) > 2) {
+                    outside += 1;
+                }
+            }
+            assert_eq!(outside, 0, "after {letter:?} {outside} pixels changed outside {area:?}");
+            answered += 1;
+        }
+        // Enter and Backspace (the line count changes, every later line moves): nothing outside.
+        for key in ["Enter", "Enter", "Backspace", "Backspace", "Enter"] {
+            *doc.painted.borrow_mut() = None;
+            let before = doc.render(0.0, 0.0, 1.0, w, h).unwrap();
+            kition_kit::tools::KitTools::key(&mut doc, key, ToolMods::default(), 1.0).unwrap();
+            let area = kition_kit::tools::KitTools::take_damage(&mut doc).expect("Enter and Backspace answer their damage");
+            *doc.painted.borrow_mut() = None;
+            let after = doc.render(0.0, 0.0, 1.0, w, h).unwrap();
+            let outside = before
+                .chunks(4)
+                .zip(after.chunks(4))
+                .enumerate()
+                .filter(|(i, (a, b))| {
+                    let (x, y) = ((*i as u32 % w) as f64 + 0.5, (*i as u32 / w) as f64 + 0.5);
+                    !(x >= area.x0 && x <= area.x1 && y >= area.y0 && y <= area.y1) && a.iter().zip(b.iter()).any(|(p, q)| p.abs_diff(*q) > 2)
+                })
+                .count();
+            assert_eq!(outside, 0, "after {key} {outside} pixels changed outside {area:?}");
+        }
+        assert!(answered > 60, "the characters answer their damage: {answered}");
+        assert!(small > 40, "most characters change a band of lines in view: {small} of {answered}");
+        // A tool event that changes nothing answers none (the page repaints nothing).
+        kition_kit::tools::KitTools::state(&mut doc, 10.0, 10.0, ToolMods::default(), 1.0);
+        assert!(kition_kit::tools::KitTools::take_damage(&mut doc).is_none());
     }
 
     #[test]

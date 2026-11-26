@@ -1,0 +1,25 @@
+format: 1
+id: regressions/issue-walk2-typing-paint
+feature: layout.ui.text-and-tables
+intent: >-
+  A key took 94-108 ms to reach the screen on a 22-page story (the engine took 10): after every key the page
+  rendered its whole view again and the dock's panels rendered before it. A tool event answers the area it changed,
+  the page repaints only that, and the panels follow after the picture; each key asks for one picture before any
+  panel query, and the patched picture is the one a full repaint draws.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-w2.md (second walkthrough, after phase 11, 2026-11-26)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/perf.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-26"
