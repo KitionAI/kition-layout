@@ -1,0 +1,29 @@
+format: 1
+id: layout.collab.drafts/ids-and-pages
+feature: layout.collab.drafts
+intent: >-
+  What two people editing at once used to show now shows through an agent's draft merged while the
+  person edited: an item made in the draft and one made meanwhile mint one number, and after the
+  merge they have distinct ids (the smaller object id keeps the number, the other gets the next
+  free one, stored inside the merge's undo step), kept by saving and reopening, in one id space
+  across types (a layer and a frame). Moving or adding a page keeps every spread under its id (a
+  page moved on single pages stays on its spread), so a draft that moves a page merges with a page
+  the person added meanwhile: every page and object once (issue-concurrent-page-moves).
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/doc/src/build.rs, crates/kdm/kdm-model/tests/drafts.rs, crates/kdm/kdm-model/tests/numbers.rs, bindings/wasm/tests/stable_ids.rs, bindings/wasm/tests/object_params.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-doc, filter: a_moved_page_keeps_its_spread_and_its_id }
+  - cargo-test: { package: kition-layout-doc, filter: an_inserted_page_keeps_every_spread_id_and_adds_one }
+  - cargo-test: { package: kition-layout-kdm, test: drafts, filter: a_draft_moving_a_page_merges_with_a_page_added_meanwhile }
+  - cargo-test: { package: kition-layout-kdm, test: numbers, filter: a_number_minted_by_a_draft_and_meanwhile_ends_distinct }
+  - cargo-test: { package: kition-layout-kit, test: stable_ids, filter: frames_made_in_a_draft_and_meanwhile_end_with_distinct_ids }
+  - cargo-test: { package: kition-layout-kit, test: object_params, filter: a_draft_and_meanwhile_share_one_id_space_across_types }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

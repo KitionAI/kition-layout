@@ -3,17 +3,20 @@
 //!
 //! It is `kition_kit::session::KitSession<LayoutModel>`'s flow on concrete, `Send` parts, as Kition
 //! Vector's and Photo's sessions are: transactions with an origin, the replica's undo, the change
-//! exchange, the repair after a merge, an undo or a redo, and the view patched from the replica.
+//! exchange, the repair after an import, an undo or a redo (inside a draft's merge and a restore),
+//! and the view patched from the replica.
 //! The engine enumerates and ships the image blobs, which `KitSession`'s boxed blob store does not
 //! allow. Edits are diff-bridged: the engine changes its own [`Document`] and
 //! [`LayoutSession::record`] writes what changed as one transaction ([`write_changes`]), then
 //! adopts it as the view, so no command needs rewriting (E12).
 //!
-//! **Repair.** After every import, undo and redo the session runs [`KitModel::validate`] (rules
-//! V1–V10, V12), the read repair ([`repair::read_repairs`], V6) and the engine ids
-//! ([`repair::store_numbers`]) in `system` transactions labelled `repair`, never undo steps; every
-//! replica writes the same repair for the same state.
-//! Opening a file repairs once too, so a file a merge left inconsistent opens consistent.
+//! **Repair.** [`repair::repair_in`] (the validation rules V1–V10, V12, V13, the read repair V6
+//! and the engine ids) runs inside a draft's merge (`Replica::merge_changes_repaired`), its preview
+//! and a restore, so its writes are part of that one change and undo step: one undo gives back the
+//! exact state before, one redo the exact repaired state (data model 6.6 D9). A merge or a restore
+//! that, repaired, leaves the document as it was records nothing. After an import, an undo or a
+//! redo, and when a replica opens (a file written by another program), it runs as a `system`
+//! transaction labelled `repair`, never an undo step, and only when there is something to repair.
 //!
 //! **Undo groups per author.** [`LayoutSession::begin_undo_group`] names the principal it is for:
 //! a transaction of another principal ends the group first, so a person's gesture never takes in
@@ -22,6 +25,7 @@
 use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 
+use kition_kit::kdm::diff::StateDiff;
 use kition_kit::kdm::{ActorId, DocId, KdmError, ObjectId, Origin, OriginKind, Replica, Tx, UndoOutcome, UndoScope, Version};
 use kition_kit::session::{BlobSource, Damage, KitError, KitModel, MemoryBlobs};
 use kition_layout_doc::Document;
@@ -69,11 +73,11 @@ pub(crate) fn referenced(replica: &Replica) -> BTreeSet<String> {
         .collect()
 }
 
-/// [`Replica::transact`] with a kit error kept aside: the KDM's closure must fail with a
-/// [`KdmError`].
-fn transact(replica: &mut Replica, origin: &Origin, f: impl FnOnce(&mut Tx<'_>) -> Result<bool>) -> Result<bool> {
+/// [`Replica::transact_unless_unchanged`] with a kit error kept aside: the KDM's closure must fail
+/// with a [`KdmError`]. A transaction that leaves the state as it was writes nothing.
+fn transact_unless_unchanged(replica: &mut Replica, origin: &Origin, f: impl FnOnce(&mut Tx<'_>) -> Result<()>) -> Result<()> {
     let mut kit_error = None;
-    let result = replica.transact(origin, |tx| {
+    let result = replica.transact_unless_unchanged(origin, |tx| {
         f(tx).map_err(|error| match error {
             KitError::Kdm(error) => error,
             other => {
@@ -85,7 +89,7 @@ fn transact(replica: &mut Replica, origin: &Origin, f: impl FnOnce(&mut Tx<'_>) 
     });
     match (result, kit_error) {
         (_, Some(error)) => Err(error),
-        (result, None) => result.map_err(kit_err),
+        (result, None) => result.map(|((), _)| ()).map_err(kit_err),
     }
 }
 
@@ -265,24 +269,50 @@ impl LayoutSession {
     }
 
     /// Takes a draft's changes (made on a replica of this one's line, an agent's draft) in as one
-    /// transaction of `origin` (`Replica::merge_changes`): one undo step of its scope unless
-    /// `origin` is a `system` or `import` one; the edits made here since the draft began stay.
-    /// Repairs the result and patches the view as an import does; add the draft's blobs first
-    /// ([`LayoutSession::add_blobs`]). Answers the undo steps it made (1 or 0) and the damage. A
-    /// refused merge changes nothing.
-    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<(u32, Damage)> {
+    /// transaction of `origin` with the repair of the merged state in it
+    /// (`Replica::merge_changes_repaired`, [`repair::repair_in`]): one undo step of the **person**
+    /// (KitModel M12a, also for an agent's `origin`: the person accepted it) unless `origin` is a
+    /// `system` or `import` one, and one undo of it gives back the exact state before the merge.
+    /// The edits made here since the draft began stay. Patches the view; add the draft's blobs
+    /// first ([`LayoutSession::add_blobs`]). Answers the undo scope the merge's step was recorded
+    /// in (`DraftMerge::scope`; `None` for no step: also when the draft, repaired, changes
+    /// nothing) and the damage. A refused merge (also one whose repair fails) changes nothing.
+    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<(Option<UndoScope>, Damage)> {
         self.end_undo_group();
         let before = self.replica.version();
-        self.replica.merge_changes(bytes, origin).map_err(kit_err)?;
-        self.took_in(&before, origin)
+        let merged = self.replica.merge_changes_repaired(bytes, origin, |tx, _| repair::repair_in(tx));
+        let merged = match merged {
+            Ok(merged) => merged,
+            Err(error) => {
+                self.replica.take_changed();
+                return Err(kit_err(error));
+            }
+        };
+        self.took_in(&before, merged.scope)
+    }
+
+    /// What merging a draft's changes would change in the document now, the repair included as
+    /// [`LayoutSession::merge_changes`] runs it (`Replica::compare_changes_repaired`), so a draft's
+    /// preview is what accepting it gives. Nothing changes; refuses what the merge refuses.
+    pub fn compare_changes(&self, bytes: &[u8]) -> Result<StateDiff> {
+        self.replica.compare_changes_repaired(bytes, |tx, _| repair::repair_in(tx)).map_err(kit_err)
+    }
+
+    /// The canonical state merging a draft's changes would give, the repair included
+    /// (`Replica::merged_state_repaired`); nothing changes. Refuses what the merge refuses.
+    pub fn merged_state(&self, bytes: &[u8]) -> Result<serde_json::Value> {
+        self.replica.merged_state_repaired(bytes, |tx, _| repair::repair_in(tx)).map_err(kit_err)
     }
 
     /// Writes the state `snapshot` holds (a snapshot or content of this document, as a host's
     /// checkpoint keeps it) over the replica as one transaction of `origin`, keyed by object id
-    /// (`kition_kit::session::write_state`), so every object the two share keeps its id: one undo
-    /// step of its scope unless `origin` is a `system` or `import` one. Nothing changes when the
-    /// states are equal. Refuses another document's snapshot. Add the blobs it references first.
-    pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<(u32, Damage)> {
+    /// (`kition_kit::session::write_state`), so every object the two share keeps its id, with the
+    /// repair of the restored state in it ([`repair::repair_in`]): one undo step of its scope unless
+    /// `origin` is a `system` or `import` one, which gives back the exact state before. Nothing
+    /// changes, and no step is recorded, when the states are equal or the repaired restore leaves
+    /// the document as it was. Refuses another document's snapshot. Add the blobs it references
+    /// first. Answers the step's scope (`None` for none) and the damage.
+    pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<(Option<UndoScope>, Damage)> {
         self.end_undo_group();
         let schema = LayoutModel::schema();
         let loaded = Replica::load(Arc::clone(&schema), snapshot, ActorId::random()).map_err(kit_err)?;
@@ -291,28 +321,33 @@ impl LayoutSession {
         }
         let (now, then) = (kition_kit::session::state(&self.replica)?, kition_kit::session::state(&loaded)?);
         if now == then {
-            return Ok((0, Damage::None));
+            return Ok((None, Damage::None));
         }
         let before = self.replica.version();
-        let result = transact(&mut self.replica, origin, |tx| kition_kit::session::write_state(tx, &schema, &now, &then).map(|()| true));
+        let result = transact_unless_unchanged(&mut self.replica, origin, |tx| {
+            kition_kit::session::write_state(tx, &schema, &now, &then)?;
+            repair::repair_in(tx).map_err(kit_err)
+        });
         if let Err(error) = result {
             self.replica.take_changed();
             return Err(error);
         }
-        self.took_in(&before, origin)
+        self.took_in(&before, UndoScope::of(origin.kind))
     }
 
-    /// After a merge or a restore wrote one transaction of `origin` since `before`: repairs and
-    /// patches the view as an import does; answers whether that is an undo step (1 or 0).
-    fn took_in(&mut self, before: &Version, origin: &Origin) -> Result<(u32, Damage)> {
+    /// After a merge or a restore wrote one transaction (with its repair in it) since `before`, an
+    /// undo step of `scope` if any: patches the view as an import does (no repair of its own: it
+    /// ran inside). Answers the step's scope, `None` when nothing was written.
+    fn took_in(&mut self, before: &Version, scope: Option<UndoScope>) -> Result<(Option<UndoScope>, Damage)> {
         let wrote = self.replica.version() != *before;
         let referenced_now = referenced(&self.replica);
-        let damage = self.settle()?;
-        let added: Vec<String> = referenced_now.into_iter().filter(|hash| self.blobs.0.contains_key(hash)).collect();
+        let changed = self.replica.take_changed();
+        let damage = self.refresh(&changed)?;
         if wrote {
+            let added: Vec<String> = referenced_now.into_iter().filter(|hash| self.blobs.0.contains_key(hash)).collect();
             self.log_added(added);
         }
-        Ok((u32::from(wrote && undoable(origin)), damage))
+        Ok((scope.filter(|_| wrote), damage))
     }
 
     /// The blobs a peer at `since` needs to reach this session's state: the hashes logged for a
@@ -440,18 +475,9 @@ impl LayoutSession {
     }
 }
 
-/// The validation rules, the read repair, then the engine ids, each in a `system` transaction
-/// labelled `repair` (written only when there is something to repair).
+/// Every repair ([`repair::repair_in`]) in one `system` transaction labelled `repair` (written only
+/// when there is something to repair): after an import, an undo or a redo, and when a replica
+/// opens.
 fn repair_all(replica: &mut Replica) -> Result<()> {
-    let everything = BTreeSet::new();
-    transact(replica, &Origin::system("repair"), |tx| LayoutModel::validate(tx, &everything))?;
-    let repairs = repair::read_repairs(replica).map_err(kit_err)?;
-    if !repairs.is_empty() {
-        transact(replica, &Origin::system("repair"), |tx| repair::apply(tx, &repairs).map_err(kit_err))?;
-    }
-    let numbers = crate::read::number_repairs(replica).map_err(kit_err)?;
-    if !numbers.is_empty() {
-        transact(replica, &Origin::system("repair"), |tx| repair::store_numbers(tx, &numbers).map_err(kit_err))?;
-    }
-    Ok(())
+    replica.transact(&Origin::system("repair"), repair::repair_in).map_err(kit_err)
 }

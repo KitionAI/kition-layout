@@ -3,7 +3,9 @@
 //! stores its number in the replica (`number`), so a save and reopen, a replica-only open and a
 //! reopen after a failed run all answer the ids the session had. An object made without a number
 //! (through the object model) gets the next free one, stored by the repair, alike on a replica
-//! that takes the same changes.
+//! that takes the same changes. An agent's draft and the person making an object each while the
+//! draft is open mint one number: after the merge the object with the smaller object id keeps it,
+//! the other gets the next free one, which the repair inside the merge stores.
 
 mod common;
 
@@ -182,4 +184,52 @@ fn an_object_made_without_a_number_gets_the_next_free_one() {
     assert_eq!(a.replica().get(&made, "number").unwrap(), json!(id), "the repair stores it");
     assert_eq!(b.model().ids().items.local(&made).unwrap().0, id, "a peer taking the same change numbers it alike");
     assert_eq!(ids_of(reopened(&a).document()), ids_of(a.document()));
+}
+
+/// The person and an agent's draft each make an item while the draft is open: both mint one
+/// number. Merged, the two items have distinct ids by a rule of the state alone: the smaller object
+/// id keeps the number, the other gets the next free one, stored inside the merge's one undo step;
+/// both survive saving and reopening, the next edit allocates above both, and undoing the merge
+/// gives back the exact state before it.
+#[test]
+fn a_number_minted_by_a_draft_and_meanwhile_ends_distinct() {
+    let start = Arc::new(rich());
+    let base = LayoutSession::create(&start, &Origin::system("create")).unwrap();
+    let snapshot = base.snapshot().unwrap();
+    let mut a = LayoutSession::open(&snapshot, base.blobs().clone()).unwrap();
+    let mut draft = LayoutSession::open(&snapshot, base.blobs().clone()).unwrap();
+    let since = a.version();
+    let agent = Origin::agent("agent:draft");
+    let mut minted = 0;
+    let draft_doc = edited(draft.document(), |d| minted = add_rect(d, 200.0).0);
+    draft.record(&agent, &draft_doc).unwrap();
+    let a_doc = edited(a.document(), |d| assert_eq!(add_rect(d, 100.0).0, minted, "both mint one number"));
+    a.record(&person(), &a_doc).unwrap();
+    let mine = a.model().ids().item(ItemId(minted)).unwrap().clone();
+    let theirs = draft.model().ids().item(ItemId(minted)).unwrap().clone();
+    let before = a.state_hash().unwrap();
+    let (scope, _) = a.merge_changes(&draft.export_changes(&since).unwrap(), &agent).unwrap();
+    assert_eq!(scope, Some(kition_layout_kdm::kition_kit::kdm::UndoScope::Person));
+    let local = |s: &LayoutSession, object: &ObjectId| s.model().ids().items.local(object).unwrap().0;
+    let (keeper, other) = if mine < theirs { (&mine, &theirs) } else { (&theirs, &mine) };
+    assert_eq!(local(&a, keeper), minted, "the smaller object id keeps the number");
+    let next = local(&a, other);
+    assert_ne!(next, minted);
+    assert_eq!(a.replica().get(keeper, "number").unwrap(), json!(minted));
+    assert_eq!(a.replica().get(other, "number").unwrap(), json!(next), "the merge's repair stores the new number");
+    // Both survive saving and reopening.
+    assert_eq!(ids_of(reopened(&a).document()), ids_of(a.document()));
+    assert_eq!(local(&reopened(&a), other), next);
+    // The next edit allocates above both.
+    let mut added = 0;
+    let a_doc = edited(a.document(), |d| added = add_rect(d, 300.0).0);
+    assert!(added > next.max(minted), "{added} above {next} and {minted}");
+    a.record(&person(), &a_doc).unwrap();
+    // Undoing the edit keeps the ids; undoing the merge gives back the exact state before it.
+    a.undo().unwrap();
+    assert_eq!(local(&a, other), next);
+    a.undo().unwrap();
+    assert_eq!(a.state_hash().unwrap(), before, "the exact state before the merge");
+    assert_eq!(local(&a, &mine), minted);
+    assert!(!a.replica().exists(&theirs), "the draft's item went with the merge");
 }

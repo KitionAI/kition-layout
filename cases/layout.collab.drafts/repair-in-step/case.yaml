@@ -1,0 +1,32 @@
+format: 1
+id: layout.collab.drafts/repair-in-step
+feature: layout.collab.drafts
+intent: >-
+  A draft an agent made and the person accepts is one step of the person's Undo, labelled Merge
+  Draft, also under the agent's origin Kition's editor passes (KitModel M12a); the agent's Undo has
+  nothing to take back and the engine's step labels stay in step with the replica's undo depth.
+  The layout's repair (validation, the text-reading V6 and the engine ids) runs inside the merge
+  and the restore, so one Undo gives back the exact state and view before, with an edit made
+  meanwhile kept, and one Redo the exact merged or restored state; the draft's preview runs the
+  same repair and equals what accepting gives. A draft the repair cancels (a hyperlink from a
+  frame the person deleted meanwhile) records nothing: state, version, undo depth and labels stay,
+  and the next Undo is the person's own. modelReply reads only the objects a reply names.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/src/replica.rs, crates/kdm/kdm-model/tests/drafts.rs, bindings/wasm/src/collab.rs (tests)
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: an_agents_merged_draft_is_one_step_of_the_persons_undo }
+  - cargo-test: { package: kition-layout-engine, filter: a_draft_the_repair_cancels_records_nothing }
+  - cargo-test: { package: kition-layout-engine, filter: a_restore_undoes_and_redoes_exactly }
+  - cargo-test: { package: kition-layout-kdm, test: drafts, filter: the_repair_of_a_merged_draft_reads_text_inside_the_step_and_the_preview_shows_it }
+  - cargo-test: { package: kition-layout-kit, filter: a_draft_merges_in_as_one_undo_step_and_the_layout_follows }
+  - cargo-test: { package: kition-layout-kit, filter: a_restored_state_keeps_the_ids_and_undoes_as_one_step }
+  - cargo-test: { package: kition-layout-kit, filter: a_reply_reads_only_the_objects_it_names }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

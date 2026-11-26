@@ -27,6 +27,29 @@ fn environment_schema_names_objects_and_bounds_opacity() {
     assert_eq!(schema["types"]["Item"]["fields"]["number"]["readOnly"], true);
 }
 
+/// An agent's draft makes a layer while the person makes a frame: both engines allocate the same
+/// next number. Merged, one id cannot name both an item and a layer: one id space across types.
+#[test]
+fn a_draft_and_meanwhile_share_one_id_space_across_types() {
+    let bytes = LayoutDocument::create("Ids.klayout", 612, 792).unwrap().save(None).unwrap();
+    let mut a = LayoutDocument::open("Ids.klayout", &bytes).unwrap();
+    let base = a.version().unwrap();
+    let mut draft = LayoutDocument::open_with_replica("Ids.klayout", &[], &a.snapshot().unwrap(), &a.blobs().unwrap()).unwrap();
+    let agent = kition_layout_kdm::kition_kit::kdm::Origin::agent("agent:colleague");
+    let item = a.execute("frame.add", serde_json::json!({"rect":[20,20,60,60],"content":"unassigned"})).unwrap()["id"].clone();
+    let layer = draft.execute_as("layer.new", serde_json::json!({"name":"Colleague"}), &agent).unwrap()["id"].clone();
+    assert_eq!(item, layer, "the two writers allocate the same next number");
+    let layers = a.inspect().unwrap()["layers"].as_array().unwrap().len();
+    a.merge_changes(&draft.export_changes(&base).unwrap(), &agent).unwrap();
+    let inspected = a.inspect().unwrap();
+    let item = &inspected["spreads"][0]["items"][0]["id"];
+    assert_eq!(inspected["layers"].as_array().unwrap().len(), layers + 1, "the draft's layer: {inspected}");
+    assert!(
+        inspected["layers"].as_array().unwrap().iter().all(|layer| layer["id"] != *item),
+        "one id cannot name both an item and a layer: {inspected}"
+    );
+}
+
 #[test]
 fn model_addresses_are_command_addresses() {
     let mut doc = LayoutDocument::create("Addresses.klayout", 612, 792).unwrap();

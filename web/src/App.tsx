@@ -392,7 +392,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
         onKeyDown={(event) => {
           // The key of a row that asks first opens its dialog; a `kit:` row's key runs it.
           if (dialogs.current && menuKey(event, { commands, enabled: editor.enabled, dialogs: dialogs.current, onKitCommand: runKit })) return true
-          if (catchUpKey(event, { commands, enabled: editor.enabled, enabledNow: editor.enabledNow, run: editor.run })) return true
+          if (catchUpKey(event, { commands, enabled: editor.enabled, runWhenEnabled: editor.runWhenEnabled })) return true
           if (canvasKey(event)) return true
           // Escape a busy tool did not take clears the selection; taken (default prevented) only
           // then, so in Focus an Escape with nothing to cancel still leaves Focus (KitPointer 4.4).

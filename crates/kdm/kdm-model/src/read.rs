@@ -29,6 +29,7 @@ use crate::ids::{
 use crate::inline::{InlineValue, inline_from, push_inline};
 use crate::marks::{HYPERLINK, PLACEHOLDER};
 use crate::refs::{Mapper, SETTINGS_WITH_IDS, map_setting, max_id, swatches_in};
+use crate::state::State;
 use crate::text::decode;
 use crate::write::{STYLE_DEFAULTS, STYLE_SETTINGS};
 use crate::{KdmResult, MAX_DEPTH, kdm_err, root_id};
@@ -43,12 +44,12 @@ pub fn read_document_known(replica: &Replica, blobs: &dyn BlobSource, known: &Kn
     read_with(replica, blobs, known)
 }
 
-struct Reader<'r> {
-    replica: &'r Replica,
+struct Reader<'r, S: State + ?Sized = Replica> {
+    replica: &'r S,
     seen: HashSet<ObjectId>,
 }
 
-impl Reader<'_> {
+impl<S: State + ?Sized> Reader<'_, S> {
     /// The live objects of a list, each at its first listing in the document.
     fn live(&mut self, owner: &ObjectId, field: &str) -> KdmResult<Vec<ObjectId>> {
         let mut out = Vec::new();
@@ -97,7 +98,7 @@ struct Walk {
     numbered: Vec<(Domain, ObjectId)>,
 }
 
-fn walk<'r>(replica: &'r Replica, root: &ObjectId) -> KdmResult<(Reader<'r>, Walk)> {
+fn walk<'r, S: State + ?Sized>(replica: &'r S, root: &ObjectId) -> KdmResult<(Reader<'r, S>, Walk)> {
     let mut r = Reader { replica, seen: HashSet::new() };
     let mut numbered = Vec::new();
     let layers = r.live(root, "layers")?;
@@ -209,12 +210,12 @@ struct Numbering {
     ids: HashMap<ObjectId, u64>,
     /// The counter's floor: every counted id handed out or stored.
     counter: u64,
-    /// The objects whose id is not the number they store, with that id, and whether they store
-    /// a number at all (one another object of their domain keeps).
-    unstored: Vec<(ObjectId, u64, bool)>,
+    /// The objects whose id is not the number they store (they store none, or one another
+    /// object of their domain keeps), with that id.
+    unstored: Vec<(ObjectId, u64)>,
 }
 
-fn number(replica: &Replica, walk: &Walk) -> KdmResult<Numbering> {
+fn number<S: State + ?Sized>(replica: &S, walk: &Walk) -> KdmResult<Numbering> {
     let mut order = Vec::with_capacity(walk.numbered.len());
     for (domain, object) in &walk.numbered {
         order.push((domain.clone(), object.clone(), stored_number(&replica.get(object, "number")?)));
@@ -225,25 +226,27 @@ fn number(replica: &Replica, walk: &Walk) -> KdmResult<Numbering> {
     for (domain, object, stored) in order {
         let id = minter.mint(&domain, &object);
         if stored != Some(id) {
-            unstored.push((object.clone(), id, stored.is_some()));
+            unstored.push((object.clone(), id));
         }
         ids.insert(object, id);
     }
     Ok(Numbering { ids, counter: minter.max(), unstored })
 }
 
-/// The numbers the session's repair stores: those of the objects that store none (made by a script
-/// through the object model, or read from a file written before the numbers were stored), as every
-/// read gives them, a function of the replica's state alone. Two objects that store one number
-/// (made concurrently on two replicas) are not repaired here: every read tells them apart alike,
-/// and the replica's next edit stores the new number, so a merge leaves no change to exchange.
-pub(crate) fn number_repairs(replica: &Replica) -> KdmResult<Vec<(ObjectId, u64)>> {
+/// The numbers the session's repair stores, as every read gives them, a function of the state
+/// alone: those of the objects that store none (made by a script through the object model, or read
+/// from a file written before the numbers were stored), and those of the objects that store a
+/// number another object of their domain keeps (an agent's draft and the person each made an
+/// object while the draft was open, both minting one number: the smaller object id keeps it,
+/// [`Minter`]). Run inside a draft's merge, so the new number is part of the merge's undo step.
+/// `state` is a replica or a transaction (which reads its own writes).
+pub(crate) fn number_repairs<S: State + ?Sized>(state: &S) -> KdmResult<Vec<(ObjectId, u64)>> {
     let root = root_id();
-    if !replica.exists(&root) {
+    if !state.exists(&root) {
         return Ok(Vec::new());
     }
-    let (_, walk) = walk(replica, &root)?;
-    Ok(number(replica, &walk)?.unstored.into_iter().filter(|(_, _, numbered)| !numbered).map(|(object, id, _)| (object, id)).collect())
+    let (_, walk) = walk(state, &root)?;
+    Ok(number(state, &walk)?.unstored)
 }
 
 pub(crate) fn read_with(replica: &Replica, blobs: &dyn BlobSource, known: &Known) -> KdmResult<(Document, Ids)> {
@@ -277,7 +280,7 @@ pub(crate) fn read_with(replica: &Replica, blobs: &dyn BlobSource, known: &Known
         item_entries,
         numbered: _,
     } = walk;
-    let mut ids = Ids { unstored: unstored.into_iter().map(|(object, id, _)| (object, id)).collect(), ..Ids::default() };
+    let mut ids = Ids { unstored, ..Ids::default() };
     let mut inn = In::default();
 
     // Pass 1: local ids.

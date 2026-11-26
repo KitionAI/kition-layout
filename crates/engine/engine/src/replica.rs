@@ -650,27 +650,38 @@ impl Session {
     }
 
     /// Takes a draft's changes (an agent's draft, on this document's line of changes) into the
-    /// active document as one undo step of `origin`'s scope, labelled `Merge Draft`: the
-    /// document follows, as after an import. A live interaction and a data-merge preview end
-    /// first; local edits not written yet are written first. A refused merge changes nothing.
-    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<Damage> {
+    /// active document, with the repair of the merged state in the same change
+    /// ([`LayoutSession::merge_changes`]), as one undo step labelled `Merge Draft` of the scope
+    /// the replica recorded it in: the **person's**, also when `origin` is the agent's that made
+    /// the draft (KitModel M12a: the person accepted it; Kition's editor passes the agent's
+    /// origin). The document follows, as after an import. A live interaction and a data-merge
+    /// preview end first; local edits not written yet are written first. A refused merge
+    /// changes nothing; a merge that, repaired, changes nothing records no step and no label.
+    /// Answers the step's scope (`None` for none) and the damage.
+    pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<(Option<UndoScope>, Damage)> {
         self.take_in(origin, "Merge Draft", |kdm, origin| kdm.merge_changes(bytes, origin))
     }
 
     /// Writes the state `snapshot` holds (a checkpoint of this document) over the active
-    /// document by object id as one undo step of `origin`'s scope, labelled `Restore Version`;
-    /// the document follows. Nothing changes when the states are equal; another document's
-    /// snapshot is refused.
-    pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<Damage> {
+    /// document by object id, with its repair in the same change, as one undo step of
+    /// `origin`'s scope labelled `Restore Version`; the document follows. Nothing changes, and
+    /// no step is recorded, when the states are equal; another document's snapshot is refused.
+    /// Answers the step's scope (`None` for none) and the damage.
+    pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<(Option<UndoScope>, Damage)> {
         self.take_in(origin, "Restore Version", |kdm, origin| kdm.restore_state(snapshot, origin))
     }
 
+    /// A merge or a restore (`write`): its step's label goes to the scope the replica answers
+    /// it recorded the step in, never one computed here, so the labels stay in step with the
+    /// replica's undo history ([`kition_layout_kdm::kition_kit::kdm::Replica::undo_depth`]).
     fn take_in(
         &mut self,
         origin: &Origin,
         label: &str,
-        write: impl FnOnce(&mut LayoutSession, &Origin) -> kition_layout_kdm::kition_kit::session::Result<(u32, Damage)>,
-    ) -> Result<Damage> {
+        write: impl FnOnce(&mut LayoutSession, &Origin) -> kition_layout_kdm::kition_kit::session::Result<(Option<UndoScope>, Damage)>,
+    ) -> Result<(Option<UndoScope>, Damage)> {
+        // Typing in progress ends: the merge is a step of its own, and what is typed next another.
+        self.end_typing();
         self.cancel_interaction();
         self.stop_data_preview();
         let st = self.doc_mut()?;
@@ -678,7 +689,7 @@ impl Session {
         let before = kdm.version();
         let result = write(kdm, origin);
         let changed = kdm.version() != before;
-        let (steps, damage) = match result {
+        let (scope, damage) = match result {
             Ok(answer) => answer,
             Err(error) if changed => {
                 // It went in but the view could not follow: leave the replica rather than diff
@@ -688,15 +699,15 @@ impl Session {
             }
             Err(error) => return Err(kdm_error(error)),
         };
-        if steps > 0 {
-            let labels = st.link.labels_mut(scope_of(origin));
+        if let Some(scope) = scope {
+            let labels = st.link.labels_mut(scope);
             labels.undo.push(label.to_owned());
             labels.redo.clear();
         }
         if changed {
             st.follow_kdm(false);
         }
-        Ok(damage)
+        Ok((scope, damage))
     }
 
     /// Opens a replica (a snapshot or full change export, and the blobs it references) as a new
@@ -776,6 +787,126 @@ mod tests {
         let changes = from.export_changes(&since).unwrap();
         to.add_blobs(&from.blobs_since(&since).unwrap()).unwrap();
         to.import_changes(&changes).unwrap();
+    }
+
+    /// The engine's view as far as the replica decides it: its content, id-blind, and the ids of
+    /// its items (the counter and the font scope are the engine's own).
+    fn view(s: &Session) -> (serde_json::Value, Vec<u64>) {
+        let doc = &s.doc().unwrap().doc;
+        let ids = doc.spreads.iter().flat_map(|sp| sp.items.iter().map(|item| item.id.0)).collect();
+        (kition_layout_kdm::compare::normalize(doc), ids)
+    }
+
+    /// The step labels of both scopes are as many as the replica's undo and redo steps.
+    fn labels_in_step(s: &Session) {
+        let st = s.doc().unwrap();
+        let replica = st.kdm().unwrap().replica();
+        for scope in [UndoScope::Person, UndoScope::Agent] {
+            let labels = st.link.labels(scope);
+            assert_eq!((labels.undo.len(), labels.redo.len()), (replica.undo_depth(scope), replica.redo_depth(scope)), "{scope:?}: {labels:?}");
+        }
+    }
+
+    /// KitModel M12a: an agent's draft, merged with the agent's origin (Kition's editor passes
+    /// it), is one step of the **person's** Undo, labelled Merge Draft, and none of the agent's;
+    /// the person's frame made meanwhile beside the draft's (both in the items tree, both minting
+    /// one id) stays. One Undo gives back the exact state and view before the merge, one Redo the
+    /// exact merged ones; the labels stay in step with the replica's undo history.
+    #[test]
+    fn an_agents_merged_draft_is_one_step_of_the_persons_undo() {
+        let mut s = session();
+        frame(&mut s, [10.0, 10.0, 60.0, 60.0]);
+        let agent = Origin::agent("agent:helper");
+        let base = s.version().unwrap();
+        let mut draft = peer(&mut s);
+        draft.execute_as("frame.add", &json!({"rect": [300.0, 300.0, 360.0, 360.0], "content": "unassigned"}), &agent).unwrap();
+        let changes = draft.export_changes(&base).unwrap();
+        frame(&mut s, [100.0, 10.0, 160.0, 60.0]);
+        let (before, view_before) = (s.state_hash().unwrap(), view(&s));
+        let (scope, damage) = s.merge_changes(&changes, &agent).unwrap();
+        assert_eq!(scope, Some(UndoScope::Person), "the person's step, also under the agent's origin");
+        assert_ne!(damage, Damage::None);
+        assert_eq!(items(&s), 3, "the draft's frame and the one made meanwhile");
+        let mut ids = view(&s).1;
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), 3, "three frames, three ids: {ids:?}");
+        let (merged, view_merged) = (s.state_hash().unwrap(), view(&s));
+        assert_eq!(s.doc().unwrap().history_labels().0.last().map(String::as_str), Some("Merge Draft"));
+        assert!(!s.doc().unwrap().can_undo_in(UndoScope::Agent), "nothing in the agent's history");
+        labels_in_step(&s);
+        assert!(s.execute_as("edit.undo", &json!({}), &agent).is_err(), "the agent's Undo has nothing to take back");
+        assert_eq!(s.state_hash().unwrap(), merged);
+        let undone = s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(undone["undone"], "Merge Draft");
+        assert_eq!(s.state_hash().unwrap(), before, "one Undo: the exact state before the merge");
+        assert_eq!(view(&s), view_before, "and the engine's view of it");
+        labels_in_step(&s);
+        s.execute("edit.redo", &json!({})).unwrap();
+        assert_eq!(s.state_hash().unwrap(), merged, "one Redo: the exact merged state");
+        assert_eq!(view(&s), view_merged);
+        labels_in_step(&s);
+    }
+
+    /// A draft whose merge the repair takes back entirely records nothing (data model 6.6 D9): an
+    /// agent links a frame the person deletes meanwhile, so the repair deletes the hyperlink (V13).
+    /// The state, the version, the undo depth and the step labels stay; the person's next Undo is
+    /// their delete, and gives the frame back exactly.
+    #[test]
+    fn a_draft_the_repair_cancels_records_nothing() {
+        let mut s = session();
+        let id = frame(&mut s, [72.0, 72.0, 144.0, 144.0]);
+        let agent = Origin::agent("agent:helper");
+        let base = s.version().unwrap();
+        let mut draft = peer(&mut s);
+        draft.execute_as("link.add", &json!({"url": "https://example.com", "ids": [id]}), &agent).unwrap();
+        assert_eq!(draft.doc().unwrap().doc.hyperlinks.len(), 1, "the draft links the frame");
+        let changes = draft.export_changes(&base).unwrap();
+        let with_frame = s.state_hash().unwrap();
+        s.execute("edit.delete", &json!({"ids": [id]})).unwrap();
+        assert_eq!(items(&s), 0);
+        let (hash, version) = (s.state_hash().unwrap(), s.version().unwrap());
+        let labels = s.doc().unwrap().history_labels().0.to_vec();
+        let depth = s.kdm().unwrap().replica().undo_depth(UndoScope::Person);
+        let (scope, damage) = s.merge_changes(&changes, &agent).unwrap();
+        assert_eq!((scope, damage), (None, Damage::None), "no step");
+        assert_eq!(s.state_hash().unwrap(), hash, "the state is as it was");
+        assert_eq!(s.version().unwrap(), version, "no change was logged");
+        assert_eq!(s.kdm().unwrap().replica().undo_depth(UndoScope::Person), depth);
+        assert_eq!(s.doc().unwrap().history_labels().0, labels.as_slice(), "no Merge Draft label");
+        assert!(s.doc().unwrap().doc.hyperlinks.is_empty());
+        labels_in_step(&s);
+        let undone = s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(undone["undone"], json!(labels.last().unwrap()), "the next Undo is the person's delete");
+        assert_eq!(s.state_hash().unwrap(), with_frame, "and gives the frame back exactly");
+        assert_eq!(items(&s), 1);
+    }
+
+    /// A restore is one step of its origin's scope with its repair in it: one Undo gives back the
+    /// exact state before it, one Redo the exact restored state; the labels stay in step.
+    #[test]
+    fn a_restore_undoes_and_redoes_exactly() {
+        let mut s = session();
+        frame(&mut s, [10.0, 10.0, 60.0, 60.0]);
+        let checkpoint = s.snapshot().unwrap();
+        let restored = s.state_hash().unwrap();
+        frame(&mut s, [100.0, 10.0, 160.0, 60.0]);
+        let (before, view_before) = (s.state_hash().unwrap(), view(&s));
+        let (scope, _) = s.restore_state(&checkpoint, &local_person()).unwrap();
+        assert_eq!(scope, Some(UndoScope::Person));
+        assert_eq!(s.state_hash().unwrap(), restored);
+        assert_eq!(s.doc().unwrap().history_labels().0.last().map(String::as_str), Some("Restore Version"));
+        labels_in_step(&s);
+        let view_restored = view(&s);
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(s.state_hash().unwrap(), before);
+        assert_eq!(view(&s), view_before);
+        s.execute("edit.redo", &json!({})).unwrap();
+        assert_eq!(s.state_hash().unwrap(), restored);
+        assert_eq!(view(&s), view_restored);
+        labels_in_step(&s);
+        assert_eq!(s.restore_state(&checkpoint, &local_person()).unwrap(), (None, Damage::None), "the same state again records nothing");
+        labels_in_step(&s);
     }
 
     #[test]

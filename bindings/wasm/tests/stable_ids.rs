@@ -8,6 +8,7 @@
 
 use kition_kit::KitDocument;
 use kition_kit::session::model::{Exchange, ReplicaPort};
+use kition_layout_kdm::kition_kit::kdm::Origin;
 use kition_layout_kit::LayoutDocument;
 use serde_json::{Value, json};
 
@@ -152,4 +153,31 @@ fn two_imports_of_one_idml_file_answer_the_same_ids() {
         v.as_object_mut().unwrap().remove("title");
     }
     assert_eq!(got, want);
+}
+
+/// The person makes a frame while an agent's draft makes one: both engines mint the same next id.
+/// After the draft's merge (with the agent's origin, as Kition's editor passes it) the two frames
+/// have distinct ids, the person's keeps or gives up its id by a rule of the state alone, kept by
+/// saving and reopening.
+#[test]
+fn frames_made_in_a_draft_and_meanwhile_end_with_distinct_ids() {
+    let mut a = LayoutDocument::open("basic.klayout", BASIC).unwrap();
+    let base = a.version().unwrap();
+    let mut draft = LayoutDocument::open_with_replica("basic.klayout", &[], &a.snapshot().unwrap(), &a.blobs().unwrap()).unwrap();
+    let agent = Origin::agent("agent:b");
+    let mine = run(&mut a, "frame.add", json!({ "rect": [40, 600, 120, 680], "content": "unassigned" }))["id"].as_u64().unwrap();
+    let theirs =
+        draft.execute_as("frame.add", json!({ "rect": [300, 600, 380, 680], "content": "unassigned" }), &agent).unwrap()["id"].as_u64().unwrap();
+    assert_eq!(mine, theirs, "both engines mint the same id");
+    let answer = a.merge_changes(&draft.export_changes(&base).unwrap(), &agent).unwrap();
+    assert_eq!(answer["scope"], "person", "{answer}");
+    let ids = item_ids(&a);
+    let mut unique = ids.clone();
+    unique.sort_unstable();
+    unique.dedup();
+    assert_eq!(unique.len(), ids.len(), "no id twice: {ids:?}");
+    assert!(ids.contains(&mine));
+    let reopened = LayoutDocument::open("basic.klayout", &a.save(None).unwrap()).unwrap();
+    assert_eq!(item_ids(&reopened), ids);
+    assert_eq!(inspected(&reopened), inspected(&a));
 }

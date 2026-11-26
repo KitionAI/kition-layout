@@ -728,6 +728,62 @@ mod tests {
         d.check().unwrap();
     }
 
+    fn spread_ids(d: &Document) -> Vec<u64> {
+        d.spreads.iter().map(|s| s.id.0).collect()
+    }
+
+    fn page_ids(d: &Document) -> Vec<u64> {
+        d.spreads.iter().flat_map(|s| s.pages.iter().map(|p| p.id.0)).collect()
+    }
+
+    /// Re-laying the spreads out keeps the spreads it keeps under their ids (each takes the id of
+    /// the spread its first page was on), so a replica sees spreads moved rather than replaced and
+    /// a draft that moves a page merges with a page the person added meanwhile
+    /// (issue-concurrent-page-moves: every spread got a new id, and two people adding a page each
+    /// ended with every page twice). On single pages a moved page stays on its spread.
+    #[test]
+    fn a_moved_page_keeps_its_spread_and_its_id() {
+        let mut d = Document::new(&NewDocument { pages: 4, facing_pages: false, ..Default::default() });
+        let (spreads, pages) = (spread_ids(&d), page_ids(&d));
+        d.move_page(0, 3).unwrap();
+        assert_eq!(page_ids(&d), vec![pages[1], pages[2], pages[3], pages[0]]);
+        assert_eq!(spread_ids(&d), vec![spreads[1], spreads[2], spreads[3], spreads[0]], "each page on its spread, under its id");
+        d.move_page(3, 0).unwrap();
+        assert_eq!((spread_ids(&d), page_ids(&d)), (spreads, pages), "and back");
+        d.check().unwrap();
+    }
+
+    /// Adding a page keeps every spread under its id and adds one, on single and on facing pages
+    /// (where pages move between spreads); every page and object once (issue-concurrent-page-moves).
+    #[test]
+    fn an_inserted_page_keeps_every_spread_id_and_adds_one() {
+        for facing_pages in [false, true] {
+            let mut d = Document::new(&NewDocument { pages: if facing_pages { 3 } else { 4 }, facing_pages, ..Default::default() });
+            let lid = d.default_layer();
+            for (index, spread) in d.spreads.clone().iter().enumerate() {
+                let x = spread.pages[0].x;
+                let item = crate::Item::new(
+                    crate::ItemId(d.alloc()),
+                    lid,
+                    crate::Shape::Rectangle,
+                    crate::geom::shapes::rectangle(kition_layout_geom::Rect::new(x + 10.0, 10.0, x + 60.0, 50.0)),
+                );
+                d.insert_item(crate::SpreadRef::Doc(index), item, None).unwrap();
+            }
+            let items: usize = d.spreads.iter().map(|s| s.items.len()).sum();
+            let (spreads, pages) = (spread_ids(&d), page_ids(&d));
+            let added = d.insert_pages(Some(0), 1, None).unwrap();
+            let after = spread_ids(&d);
+            assert_eq!(after.len(), spreads.len() + 1, "one spread more (facing {facing_pages}): {spreads:?} -> {after:?}");
+            assert_eq!(after.iter().filter(|id| spreads.contains(id)).copied().collect::<Vec<_>>(), spreads, "every spread keeps its id, in order");
+            let mut want = pages.clone();
+            want.insert(1, added[0].0);
+            assert_eq!(page_ids(&d), want, "the new page after the first, every page once");
+            assert_eq!(d.spreads.iter().map(|s| s.items.len()).sum::<usize>(), items, "every object once");
+            d.check().unwrap();
+        }
+    }
+
     #[test]
     fn presets_and_parents() {
         let nd = NewDocument::from_preset("A4").unwrap();

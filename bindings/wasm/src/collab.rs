@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use kition_kit::KitDocument;
 use kition_layout_engine::Session;
-use kition_layout_kdm::kition_kit::kdm::{Origin, Version};
+use kition_layout_kdm::kition_kit::kdm::{Origin, UndoScope, Version};
 use kition_layout_kdm::kition_kit::session::{Damage, MemoryBlobs};
 use serde_json::{Value, json};
 
@@ -163,42 +163,47 @@ impl LayoutDocument {
     }
 
     /// Takes a draft's changes (from a replica on this one's line, an agent's draft) in as one
-    /// undo step of `origin`'s scope (`mergeChanges`, as `kition-sdk`'s `export_kit_session!`
-    /// answers it): the engine's layout follows, and one Undo takes the whole draft back. Add the
-    /// draft's blobs first. Answers `{"damage", "summary"}`, `summary` the `StateDiff` of the
-    /// replicated state before and after. A refused merge changes nothing.
+    /// undo step of the person (`mergeChanges`, as `kition-sdk`'s `export_kit_session!` answers
+    /// it), also under the agent's origin Kition's editor passes (KitModel M12a), with the
+    /// layout's repair in the same step: the engine's layout follows, and one Undo takes the
+    /// whole draft back to the exact state before. Add the draft's blobs first. Answers
+    /// `{"damage", "summary", "scope"}`: `summary` the `StateDiff` of what the merge and its repair
+    /// changed (read at the objects they wrote), `scope` the undo scope of the step (`"person"`,
+    /// or `null` when the draft, repaired, changes nothing and no step was recorded). A refused
+    /// merge changes nothing.
     pub fn merge_changes(&mut self, bytes: &[u8], origin: &Origin) -> Result<Value, String> {
-        let before = self.replicated_state()?;
-        let damage = self.session.merge_changes(bytes, origin).map_err(engine_error)?;
-        let after = self.replicated_state()?;
-        Ok(json!({ "damage": damage, "summary": kition_kit::kdm::diff::diff_states(&before, &after).to_json() }))
+        let since = self.session.version().map_err(engine_error)?;
+        let (scope, damage) = self.session.merge_changes(bytes, origin).map_err(engine_error)?;
+        let kdm = self.session.kdm().ok_or("the layout has no replica")?;
+        let summary = kdm.replica().diff_since(&since).map_err(engine_error)?;
+        Ok(json!({ "damage": damage, "summary": summary.to_json(), "scope": scope.map(UndoScope::as_str) }))
     }
 
-    /// What merging a draft's changes would change in the layout now, as `StateDiff` JSON;
-    /// nothing changes. Refuses what [`LayoutDocument::merge_changes`] refuses.
+    /// What merging a draft's changes would change in the layout now, the layout's repair
+    /// included as [`LayoutDocument::merge_changes`] runs it, as `StateDiff` JSON: what accepting
+    /// the draft gives. Nothing changes. Refuses what [`LayoutDocument::merge_changes`] refuses.
     pub fn compare_changes(&self, bytes: &[u8]) -> Result<Value, String> {
         let kdm = self.session.kdm().ok_or("the layout has no replica, so no draft of it")?;
-        let before = kdm.replica().state_json().map_err(engine_error)?;
-        let after = kdm.replica().merged_state(bytes).map_err(engine_error)?;
-        Ok(kition_kit::kdm::diff::diff_states(&before, &after).to_json())
+        Ok(kdm.compare_changes(bytes).map_err(engine_error)?.to_json())
     }
 
     /// Writes the state a snapshot holds (a checkpoint of this layout, the Kit UI protocol's
-    /// `replica/restore`) over the layout by object id, as one undo step of `origin`'s scope: the
-    /// engine's layout follows. Add the blobs it references first. Nothing changes when the
-    /// states are equal; another document's snapshot is refused.
+    /// `replica/restore`) over the layout by object id, with the layout's repair in it, as one
+    /// undo step of `origin`'s scope: the engine's layout follows. Add the blobs it references
+    /// first. Nothing changes when the states are equal; another document's snapshot is refused.
     pub fn restore_state(&mut self, snapshot: &[u8], origin: &Origin) -> Result<Damage, String> {
-        self.session.restore_state(snapshot, origin).map_err(engine_error)
+        self.session.restore_state(snapshot, origin).map(|(_, damage)| damage).map_err(engine_error)
     }
 
     /// An agent's reply (JSON text) with every object id it holds as a value or a key named as
     /// the tool interface names it (its tool id, KitObjectModel OM9); unchanged without a replica
-    /// or when the schema declares no tool ids. The layout keeps its own ids.
+    /// or when the schema declares no tool ids. The layout keeps its own ids. The editor sends
+    /// every `ai/inspect`, `document/check` and `ai/run` reply through it, so the tool ids are read
+    /// only at the objects the reply names (`ToolIds::show_reply`), never for the whole layout.
     pub fn model_reply(&self, value: &str) -> Result<String, String> {
         let value: Value = serde_json::from_str(value).map_err(|error| format!("the reply is not JSON: {error}"))?;
         let Some(kdm) = self.session.kdm() else { return Ok(value.to_string()) };
-        let ids = kition_kit::kdm::tool_ids::ToolIds::of_replica(kdm.replica());
-        Ok(if ids.is_active() { ids.show_json(&value) } else { value }.to_string())
+        Ok(kition_kit::kdm::tool_ids::ToolIds::show_reply(kdm.replica(), &value).to_string())
     }
 
     /// What changed since the version `since` (empty bytes: since the replica began), a receipt
@@ -388,9 +393,12 @@ mod tests {
         assert_eq!(c.doc_id(), a.doc_id());
     }
 
-    /// A draft (a replica on the layout's line) merges in as one step of the person's Undo: the
-    /// comparison beforehand names what the merge does and changes nothing, the engine's layout
-    /// follows the merge, an edit made here meanwhile stays, and a refused merge changes nothing.
+    /// A draft (a replica on the layout's line, an agent's) merges in as one step of the person's
+    /// Undo, also under the agent's origin Kition's editor passes (KitModel M12a): the comparison
+    /// beforehand names what the merge does and changes nothing, the engine's layout follows the
+    /// merge, the edits made here meanwhile (a retitle and a frame beside the draft's, in the same
+    /// items tree) stay, one Undo gives back the exact state before the merge and one Redo the exact
+    /// merged state, and a refused merge changes nothing.
     #[test]
     fn a_draft_merges_in_as_one_undo_step_and_the_layout_follows() {
         let mut doc = LayoutDocument::open("Flyer.klayout", &fixture()).unwrap();
@@ -399,19 +407,27 @@ mod tests {
         frame(&mut draft, 400);
         let changes = draft.export_changes(&base).unwrap();
         doc.model_batch(&json!({ "ops": [{ "op": "set", "target": "layout", "field": "title", "value": "Meanwhile" }] })).unwrap();
+        frame(&mut doc, 100);
         let before = items(&doc);
+        let state_before = doc.replicated_state().unwrap();
         let version = doc.version().unwrap();
         let preview = doc.compare_changes(&changes).unwrap();
         assert_eq!(doc.version().unwrap(), version, "comparing changes nothing");
-        let origin = Origin::person("person:local");
+        let origin = Origin::agent("agent:helper");
         let answer = doc.merge_changes(&changes, &origin).unwrap();
         assert_eq!(answer["summary"], preview, "the comparison named what the merge did: {answer}");
+        assert_eq!(answer["scope"], "person", "the person's step, under the agent's origin: {answer}");
         assert_ne!(answer["damage"], json!("none"), "{answer}");
         assert_eq!(items(&doc), before + 1, "the engine's layout follows the merge");
         assert_eq!(doc.session.doc().unwrap().doc.title, "Meanwhile", "the edit made here stays");
         assert!(doc.dirty());
+        let merged = doc.replicated_state().unwrap();
         assert!(doc.undo().unwrap().0);
         assert_eq!(items(&doc), before, "one undo takes the whole draft back");
+        assert_eq!(doc.replicated_state().unwrap(), state_before, "to the exact state before the merge");
+        assert_eq!(doc.session.doc().unwrap().doc.title, "Meanwhile", "the person's edits stay");
+        assert!(doc.redo().unwrap().0);
+        assert_eq!(doc.replicated_state().unwrap(), merged, "one redo: the exact merged state");
         let at = doc.version().unwrap();
         assert!(doc.merge_changes(b"not changes", &origin).is_err());
         assert_eq!(doc.version().unwrap(), at, "a refused merge changes nothing");
@@ -427,6 +443,7 @@ mod tests {
         let before = items(&doc);
         frame(&mut doc, 300);
         assert_eq!(items(&doc), before + 1);
+        let edited = doc.replicated_state().unwrap();
         let origin = Origin::person("person:local");
         let damage = doc.restore_state(&checkpoint, &origin).unwrap();
         assert_ne!(damage, Damage::None);
@@ -436,8 +453,12 @@ mod tests {
         let at = doc.version().unwrap();
         assert_eq!(doc.restore_state(&checkpoint, &origin).unwrap(), Damage::None, "the same state again changes nothing");
         assert_eq!(doc.version().unwrap(), at);
+        let restored = doc.replicated_state().unwrap();
         assert!(doc.undo().unwrap().0);
         assert_eq!(items(&doc), before + 1, "one undo takes the restore back");
+        assert_eq!(doc.replicated_state().unwrap(), edited, "to the exact state before the restore");
+        assert!(doc.redo().unwrap().0);
+        assert_eq!(doc.replicated_state().unwrap(), restored, "one redo: the exact restored state");
         let other = LayoutDocument::create("Other.klayout", 612, 792).unwrap().snapshot().unwrap();
         assert!(doc.restore_state(&other, &origin).is_err(), "another document's state is refused");
     }
@@ -459,6 +480,35 @@ mod tests {
         assert!(shown["target"].as_str().is_some_and(|id| id != item), "{shown}");
         assert_eq!(shown["note"], json!(format!("about {item}")), "text that holds an id stays");
         assert!(doc.model_reply("not json").is_err());
+    }
+
+    /// `modelReply` reads the tool ids of the objects a reply names alone (the editor sends every
+    /// `ai/inspect`, `document/check` and `ai/run` reply through it): in a layout of many objects, a
+    /// reply naming one gives the ids the whole layout's tool ids give, and a reply naming none
+    /// comes back as it was.
+    #[test]
+    fn a_reply_reads_only_the_objects_it_names() {
+        let mut doc = LayoutDocument::open("Flyer.klayout", &fixture()).unwrap();
+        for x in 0..40 {
+            frame(&mut doc, 10 * x);
+        }
+        let state = doc.replicated_state().unwrap();
+        let item = state["objects"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .filter(|(_, object)| object["$type"] == "Item")
+            .map(|(id, _)| id.clone())
+            .last()
+            .unwrap_or_else(|| panic!("an item object: {state}"));
+        let reply = json!({ "target": item, "items": [{ "id": item, "note": "one of many" }] });
+        let shown: Value = serde_json::from_str(&doc.model_reply(&reply.to_string()).unwrap()).unwrap();
+        let replica = doc.session.kdm().unwrap().replica();
+        let whole = kition_kit::kdm::tool_ids::ToolIds::of_replica(replica);
+        assert_eq!(shown, whole.show_reply_json(&reply), "the ids the whole layout's tool ids give");
+        assert!(shown["target"].as_str().is_some_and(|id| id != item), "{shown}");
+        let none = json!({ "pages": 2, "note": "no object here", "items": [] }).to_string();
+        assert_eq!(doc.model_reply(&none).unwrap(), none, "a reply naming no object comes back as it was");
     }
 
     /// A receipt names what changed since a version; a version the log does not hold is

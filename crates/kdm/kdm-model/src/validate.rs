@@ -1,8 +1,8 @@
-//! Deterministic repair after a merge, an undo or a redo (design note section 2.6, rules V1–V10
-//! and V12; [`kition_kit::session::KitModel::validate`]). Every rule depends only on the state,
-//! never on arrival order or actor, so every replica writes the same repair for the same merged
-//! state. A repair never inserts content (characters, pages, frames): two replicas inserting
-//! would duplicate it; it only drops, clamps or clears.
+//! Deterministic repair of a draft's merge and a restore (inside their one change and undo step),
+//! and after an import, an undo or a redo (design note section 2.6, rules V1–V10, V12 and V13;
+//! [`kition_kit::session::KitModel::validate`], [`crate::repair::repair_in`]). Every rule depends
+//! only on the state, never on the order the changes came in or their actor. A repair never
+//! inserts content (characters, pages, frames); it only drops, clamps or clears.
 //!
 //! - V1: list entries naming no live object are dropped (a page's `overridden` items too).
 //! - V2: a top-level item on no live spread that no `Inline` names is deleted with its subtree
@@ -11,8 +11,7 @@
 //!   by (list owner id, position).
 //! - V4: a frame in two stories' `frames` stays in the story whose id sorts first.
 //! - V5: a story with no live frame, that no setting names, is deleted.
-//! - V6 (an `Inline` or `Table` no character marks) needs the text marks, which a transaction
-//!   cannot read: see [`crate::repair`].
+//! - V6 (an `Inline` or `Table` no character marks) reads the text marks: see [`crate::repair`].
 //! - V7: a reference to a deleted object: an item's object style, a table's or cell's style →
 //!   the family's first style; an item's layer, a guide's layer → the first layer; a page's
 //!   parent, a spread's `basedOn`, a style's `basedOn`/`next` → none; a swatch `{ref, name}` →

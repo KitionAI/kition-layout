@@ -582,8 +582,9 @@ impl<'w, 'tx> Writer<'w, 'tx> {
             }
         }
 
-        // The ids the view gave objects that do not store them (two objects made concurrently
-        // under one number): an edit stores them, so they last.
+        // The ids the view gave objects that do not store them (a state read without the
+        // session's repair, `KitModel::load`: objects storing no number, or one another keeps):
+        // an edit stores them, so they last.
         if self.wrote {
             for (object, number) in std::mem::take(&mut self.ids.unstored) {
                 if self.tx.exists(&object) {

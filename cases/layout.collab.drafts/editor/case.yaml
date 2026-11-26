@@ -1,0 +1,26 @@
+format: 1
+id: layout.collab.drafts/editor
+feature: layout.collab.drafts
+intent: >-
+  In the editor under the development host: an agent's draft adds a frame, the person adds a page
+  meanwhile, the person accepts the draft (the host passes the agent's origin) and both are there;
+  one Undo of the person takes the whole draft back and keeps the page. A checkpoint of the saved
+  layout restored over a later page gives back the checkpoint's pages, and one Undo takes the
+  restore back.
+layer: gate
+source:
+  kind: synthetic
+  from: web/tests/drafts.mjs
+  license: Apache-2.0
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/drafts.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 60
+since: "2026-11-26"

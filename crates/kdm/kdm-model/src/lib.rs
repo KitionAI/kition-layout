@@ -32,12 +32,13 @@
 //! id it names; swatch names as `{"ref", "name"}`.
 //!
 //! **Repair.** [`KitModel::validate`] applies the rules V1–V10, V12 and V13 of section 2.6 in a
-//! transaction; V6 needs the replica's text marks, which a transaction cannot read, so
-//! [`repair::read_repairs`] finds those and [`repair::apply`] writes them; V11 (a story text not
-//! ending with `\n`) is refused at read. Then [`repair::store_numbers`] numbers the objects that
-//! store none. Two objects storing one number (created concurrently) are told apart by every read:
-//! the one with the smaller object id keeps it, the other gets a fresh one, which the next write
-//! stores.
+//! transaction; [`repair::repair_in`] adds V6 (the text marks, which a transaction reads with its
+//! own writes: [`repair::read_repairs`] finds them, [`repair::apply`] writes them) and the engine
+//! ids ([`repair::store_numbers`]): the objects that store none, and of two objects storing one
+//! number (an agent's draft and the person each made one, merged) the one with the larger object
+//! id, which every read already gives a fresh one. It runs inside a draft's merge, its preview and
+//! a restore, so it is part of that one undo step. V11 (a story text not ending with `\n`) is
+//! refused at read.
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
@@ -53,6 +54,7 @@ mod read;
 mod refs;
 pub mod repair;
 pub mod session;
+mod state;
 mod text;
 mod validate;
 mod write;

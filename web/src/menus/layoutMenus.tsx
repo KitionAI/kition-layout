@@ -118,14 +118,15 @@ const CATCH_UP = ['edit.undo', 'edit.redo']
  * phase 10: Redo pressed right after Undo did nothing). kit-editor runs a key with Cmd or Ctrl only
  * when its last report of the engine says the command can run, and that report comes after the
  * command before it has finished: right after Undo it still says there is nothing to redo. Asked
- * now, the engine answers after the Undo (it runs requests in order), so the Redo runs. Taken
- * (true) whenever the report says no; nothing runs when the engine says no too.
+ * now, in the input's order (kit-editor's `runWhenEnabled`: kit-editor asks this itself only for a
+ * shortcut without Cmd or Ctrl), the engine answers after the Undo, so the Redo runs. Taken (true)
+ * whenever the report says no; nothing runs when the engine says no too.
  */
-export function catchUpKey(event: KeyboardEvent<HTMLDivElement>, { commands, enabled, enabledNow, run }: { commands: readonly KitCommand[]; enabled: (id: string) => boolean; enabledNow: (id: string) => Promise<boolean>; run: (id: string, params?: Record<string, unknown>) => Promise<unknown> }): boolean {
+export function catchUpKey(event: KeyboardEvent<HTMLDivElement>, { commands, enabled, runWhenEnabled }: { commands: readonly KitCommand[]; enabled: (id: string) => boolean; runWhenEnabled: (id: string) => Promise<unknown> }): boolean {
   if (!(event.metaKey || event.ctrlKey) || event.altKey) return false
   const command = commands.find((c) => CATCH_UP.includes(c.id) && c.shortcut && shortcutMatches(c.shortcut, event, undefined, true))
   if (!command || enabled(command.id)) return false
-  void enabledNow(command.id).then((now) => (now ? run(command.id, {}) : null))
+  void runWhenEnabled(command.id)
   return true
 }
 

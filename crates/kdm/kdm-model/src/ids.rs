@@ -5,8 +5,9 @@
 //! read-only `number` field and every read gives it that id ([`Minter`]). The writer sets the
 //! number when it creates the object; an object that stores none (one a script made through the
 //! object model, or one of a file written before the numbers were stored) gets one from the
-//! session's repair; two objects storing one number (made concurrently on two replicas) are told
-//! apart by every read alike, and the next write stores the new number ([`Ids::unstored`]).
+//! session's repair; two objects storing one number (an agent's draft and the person each made one
+//! while the draft was open, then the draft merged) are told apart by every read alike, and the
+//! repair inside the merge stores the new number ([`crate::repair::repair_in`]).
 //! [`Ids`] maps the ids a view holds to their objects; [`Known`] keeps the document's id counter
 //! above every id a view handed out.
 //!
@@ -303,14 +304,14 @@ pub(crate) fn stored_number(value: &serde_json::Value) -> Option<u64> {
 /// stores (design note section 2.5):
 ///
 /// 1. an object keeps the number it stores, unless another object of its domain stores it too:
-///    then the one with the smallest object id keeps it (two replicas that created objects
-///    concurrently minted one number);
+///    then the one with the smallest object id keeps it (an agent's draft and the person created
+///    objects meanwhile and minted one number);
 /// 2. every other object (one that stores no number, or lost its number so) gets a fresh one, in
 ///    reading order, above every number stored in the counted domains.
 ///
-/// The result depends on the replica's state alone, so every replica holding one state gives each
-/// object the same id, whatever order the changes arrived in. A replica written before the numbers
-/// were stored has none: its objects number in reading order from 1, as they always did.
+/// The result depends on the state alone, so every read of one state gives each object the same
+/// id. A replica written before the numbers were stored has none: its objects number in reading
+/// order from 1, as they always did.
 pub(crate) struct Minter {
     keep: HashMap<ObjectId, u64>,
     taken: HashSet<(Domain, u64)>,

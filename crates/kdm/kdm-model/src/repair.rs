@@ -1,5 +1,6 @@
 //! The read repair (design note section 2.6, rule V6): what validation needs a story's text marks
-//! for, which a transaction cannot read. [`read_repairs`] reads the replica and lists
+//! for. [`read_repairs`] reads a replica or a transaction (which reads its own writes, text and
+//! marks included) and lists
 //!
 //! - `Inline` and `Table` objects a story lists that no character of its text marks (the anchor
 //!   character was deleted): they are deleted;
@@ -10,17 +11,19 @@
 //! - `Hyperlink` and `Placeholder` objects that start from no item and that no character of a
 //!   story marks (their text was deleted): they are deleted;
 //!
-//! and [`apply`] writes them in one `system` transaction (not an undo step), after an import,
-//! undo or redo and when a replica opens. Both are deterministic and idempotent (deleting an
-//! object or a character twice is the same as once), so replicas repairing the same state at once
-//! converge.
+//! and [`apply`] writes them. [`repair_in`] runs every repair of the session in one transaction:
+//! inside a draft's merge or a restore (their one change and undo step, data model 6.6 D9), and as
+//! a `system` transaction (not an undo step) after an import, undo or redo and when a replica
+//! opens. Both are deterministic and idempotent (deleting an object or a character twice is the
+//! same as once).
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use kition_kit::kdm::{ObjectId, Replica, Tx};
 use serde_json::Value;
 
 use crate::marks::{INLINE, RANGE_MARKS, TABLE, VARIABLE};
+use crate::state::State;
 use crate::validate::delete_table;
 use crate::{KdmResult, root_id};
 
@@ -78,7 +81,7 @@ impl Repairs {
 
 /// The indexes of the characters of `object`'s text that are variable instances naming a variable
 /// that is gone.
-fn gone_variables(replica: &Replica, object: &ObjectId) -> KdmResult<Vec<usize>> {
+fn gone_variables<S: State + ?Sized>(replica: &S, object: &ObjectId) -> KdmResult<Vec<usize>> {
     let mut out = Vec::new();
     let mut index = 0usize;
     for run in replica.text_delta(object, "text")? {
@@ -95,6 +98,28 @@ fn gone_variables(replica: &Replica, object: &ObjectId) -> KdmResult<Vec<usize>>
 
 /// Finds the V6 repairs of `replica`.
 pub fn read_repairs(replica: &Replica) -> KdmResult<Repairs> {
+    find_repairs(replica)
+}
+
+/// Every repair of the session, in the transaction `tx` (which reads its own writes): the
+/// validation rules ([`crate::validate::validate`], V1–V10, V12, V13), the tool addresses, the read
+/// repair (V6, [`read_repairs`]), then the engine ids of the objects that store none or one another
+/// object keeps ([`store_numbers`]). The repair of a draft's merge
+/// (`Replica::merge_changes_repaired`), of its preview and of a restore, so its writes are part of
+/// that one change and undo step.
+pub fn repair_in(tx: &mut Tx<'_>) -> KdmResult<()> {
+    let everything = BTreeSet::new();
+    crate::validate::validate(tx, &everything)?;
+    store_addresses(tx)?;
+    let repairs = find_repairs(&*tx)?;
+    apply(tx, &repairs)?;
+    let numbers = crate::read::number_repairs(&*tx)?;
+    store_numbers(tx, &numbers)?;
+    Ok(())
+}
+
+/// [`read_repairs`] of a replica or a transaction.
+fn find_repairs<S: State + ?Sized>(replica: &S) -> KdmResult<Repairs> {
     let mut out = Repairs::default();
     let root = root_id();
     if !replica.exists(&root) {
