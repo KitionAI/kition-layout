@@ -68,7 +68,7 @@ export const NARROW_DOCK: DockSpec = {
     {
       width: 288,
       groups: [
-        { group: 'properties', tabs: [{ id: 'properties', label: 'Properties' }], basis: 160, min: 130, grow: 1 },
+        { group: 'properties', tabs: [{ id: 'properties', label: 'Properties' }], basis: 160, min: 150, grow: 1 },
         {
           group: 'pages-layers',
           tabs: [
