@@ -751,13 +751,12 @@ const SECTIONS = {
       await agent(Array.from({ length: 20 }, (_, i) => ({ command: 'frame.add', params: { spread: 0, rect: [40 + i * 8, 600, 70 + i * 8, 630], content: 'unassigned' } })))
       await agent(Array.from({ length: 8 }, (_, i) => ({ command: 'style.paragraph.add', params: { name: `Body ${i + 1}` } })))
       await until(async () => (await details()).paragraphStyles.length >= 10)
-      /** Rows of the group showing `tab` wholly in view (inside its body and the dock), the group brought into view as a person scrolls the column. */
+      /** Rows of the group showing `tab` wholly in view (inside its body and the dock), with no scrolling of the dock (phase 12). */
       const rowsInView = async (tab) => {
         await kit.getByTestId(`layout-dock-tab-${tab}`).click()
         await page.waitForTimeout(300)
         return kit.getByTestId(`layout-dock-tab-${tab}`).evaluate((button) => {
           const group = button.closest('.kui-dock-group')
-          group.scrollIntoView({ block: 'nearest' })
           const body = group.querySelector('.kui-dock-body')?.getBoundingClientRect()
           const dock = group.closest('.kui-dock').getBoundingClientRect()
           if (!body) return { rows: 0, body: 0 }
@@ -791,6 +790,300 @@ const SECTIONS = {
       await kit.getByTestId('layout-dock-tab-swatches').dblclick()
       step('a double-click on its tab expands it again', await until(async () => (await collapsed()) === 'false'), await collapsed())
       step('dock: no page errors', w.errors.length === 0, w.errors.join(' | '))
+    } finally {
+      await w.context.close()
+    }
+  },
+
+
+  /**
+   * Phase 12, 7. A triple click selects the line however the presses before it went: a press the
+   * engine never got (an Alt-drag pan, a press with Space held, a press on a guide) left its count
+   * waiting, so the next triple click's presses took the counts one place late and selected a word.
+   */
+  async tripleClick() {
+    const w = await opened()
+    const { page, kit, until, details, tool } = w
+    try {
+      const picked = async () => { const t = (await details()).selection.text; return t ? Math.abs(t.focus - t.anchor) : -1 }
+      const a = await w.toScreen(150, 187)
+      const triple = async () => {
+        await kit.locator('.kui-app').focus()
+        await page.keyboard.press('t')
+        await until(async () => (await tool()) === 'type', 30)
+        await page.mouse.click(a.x, a.y, { clickCount: 3, delay: 0 })
+        await page.waitForTimeout(400)
+        await until(async () => (await picked()) > 0, 30)
+        const n = await picked()
+        await page.keyboard.press('Escape')
+        await until(async () => (await details()).selection.text == null, 30)
+        await page.waitForTimeout(600)
+        return n
+      }
+      const line = await triple()
+      step('a triple click selects a line', line > 15, `${line} characters`)
+      const off = { x: w.region.x + 30, y: w.region.y + w.region.height - 30 }
+      const leaks = [
+        ['an Alt-press on the canvas (it pans)', async () => {
+          await page.keyboard.down('Alt')
+          await page.mouse.click(off.x, off.y)
+          await page.keyboard.up('Alt')
+        }],
+        ['a press with Space held (the hand)', async () => {
+          await page.keyboard.down('Space')
+          await page.mouse.click(off.x, off.y)
+          await page.keyboard.up('Space')
+        }],
+      ]
+      for (const [name, leak] of leaks) {
+        await kit.locator('.kui-app').focus()
+        await page.keyboard.press('v')
+        await until(async () => (await tool()) === 'selection', 30)
+        await leak()
+        const n = await triple()
+        step(`after ${name}, a triple click still selects the line`, n === line, `${n} characters (a line is ${line})`)
+      }
+      step('tripleClick: no page errors', w.errors.length === 0, w.errors.join(' | '))
+    } finally {
+      await w.context.close()
+    }
+  },
+
+
+  /**
+   * Phase 12, 4 and 8. Cmd+Alt+3 shows what Cmd+3 hid (it belonged to Transform Again too); Margins
+   * and Columns names a parent's page as a parent page while parents are edited; a CMYK gradient
+   * stop's chip is the colour the page shows; Object Style Options makes no React key error; the
+   * Ask button is in Chinese.
+   */
+  async walk2Small() {
+    const w = await opened()
+    const { page, kit, until, details, agent, one, tool, menu, itemOf } = w
+    const consoleErrors = []
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text())
+    })
+    try {
+      // 4. Select a rectangle by clicking it, Cmd+3 hides it, Cmd+Alt+3 shows it again.
+      const id = (await one('frame.add', { spread: 0, rect: [400, 600, 480, 680], content: 'graphic' })).id
+      await kit.locator('.kui-app').focus()
+      await page.keyboard.press('v')
+      await until(async () => (await tool()) === 'selection', 30)
+      const on = await w.toScreen(440, 640)
+      await page.mouse.click(on.x, on.y)
+      await until(async () => (await details()).selection.items?.includes(id), 30)
+      await page.keyboard.press(`${MOD}+3`)
+      step('Cmd+3 hides the selection', await until(async () => (await itemOf(id))?.hidden === true, 30), JSON.stringify(await itemOf(id)))
+      await page.keyboard.press(`${MOD}+Alt+3`)
+      step('Cmd+Alt+3 shows everything on the spread again', await until(async () => (await itemOf(id))?.hidden === false, 30), JSON.stringify(await itemOf(id)))
+      // 8b. A gradient from CMYK cyan to red: its chip starts with the colour the page shows.
+      await agent([{ command: 'swatch.add', params: { name: 'Sea', gradient: { kind: 'linear', stops: [{ location: 0, color: { c: 100, m: 0, y: 0, k: 0 } }, { location: 100, color: '#ff0000' }] } } }])
+      const shown = (await page.evaluate(async () => (await window.devHost.connection().ai.inspect()).details?.colors?.Sea))?.gradient?.stops?.[0]?.hex
+      const chip = kit.getByTestId('layout-swatch-Sea')
+      await until(async () => (await chip.count()) === 1)
+      const background = await chip.evaluate((element) => {
+        const swatch = element.querySelector('[style*="gradient"]') ?? element
+        return getComputedStyle(swatch).backgroundImage
+      })
+      const rgb = shown ? `rgb(${parseInt(shown.slice(1, 3), 16)}, ${parseInt(shown.slice(3, 5), 16)}, ${parseInt(shown.slice(5, 7), 16)})` : 'none'
+      step('a CMYK gradient stop\'s chip is the colour the page shows', Boolean(shown) && background.includes(rgb) && !background.includes('rgb(0, 255, 255)'), `${background} (page ${shown})`)
+      // 8d. Object Style Options: no React key error.
+      await kit.getByTestId('layout-dock-tab-styles').click()
+      const row = kit.locator('[data-testid^="layout-object-style-["]').first()
+      await until(async () => (await row.count()) === 1)
+      await row.dblclick()
+      await until(async () => (await kit.getByTestId('layout-object-style-options').count()) === 1)
+      await page.waitForTimeout(400)
+      step('Object Style Options makes no React key error', !consoleErrors.some((text) => /unique "key"/.test(text)), consoleErrors.join(' | ').slice(0, 300))
+      await page.keyboard.press('Escape')
+      await until(async () => (await kit.getByTestId('layout-object-style-options').count()) === 0, 30)
+      // 8c. Editing parents (a double-click on A-Parent's chip), Margins and Columns names the page as a parent page.
+      await kit.getByTestId('layout-dock-tab-pages').click()
+      await kit.getByTestId('layout-parent-A-Parent').dblclick()
+      await until(async () => (await kit.getByTestId('layout-editing-parents').count()) === 1)
+      await menu('Layout', 'layout-cmd-layout.marginsAndColumns')
+      const scope = kit.getByTestId('layout-margins-scope').locator('option')
+      await until(async () => (await scope.count()) === 2)
+      const labels = await scope.allTextContents()
+      step('Margins and Columns names a parent page as one while parents are edited', labels.some((text) => text.startsWith('父页面 A')) && !labels.some((text) => text.startsWith('第 A')), JSON.stringify(labels))
+      await page.keyboard.press('Escape')
+      // 8e. The Ask button is all Chinese.
+      const words = await kit.locator('.kui-app').evaluate((root) => [...root.querySelectorAll('[aria-label], button')].map((element) => `${element.getAttribute('aria-label') ?? ''} ${element.textContent ?? ''}`).join(' '))
+      step('no "询问 Agent" in the editor', !words.includes('询问 Agent'), words.includes('询问智能体') ? 'shows 询问智能体' : 'no ask control in this host')
+      step('walk2Small: no page errors', w.errors.length === 0, w.errors.join(' | '))
+    } finally {
+      await w.context.close()
+    }
+  },
+
+  /**
+   * Phase 12, 1. What a person sees on first view, the dock not scrolled: at 1440 × 900 a whole
+   * spread thumbnail with its page numbers in Pages and at least six rows in Layers, Swatches and
+   * Styles, the dock itself not scrolling; a collapsed group's room goes to the others; the divider
+   * under Pages moves room between it and Layers and is remembered; at 1024 × 700 every group has
+   * room (Properties at least 150 pixels, a whole thumbnail, five rows of a list).
+   */
+  async firstView() {
+    /** What is on screen now: per group its body, the rows wholly inside it and the window, and whether a column scrolls. */
+    const seen = (kit) =>
+      kit.locator('.kui-app').evaluate(() => {
+        const inside = (box, outer) => box.height > 0 && box.top >= outer.top - 1 && box.bottom <= outer.bottom + 1 && box.left >= outer.left - 1 && box.right <= outer.right + 1
+        const screen = { top: 0, left: 0, bottom: window.innerHeight, right: window.innerWidth }
+        const columns = [...document.querySelectorAll('.kui-dock')].map((dock) => dock.scrollHeight > dock.clientHeight + 1)
+        const groups = [...document.querySelectorAll('.kui-dock-group')].map((group) => {
+          const tab = group.querySelector('[aria-selected="true"]')?.getAttribute('data-testid')?.replace('layout-dock-tab-', '') ?? ''
+          const body = group.querySelector('.kui-dock-body')?.getBoundingClientRect()
+          const visible = (element) => {
+            const box = element.getBoundingClientRect()
+            return Boolean(body) && inside(box, body) && inside(box, screen)
+          }
+          const rows = [...group.querySelectorAll('.kui-dock-body .layout-row, .kui-dock-body .layout-list-item')].filter(visible).length
+          // A spread shown whole: its thumbnail and every page number under it, inside the spreads' area too.
+          const area = group.querySelector('[data-testid="layout-spreads-area"]')?.getBoundingClientRect()
+          const spreads = [...group.querySelectorAll('.layout-spread-cell')].filter((cell) => {
+            const parts = [cell.querySelector('.layout-thumb'), ...cell.querySelectorAll('.layout-page-name')]
+            return parts.every((part) => part && visible(part) && (!area || inside(part.getBoundingClientRect(), area)))
+          }).length
+          return { tab, collapsed: group.getAttribute('data-collapsed') === 'true', body: Math.round(body?.height ?? 0), rows, spreads }
+        })
+        return { columns, groups }
+      })
+    const of = (view, tab) => view.groups.find((group) => group.tab === tab)
+    const w = await opened()
+    const { page, kit, until, details, agent } = w
+    try {
+      await agent(Array.from({ length: 20 }, (_, i) => ({ command: 'frame.add', params: { spread: 0, rect: [40 + i * 8, 600, 70 + i * 8, 630], content: 'unassigned' } })))
+      await agent(Array.from({ length: 8 }, (_, i) => ({ command: 'style.paragraph.add', params: { name: `Body ${i + 1}` } })))
+      await until(async () => (await details()).paragraphStyles.length >= 10)
+      await page.waitForTimeout(900)
+      const first = await seen(kit)
+      const detail = JSON.stringify(first)
+      step('at 1440 × 900 no dock column scrolls', first.columns.length > 0 && first.columns.every((scrolls) => !scrolls), detail)
+      step('… Pages shows a whole spread thumbnail with its page numbers', (of(first, 'pages')?.spreads ?? 0) >= 1, detail)
+      for (const tab of ['layers', 'swatches', 'styles']) step(`… ${tab} shows at least six rows`, (of(first, tab)?.rows ?? 0) >= 6, detail)
+      step('… Properties has room (at least 300 pixels)', (of(first, 'properties')?.body ?? 0) >= 300, detail)
+      // Swatches collapsed: Pages and Layers (its column) both get taller.
+      await kit.getByTestId('layout-dock-collapse-swatches-group').click()
+      await page.waitForTimeout(400)
+      const folded = await seen(kit)
+      step('a collapsed group gives its room to the others in its column', of(folded, 'pages').body > of(first, 'pages').body + 20 && of(folded, 'layers').body > of(first, 'layers').body + 20, JSON.stringify(folded))
+      await kit.getByTestId('layout-dock-collapse-swatches-group').click()
+      await page.waitForTimeout(400)
+      // The divider under Pages, dragged 40 pixels down: Pages gains what Layers gives.
+      const handle = await kit.getByTestId('layout-dock-handle-pages-group').boundingBox()
+      const before = await seen(kit)
+      await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2 + 40, { steps: 6 })
+      await page.mouse.up()
+      await page.waitForTimeout(300)
+      const dragged = await seen(kit)
+      const grew = of(dragged, 'pages').body - of(before, 'pages').body
+      const gave = of(before, 'layers').body - of(dragged, 'layers').body
+      step('the divider under Pages moves room from Layers to Pages', Math.abs(grew - 40) <= 4 && Math.abs(gave - 40) <= 4, `pages +${grew}, layers -${gave}`)
+      await page.reload()
+      await page.waitForFunction(() => document.getElementById('status')?.textContent?.includes(' open in '), null, { timeout: 60000 })
+      await page.waitForTimeout(800)
+      const again = await seen(kit)
+      step('… and the dock remembers it after a reload', Math.abs(of(again, 'pages').body - of(dragged, 'pages').body) <= 2, `${of(again, 'pages').body} vs ${of(dragged, 'pages').body}`)
+      step('firstView: no page errors', w.errors.length === 0, w.errors.join(' | '))
+    } finally {
+      await w.context.close()
+    }
+    const small = await opened({ width: 1024, height: 700 })
+    try {
+      const view = await seen(small.kit)
+      const detail = JSON.stringify(view)
+      step('at 1024 × 700 the dock does not scroll', view.columns.every((scrolls) => !scrolls), detail)
+      step('… Properties has at least 150 pixels', (of(view, 'properties')?.body ?? 0) >= 150, detail)
+      step('… Layers and Swatches show at least five rows', (of(view, 'layers')?.rows ?? 0) >= 5 && (of(view, 'swatches')?.rows ?? 0) >= 5, detail)
+      await small.kit.getByTestId('layout-dock-tab-pages').click()
+      await small.page.waitForTimeout(500)
+      const pages = await seen(small.kit)
+      step('… Pages shows a whole spread thumbnail with its page numbers', (of(pages, 'pages')?.spreads ?? 0) >= 1, JSON.stringify(pages))
+    } finally {
+      await small.context.close()
+    }
+  },
+
+  /**
+   * Phase 12, 2. The keyboard's last three homeless moments: (a) after the host opens a file while
+   * its own control (its workspace list) had focus, a tool key works with no click; (b) Preflight,
+   * Check Spelling and Find/Change opened from the menu close with Esc at once (focus was left on
+   * the menu bar's button); (c) in a table cell, Esc selects the cell and the next V chooses the
+   * Selection tool without typing into the cell, and Esc twice goes back to the cell's text.
+   */
+  async keyboardHome() {
+    const w = await opened()
+    const { page, kit, until, details, menu, tool, one } = w
+    try {
+      // (a) The host's own control has focus when it opens a file.
+      await page.locator('[data-dev-host-workspace] summary').click()
+      await page.locator('[data-dev-host-workspace] summary').click()
+      await page.locator('#file').setInputFiles(new URL('../public/sample/Sample.klayout', import.meta.url).pathname)
+      await page.waitForFunction(() => / open in /.test(document.getElementById('status')?.textContent ?? ''), null, { timeout: 60000 })
+      await page.waitForTimeout(1200)
+      await page.keyboard.press('t')
+      step('after the host opens a file, a tool key works with no click', await until(async () => (await tool()) === 'type', 30), await tool())
+      await page.keyboard.press('v')
+      await until(async () => (await tool()) === 'selection', 30)
+      // (b) Modeless windows opened from the menu close with Esc.
+      const windows = [
+        ['Preflight', 'layout-preflight', () => menu('File', 'layout-cmd-preflight.run')],
+        ['Check Spelling', 'layout-spelling', () => menu('Edit', 'sub:拼写检查', 'layout-cmd-spelling.check')],
+        ['Find/Change', 'layout-find-dialog', () => menu('Edit', 'layout-cmd-edit.find')],
+      ]
+      for (const [name, testId, show] of windows) {
+        await show()
+        const shown = await until(async () => (await kit.getByTestId(testId).count()) === 1)
+        await page.waitForTimeout(300)
+        await page.keyboard.press('Escape')
+        step(`${name} opened from the menu closes with Esc at once`, shown && (await until(async () => (await kit.getByTestId(testId).count()) === 0, 30)))
+        await page.keyboard.press('m')
+        step(`… and then a tool key works`, await until(async () => (await tool()) === 'rectangle', 30), await tool())
+        await page.keyboard.press('v')
+        await until(async () => (await tool()) === 'selection', 30)
+      }
+      // (c) A table: the Type tool's click in a text frame, Table › Insert Table…, a word in the first cell.
+      await one('frame.add', { spread: 0, rect: [100, 560, 400, 700], content: 'text' })
+      await page.keyboard.press('t')
+      await until(async () => (await tool()) === 'type', 30)
+      const at = await w.toScreen(150, 580)
+      await page.mouse.click(at.x, at.y)
+      await until(async () => (await details()).selection.text != null)
+      await menu('Table', 'layout-cmd-table.insert')
+      await kit.getByTestId('layout-dialog-ok').click()
+      await until(async () => (await details()).selection.text?.cell != null)
+      await page.keyboard.type('City')
+      const cells = async () => {
+        const where = (await details()).selection.cells
+        return where ? { story: where.story, table: where.table } : null
+      }
+      await until(async () => (await one('table.get', {}))?.cells?.[0]?.text === 'City')
+      await page.keyboard.press('Escape')
+      const table = (await until(async () => (await cells()) != null)) ? await cells() : null
+      step('Esc in a cell\'s text selects the cell', table != null, JSON.stringify((await details()).selection))
+      await page.keyboard.press('v')
+      step('… and V then chooses the Selection tool', await until(async () => (await tool()) === 'selection', 30), await tool())
+      const text = table ? (await one('table.get', table))?.cells?.[0]?.text : null
+      step('… without typing into the cell', text === 'City', JSON.stringify(text))
+      // Esc twice from the cell's text: the cell, then its text again (the reference app's and
+      // InDesign's toggle, which text.mjs pins), where typing goes on into the cell.
+      await page.keyboard.press('t')
+      await until(async () => (await tool()) === 'type', 30)
+      // Inside the first cell, clear of its borders (a press on a border resizes the row).
+      const inCell = await w.toScreen(130, 566)
+      await page.mouse.click(inCell.x, inCell.y)
+      step('a click puts the caret back in the cell', await until(async () => (await details()).selection.text?.cell != null), JSON.stringify((await details()).selection))
+      await page.keyboard.press('Escape')
+      await until(async () => (await cells()) != null)
+      await page.keyboard.press('Escape')
+      const back = await until(async () => (await details()).selection.cells == null && (await details()).selection.text?.cell != null, 30)
+      step('Esc twice goes from the cell back to its text', back, JSON.stringify({ selection: (await details()).selection, tool: await tool() }))
+      await page.keyboard.press('End')
+      await page.keyboard.type('!')
+      step('… where typing goes on into the cell', await until(async () => (await one('table.get', table ?? {}))?.cells?.[0]?.text === 'City!'), JSON.stringify((await one('table.get', table ?? {}))?.cells?.[0]))
+      step('keyboardHome: no page errors', w.errors.length === 0, w.errors.join(' | '))
     } finally {
       await w.context.close()
     }

@@ -121,8 +121,9 @@ function ObjectStyleOptionsDialog({ info, name, onClose }: { info: DocumentInfo;
   const swatches = info.swatchColors.filter((swatch) => swatch.kind !== 'registration').map((swatch) => [swatch.name, swatch.name === '[None]' ? p('[None]') : swatch.name] as const)
   const based = [['', p('[None]')] as const, ...objectBasedOnChoices(defs, name).map((other) => [other, other] as const)]
   const paragraphs = info.paragraphStyles.filter((style) => style !== '[No Paragraph Style]').map((style) => [style, style] as const)
+  // Keyed by its test id: the four insets are made in a list (phase 12: React's "unique key" error).
   const field = (label: string, value: string, onChange: (value: string) => void, testId: string, unit: string | undefined, disabled: boolean) => (
-    <label className="layout-field">
+    <label key={testId} className="layout-field">
       <span>
         {label}
         {unit ? <span className="kui-muted"> ({unit})</span> : null}

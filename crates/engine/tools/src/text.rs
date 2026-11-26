@@ -546,8 +546,11 @@ impl Tool for TypeTool {
         self.drawing || self.border.is_some()
     }
 
+    /// Typing goes into the text at the caret or selection, not into selected table cells (the
+    /// first Esc out of a cell's text): then the letter keys choose tools, so a tool key right
+    /// after leaving text never types into the cell.
     fn wants_text(&self, cx: &ToolContext) -> bool {
-        cx.selection.text.is_some()
+        cx.selection.text.is_some() && cx.selection.cells.is_none()
     }
 
     fn ime_preedit(&mut self, cx: &ToolContext, text: &str, active_chars: Option<Range<usize>>) -> Vec<Action> {

@@ -1,0 +1,19 @@
+format: 1
+id: regressions/issue-walk2-esc-cell
+feature: layout.ui.text-and-tables
+intent: >-
+  Esc in a table cell's text selected the cell but the Type tool still took typed text, so the next tool key typed
+  into the cell. Selected cells take no typed text; Esc again goes back to the cell's text.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-w2.md (second walkthrough, after phase 11, 2026-11-26)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: esc_in_a_cell_selects_it_and_typing_then_stops }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

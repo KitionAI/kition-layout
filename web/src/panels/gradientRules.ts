@@ -102,10 +102,14 @@ export function removeStop(stops: readonly GradientStop[], index: number): Gradi
 }
 
 /** The swatch chip's CSS background for a gradient. */
-export function cssGradient(entry: GradientEntry | undefined): string | undefined {
+export function cssGradient(entry: GradientEntry | undefined, { asOnPage = false }: { asOnPage?: boolean } = {}): string | undefined {
   const stops = entry?.stops ?? []
   if (stops.length < 2) return undefined
-  const parts = stops.map((stop) => `${stop.cmyk && stop.cmyk.length === 4 ? rgbToHex(cmykToRgb([stop.cmyk[0], stop.cmyk[1], stop.cmyk[2], stop.cmyk[3]])) : (stop.hex ?? '#000000')} ${stop.location ?? 0}%`)
+  // `asOnPage`: each stop as the engine draws it on the page (its `hex`, the document's colour
+  // conversion), so a CMYK cyan chip matches the page (phase 12: the chip showed #00ffff).
+  const color = (stop: NonNullable<GradientEntry['stops']>[number]) =>
+    asOnPage && stop.hex ? stop.hex : stop.cmyk && stop.cmyk.length === 4 ? rgbToHex(cmykToRgb([stop.cmyk[0], stop.cmyk[1], stop.cmyk[2], stop.cmyk[3]])) : (stop.hex ?? '#000000')
+  const parts = stops.map((stop) => `${color(stop)} ${stop.location ?? 0}%`)
   return entry?.kind === 'radial' ? `radial-gradient(circle, ${parts.join(', ')})` : `linear-gradient(to right, ${parts.join(', ')})`
 }
 

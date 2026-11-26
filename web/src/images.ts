@@ -9,9 +9,14 @@ import type { DocumentInfo, PlaceQueued } from './layout'
 /** Files the place cursor takes: images (text and other files are placed at once). */
 export const LOADABLE = /\.(png|jpe?g|gif|webp|bmp|tiff?|svg)$/i
 
-/** What Escape does on the canvas: the graphic selected goes back to its frame, the place cursor drops its front graphic. */
-export function escapeAction(info: DocumentInfo | null, tool: string): 'frame' | 'placeSkip' | null {
+/**
+ * What Escape does on the canvas: the graphic selected goes back to its frame, the place cursor
+ * drops its front graphic, and selected table cells (the first Esc out of a cell's text) go back to
+ * the cell's text (phase 12: the Type tool's toggle, now that selected cells take no typed text).
+ */
+export function escapeAction(info: DocumentInfo | null, tool: string): 'frame' | 'placeSkip' | 'cellText' | null {
   if (tool === 'placeGun') return 'placeSkip'
+  if (info?.cellsSelected && tool === 'type') return 'cellText'
   if (info?.selectionContent && info.selection.length) return 'frame'
   return null
 }

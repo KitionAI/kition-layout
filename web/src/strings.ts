@@ -2,6 +2,8 @@ import type { Catalog } from '@kition/sdk/editor'
 
 /** The editor's own strings (`en-US` is required; others fall back to it). */
 const enUS: Catalog = {
+  // The editor's own toolbar button (kit-editor's string), all in one language in Chinese (phase 12).
+  askAgent: 'Ask Agent',
   summary: '{pages} pages',
   summaryOne: '{pages} page',
   selectedCount: '{count} selected',
@@ -122,6 +124,9 @@ const enUS: Catalog = {
   pages: 'Pages',
   allPages: 'All pages ({count})',
   currentPage: 'Page {page}',
+  // Margins and Columns while editing parents (phase 12: it read “第 A-Parent L 页”).
+  currentParentPage: 'Parent page {page}',
+  'dialog.allParentPages': 'All parent pages',
   pageRange: 'Range',
   includeBleed: 'Include bleed',
   resolution: 'Resolution',
@@ -960,6 +965,7 @@ const enUS: Catalog = {
 }
 
 const zhCN: Catalog = {
+  askAgent: '询问智能体',
   summary: '{pages} 页',
   summaryOne: '{pages} 页',
   selectedCount: '已选 {count} 个',
@@ -1080,6 +1086,8 @@ const zhCN: Catalog = {
   pages: '页面',
   allPages: '全部页面（{count}）',
   currentPage: '第 {page} 页',
+  currentParentPage: '父页面 {page}',
+  'dialog.allParentPages': '全部父页面',
   pageRange: '范围',
   includeBleed: '包含出血',
   resolution: '分辨率',

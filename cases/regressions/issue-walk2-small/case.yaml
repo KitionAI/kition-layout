@@ -1,0 +1,24 @@
+format: 1
+id: regressions/issue-walk2-small
+feature: layout.ui.panels-and-styles
+intent: >-
+  Smaller findings of the second walkthrough: Cmd+Alt+3 did not show hidden objects; a CMYK gradient stop's chip was
+  drawn as rgb(0,255,255) while the page shows #00a5f1; Margins and Columns offered "第 A-Parent L 页" while parents
+  were edited; Object Style Options logged React's unique key error; the toolbar's Ask button read "询问 Agent".
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-w2.md (second walkthrough, after phase 11, 2026-11-26)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, walk2Small]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-26"

@@ -75,7 +75,7 @@ export function SwatchesSection({ info }: { info: DocumentInfo }) {
           <span
             className="layout-chip"
             data-kind={swatch.kind}
-            style={swatch.kind === 'gradient' ? { background: cssGradient(info.colors[swatch.name]?.gradient) ?? swatch.color ?? undefined } : swatch.color ? { background: swatch.color } : undefined}
+            style={swatch.kind === 'gradient' ? { background: cssGradient(info.colors[swatch.name]?.gradient, { asOnPage: true }) ?? swatch.color ?? undefined } : swatch.color ? { background: swatch.color } : undefined}
             aria-hidden="true"
           />
           <span className="layout-row-text">{swatch.name}</span>

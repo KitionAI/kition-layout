@@ -346,6 +346,34 @@ pub struct ComposeOptions {
     pub xrefs: Option<Arc<xref::XrefIndex>>,
 }
 
+/// The parent items with a text wrap that show behind page `pi` of document spread `si` (its
+/// parent's and those of the parents it is based on, less the ones the page overrides), each with
+/// the offset from its parent spread to the document spread.
+pub(crate) fn parent_wraps(doc: &Document, si: usize, pi: usize) -> Vec<(&Arc<kition_layout_doc::Item>, f64)> {
+    let Some(page) = doc.spreads.get(si).and_then(|sp| sp.pages.get(pi)) else { return vec![] };
+    if !page.show_parent_items {
+        return vec![];
+    }
+    let abs = doc.first_page_of_spread(si) + pi;
+    let mut out = Vec::new();
+    for (ppi, ppage) in doc.parent_pages_for(abs) {
+        let Some(parent) = doc.parents.get(ppi) else { continue };
+        let Some(base) = parent.pages.get(ppage) else { continue };
+        let dx = page.x - base.x;
+        for it in &parent.items {
+            if it.wrap.mode == WrapMode::None || it.hidden || page.overridden.contains(&it.id) {
+                continue;
+            }
+            // Parent items belong to the parent page they sit on.
+            if parent.pages.len() > 1 && parent.page_at_x(it.bounds().center().x) != Some(ppage) {
+                continue;
+            }
+            out.push((it, dx));
+        }
+    }
+    out
+}
+
 /// Build the frame specs of a story from the document (geometry, wrap, page names, grid).
 pub fn frame_specs(doc: &Document, sid: StoryId) -> Vec<FrameSpec> {
     let Some(st) = doc.story(sid) else { return vec![] };
@@ -373,6 +401,23 @@ pub fn frame_specs(doc: &Document, sid: StoryId) -> Vec<FrameSpec> {
                 let r = Rect::new(b.x0 - o[1], b.y0 - o[0], b.x1 + o[3], b.y1 + o[2]);
                 let inner = inv.transform_rect_bbox(r);
                 exclusions.push(Exclusion { rect: inner, mode: other.wrap.mode });
+            }
+        }
+        // The parent items behind the frame's page wrap it too: its parent's and those of the
+        // parents that one is based on (walkthrough 2: a based-on parent's object drew but did not
+        // push the text aside).
+        if !tf.options.ignore_wrap
+            && let kition_layout_doc::SpreadRef::Doc(si) = loc.spread
+            && let Some(pi) = spread.and_then(|sp| sp.page_at_x(item.bounds().center().x))
+        {
+            for (other, dx) in parent_wraps(doc, si, pi) {
+                if doc.layer(other.layer).is_some_and(|l| !l.visible) {
+                    continue;
+                }
+                let o = other.wrap.offsets;
+                let b = other.bounds();
+                let r = Rect::new(b.x0 - o[1] + dx, b.y0 - o[0], b.x1 + o[3] + dx, b.y1 + o[2]);
+                exclusions.push(Exclusion { rect: inv.transform_rect_bbox(r), mode: other.wrap.mode });
             }
         }
         let (page_name, page, left_page) = match (loc.spread, spread) {

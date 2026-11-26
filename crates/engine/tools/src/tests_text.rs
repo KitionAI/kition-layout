@@ -155,6 +155,27 @@ fn type_tool_keys_in_a_table_cell() {
     assert!(matches!(t.key(&cx, ToolKey::Escape, Mods::default()).first(), Some(Action::SwitchTool(_))));
 }
 
+/// Phase 12 (walkthrough 2, D-3): Esc out of a cell's text selects the cell, and then the Type
+/// tool no longer takes typed text, so the next letter key chooses a tool instead of typing into
+/// the cell ("v" went into the header after Esc and V).
+#[test]
+fn selected_cells_take_no_typed_text() {
+    let (d, id) = table_frame(0.0);
+    let sid = d.item(id).unwrap().text_frame().unwrap().story;
+    let table = *d.story(sid).unwrap().tables.keys().next().unwrap();
+    let (c, l) = (Cache::new(), CanvasLayout::new(&d, false));
+    let cell = CellAddr { table, row: 0, col: 0 };
+    let t = create("type");
+    let caret = Selection::text(TextSel { cell: Some(cell), frame: Some(id), ..TextSel::caret(sid, 0) });
+    assert!(t.wants_text(&ctx(&d, &caret, &c, &l)), "the caret in a cell types");
+    let cells = Selection {
+        cells: Some(TableSel { story: sid, table, range: kition_layout_doc::CellRange::cell(0, 0) }),
+        text: Some(TextSel { cell: Some(cell), frame: Some(id), ..TextSel::caret(sid, 0) }),
+        ..Default::default()
+    };
+    assert!(!t.wants_text(&ctx(&d, &cells, &c, &l)), "a selected cell does not");
+}
+
 #[test]
 fn type_tool_drags_a_table_column_border() {
     for degrees in [0.0, 90.0] {

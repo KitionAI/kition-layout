@@ -7,7 +7,7 @@ import { VARIANT_KEYS, layoutMenus } from './menus/catalog.ts'
 import { contextRows } from './menus/contextRows.ts'
 import { DRAWN_CURSORS, drawnCursor } from './cursors.ts'
 import { CATALOGS, PHRASES } from './strings.ts'
-import { nextPress, takeCount } from './clicks.ts'
+import { claimNewest, nextPress, takeCount } from './clicks.ts'
 
 const info = (over = {}) => ({ selection: [7], selectionContent: false, placeQueue: [], ...over })
 
@@ -30,6 +30,11 @@ test('Escape takes a graphic back to its frame and drops the place cursor\'s fro
   assert.equal(escapeAction(info(), 'selection'), null, 'a frame: the editor deselects as before')
   assert.equal(escapeAction(info(), 'placeGun'), 'placeSkip')
   assert.equal(escapeAction(null, 'selection'), null)
+})
+
+test('Escape with table cells selected goes back to the cell\'s text with the Type tool (phase 12)', () => {
+  assert.equal(escapeAction(info({ cellsSelected: true }), 'type'), 'cellText')
+  assert.equal(escapeAction(info({ cellsSelected: true }), 'selection'), null, 'another tool: the editor deselects as before')
 })
 
 test('several graphics load the place cursor, the first replacing its load unless adding', () => {
@@ -73,4 +78,16 @@ test('each press keeps its own count when the editor sends it after the next pre
   // A press nobody sent on (a view tool took it) is dropped once it waited too long.
   waiting.push({ count: 2, at: 0 }, { count: 1, at: 5000 })
   assert.equal(takeCount(waiting, 5100), 1)
+})
+
+test('a press the engine never got leaves no count behind (phase 12: a triple click selected a word)', () => {
+  // The hand's press (Space held): counted, never claimed. Then a triple click, each press claimed.
+  const waiting = [{ count: 1, at: 0, claimed: false }]
+  for (const count of [1, 2, 3]) {
+    waiting.push({ count, at: 100 + count, claimed: false })
+    claimNewest(waiting)
+  }
+  assert.deepEqual([takeCount(waiting, 200), takeCount(waiting, 200), takeCount(waiting, 200)], [1, 2, 3])
+  claimNewest(waiting)
+  assert.equal(waiting.length, 0, 'nothing to claim')
 })

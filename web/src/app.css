@@ -84,13 +84,75 @@
 
 /* The dock beside the canvas (plan 2026-11-25, stage 4): tabbed groups that share its height. */
 .layout-side {
-  width: 288px;
+  display: flex;
+  flex-direction: row;
   min-height: 0;
   overflow: hidden;
 }
 
-.layout-side > .kui-dock {
+/* The dock's columns (phase 12): each its own scrolling column of groups that share its height. */
+.layout-side > .layout-dock-column {
+  flex: none;
+  height: auto;
+  align-self: stretch;
+}
+
+.layout-side > .layout-dock-column + .layout-dock-column {
+  border-left: 1px solid var(--kit-border);
+}
+
+/* A group's body holds its panel at the body's height, so a panel lays out its own list in it. */
+.layout-dock-column > .kui-dock-group > .kui-dock-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-dock-column > .kui-dock-group > .kui-dock-body > .kui-element > * {
+  flex: none;
+}
+
+/* Pages fills its group: its heading, parents and footer stay, the spreads take the rest and scroll. */
+.layout-dock-column > .kui-dock-group > .kui-dock-body > .kui-element > .layout-pages {
   flex: 1 1 auto;
+  min-height: 0;
+}
+
+.layout-pages > * {
+  flex: none;
+}
+
+.layout-pages > .layout-spreads-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 4px;
+}
+
+.layout-pages-parent {
+  display: inline-flex;
+  min-width: 0;
+}
+
+/* The parent's choice in Pages' footer: its select alone (the label stays for assistive technology). */
+.layout-pages-parent .kui-choice > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.layout-pages-parent .kui-choice select {
+  max-width: 96px;
+}
+
+/* The divider under a group: a line to grab, over the next group's strip edge. */
+.layout-dock-column > .kui-dock-group > .kui-dock-handle {
+  bottom: 0;
+  height: 5px;
+  z-index: 3;
 }
 
 .layout-panel {
@@ -411,10 +473,7 @@
   align-items: center;
   gap: 4px;
   padding: 0 10px 6px;
-  /* Kept in view while the spreads scroll: a parent is dragged onto any page (stage 7). */
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  /* Kept in view while the spreads scroll (they scroll under it): a parent is dragged onto any page (stage 7). */
   background: var(--kit-surface);
 }
 
@@ -1061,4 +1120,16 @@
   content: '▾';
   margin-right: 1px;
   color: var(--kit-text-muted);
+}
+
+/* Pages' top row (phase 12): the parents to the left, the page buttons to the right. */
+.layout-pages-heading {
+  gap: 4px;
+  padding-left: 6px;
+}
+
+.layout-pages-heading > .layout-parents {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2px 0;
 }

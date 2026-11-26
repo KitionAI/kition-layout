@@ -1,10 +1,9 @@
-import { useEffect, useState, type MouseEvent } from 'react'
+import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import { ArrowDownIcon as ArrowDown, ArrowLeftIcon as ArrowLeft, ArrowUpIcon as ArrowUp, CopyIcon as Copy, EllipsisIcon as Ellipsis, PlusIcon as Plus, Settings2Icon as Settings2, TrashIcon as Trash } from '@kition/tessera/icons/react'
 import { Button, Choice, IconButton, PanelFooter, useKitEditor, useReadOnly } from '@kition/sdk/editor'
 import type { DocumentInfo, Spread } from '../layout'
 import { useMenuOpener } from '../menus/ContextMenus'
 import { useEditorView } from '../viewContext'
-import { PanelHeading } from './fields'
 import { dropSide, moveTarget } from './reorder'
 import { useRowDrag, type DragOver } from './rowDrag'
 import { useDialogs } from './dialogsContext'
@@ -14,7 +13,37 @@ import { movePlan, movedTo, sectionStarts } from '../dialogs/pages'
 /** What a drag in the Pages panel carries: a page (to move it) or a parent (to apply it). */
 type Dragged = { kind: 'page'; index: number } | { kind: 'parent'; label: string | null }
 
-const THUMB = 92
+/** A spread's thumbnail fits a square this big at most, and this small at least. */
+const THUMB_MAX = 180
+const THUMB_MIN = 40
+/** Room under a thumbnail for its page numbers, and around it (the cell's padding and gaps). */
+const NAMES = 22
+const AROUND = 14
+
+/**
+ * The square a spread's thumbnail fits in (phase 12): as wide as the panel and as tall as the room
+ * the spreads have, less the page numbers under it, so the first spread shows whole with its
+ * numbers however the panel is sized.
+ */
+export function thumbBox(width: number, height: number) {
+  const fit = Math.min(width - 2 * AROUND, height - NAMES - AROUND)
+  return Math.round(Math.max(THUMB_MIN, Math.min(THUMB_MAX, fit)))
+}
+
+/** The size of an element's content box, followed as it changes. */
+function useSize(element: HTMLElement | null) {
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null)
+  useEffect(() => {
+    if (!element) return undefined
+    const measure = () => setSize((now) => (now && now.width === element.clientWidth && now.height === element.clientHeight ? now : { width: element.clientWidth, height: element.clientHeight }))
+    measure()
+    if (typeof ResizeObserver === 'undefined') return undefined
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [element])
+  return size
+}
 
 /**
  * How long the document stays still before the thumbnails are drawn again. Typing in a long story
@@ -69,7 +98,7 @@ function useInView(element: Element | null) {
  * A spread's thumbnail, drawn by the engine once the document is still after a change, and only
  * while it is in view; one scrolled into view after a change is drawn then.
  */
-function SpreadThumb({ spread }: { spread: Spread }) {
+function SpreadThumb({ spread, box }: { spread: Spread; box: number }) {
   const { session } = useKitEditor()
   const { doc, change } = session
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null)
@@ -78,7 +107,7 @@ function SpreadThumb({ spread }: { spread: Spread }) {
   const [drawn, setDrawn] = useState<string | null>(null)
   const width = spread.area.x1 - spread.area.x0
   const height = spread.area.y1 - spread.area.y0
-  const scale = Math.min(THUMB / Math.max(1, width), THUMB / Math.max(1, height))
+  const scale = Math.min(box / Math.max(1, width), box / Math.max(1, height))
   const w = Math.max(1, Math.round(width * scale))
   const h = Math.max(1, Math.round(height * scale))
   const wanted = `${change.revision}:${spread.area.x0}:${spread.area.y0}:${w}:${h}`
@@ -110,7 +139,7 @@ function SpreadThumb({ spread }: { spread: Spread }) {
  * edits it (the canvas shows the parents until Back to Pages); the panel menu (…) has the page
  * rows of the right-click menu.
  */
-export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; onShow: (spread: Spread) => void; onSetup: () => void }) {
+export function PagesSection({ info, onShow, onSetup, sizes }: { info: DocumentInfo; onShow: (spread: Spread) => void; onSetup: () => void; sizes?: ReactNode }) {
   const { run, phrase: p, t, session } = useKitEditor()
   const { settle } = useEditorView()
   const readOnly = useReadOnly()
@@ -122,6 +151,9 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
     setTogether({ pages: [index], anchor: index })
   }
   const openMenu = useMenuOpener()
+  const [area, setArea] = useState<HTMLDivElement | null>(null)
+  const room = useSize(area)
+  const box = room ? thumbBox(room.width, room.height) : 92
   const editing = info.editingParents
   const drop = (source: Dragged, over: DragOver) => {
     const target = over.target
@@ -224,25 +256,42 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
   // The panel menu's parent: the one chosen, else the chosen page's, else the first.
   const menuParent = (chosenParent && info.parents.some((parent) => parent.label === chosenParent) ? chosenParent : null) ?? parentOf ?? info.parents.find((parent) => parent.label)?.label ?? null
   return (
-    <div className="layout-panel" data-testid="layout-pages-panel">
-      <PanelHeading
-        title={p('Pages')}
-        actions={
-          <>
-            <IconButton icon={Plus} label={t('addPage')} disabled={readOnly || editing} onClick={() => void run('layout.pages.insert', { count: 1, after: page })} data-testid="layout-add-page" />
-            <IconButton
-              icon={Ellipsis}
-              label={t('pages.menu')}
-              disabled={readOnly || editing || !openMenu}
-              onClick={(event) => {
-                const box = event.currentTarget.getBoundingClientRect()
-                openMenu?.({ kind: 'page', page, pages: many.length > 1 ? many : undefined, parent: menuParent }, box.left, box.bottom)
-              }}
-              data-testid="layout-pages-menu"
-            />
-          </>
-        }
-      />
+    <div className="layout-panel layout-pages" data-testid="layout-pages-panel">
+      {/* The parents and the page buttons share one row (phase 12): the tab already names the panel. */}
+      <div className="layout-panel-heading layout-pages-heading">
+        <div className="layout-parents" data-testid="layout-parents">
+          {info.parents.map((parent) => (
+            <span
+              key={parent.id}
+              className="layout-parent"
+              data-active={parent.label != null && parent.label === chosenParent ? 'true' : undefined}
+              title={parent.basedOn ? `${t('parentHint', { count: parent.items })} ${t('parent.basedOnHint', { name: parent.basedOn })}` : t('parentHint', { count: parent.items })}
+              data-dragging={drag.dragging?.kind === 'parent' && drag.dragging.label === parent.label ? 'true' : undefined}
+              onPointerDown={(event) => !readOnly && !editing && drag.start({ kind: 'parent', label: parent.label }, event)}
+              onClick={() => setChosenParent(parent.label)}
+              onDoubleClick={() => parent.label && !readOnly && void editParents(true, parent.label)}
+              onContextMenu={parentMenu(parent.label)}
+              data-testid={`layout-parent-${parent.label ?? 'none'}`}
+            >
+              {parent.label ?? t('noParent')}
+            </span>
+          ))}
+          <IconButton icon={Plus} label={t('newParent')} disabled={readOnly} onClick={() => void run('layout.parents.new', {})} data-testid="layout-new-parent" />
+        </div>
+        <span className="layout-buttons">
+          <IconButton icon={Plus} label={t('addPage')} disabled={readOnly || editing} onClick={() => void run('layout.pages.insert', { count: 1, after: page })} data-testid="layout-add-page" />
+          <IconButton
+            icon={Ellipsis}
+            label={t('pages.menu')}
+            disabled={readOnly || editing || !openMenu}
+            onClick={(event) => {
+              const box = event.currentTarget.getBoundingClientRect()
+              openMenu?.({ kind: 'page', page, pages: many.length > 1 ? many : undefined, parent: menuParent }, box.left, box.bottom)
+            }}
+            data-testid="layout-pages-menu"
+          />
+        </span>
+      </div>
       {editing ? (
         <div className="layout-bar layout-editing-parents" data-testid="layout-editing-parents">
           <span className="kui-muted">{t('pages.editingParents')}</span>
@@ -251,79 +300,64 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
           </Button>
         </div>
       ) : null}
-      <div className="layout-parents" data-testid="layout-parents">
-        {info.parents.map((parent) => (
-          <span
-            key={parent.id}
-            className="layout-parent"
-            data-active={parent.label != null && parent.label === chosenParent ? 'true' : undefined}
-            title={parent.basedOn ? `${t('parentHint', { count: parent.items })} ${t('parent.basedOnHint', { name: parent.basedOn })}` : t('parentHint', { count: parent.items })}
-            data-dragging={drag.dragging?.kind === 'parent' && drag.dragging.label === parent.label ? 'true' : undefined}
-            onPointerDown={(event) => !readOnly && !editing && drag.start({ kind: 'parent', label: parent.label }, event)}
-            onClick={() => setChosenParent(parent.label)}
-            onDoubleClick={() => parent.label && !readOnly && void editParents(true, parent.label)}
-            onContextMenu={parentMenu(parent.label)}
-            data-testid={`layout-parent-${parent.label ?? 'none'}`}
-          >
-            {parent.label ?? t('noParent')}
-          </span>
-        ))}
-        <IconButton icon={Plus} label={t('newParent')} disabled={readOnly} onClick={() => void run('layout.parents.new', {})} data-testid="layout-new-parent" />
+      <div ref={setArea} className="layout-spreads-area" data-testid="layout-spreads-area" data-thumb={box}>
+        <div className="layout-spreads">
+          {info.spreads.map((spread) => (
+            <div key={spread.index} className="layout-spread-cell">
+              <button
+                type="button"
+                className="layout-spread"
+                onClick={() => onShow(spread)}
+                onContextMenu={pageMenu(spread.pages[0]?.index ?? 0)}
+                data-drop={`spread:${spread.index}`}
+                data-testid={`layout-spread-${spread.index}`}
+              >
+                <SpreadThumb spread={spread} box={box} />
+              </button>
+              <span className="layout-page-names">
+                {spread.pages.map((item) => (
+                  <button
+                    key={item.index}
+                    type="button"
+                    className="layout-page-name"
+                    data-active={many.includes(item.index)}
+                    data-section={sections.has(item.index) && !editing ? 'true' : undefined}
+                    title={sections.has(item.index) && !editing ? t('pages.sectionStart', { marker: sections.get(item.index) || item.name }) : undefined}
+                    data-drop={`page:${item.index}`}
+                    data-dragging={drag.dragging?.kind === 'page' && drag.dragging.index === item.index ? 'true' : undefined}
+                    onPointerDown={(event) => !readOnly && !editing && drag.start({ kind: 'page', index: item.index }, event)}
+                    onClick={(event) => choose(item.index, event)}
+                    onDoubleClick={() => {
+                      setChosen(item.index)
+                      onShow(spread)
+                    }}
+                    onContextMenu={pageMenu(item.index)}
+                    data-testid={`layout-page-${item.index}`}
+                  >
+                    {item.name}
+                  </button>
+                ))}
+              </span>
+            </div>
+          ))}
+        </div>
+        {sizes}
       </div>
-      <div className="layout-spreads">
-        {info.spreads.map((spread) => (
-          <div key={spread.index} className="layout-spread-cell">
-            <button
-              type="button"
-              className="layout-spread"
-              onClick={() => onShow(spread)}
-              onContextMenu={pageMenu(spread.pages[0]?.index ?? 0)}
-              data-drop={`spread:${spread.index}`}
-              data-testid={`layout-spread-${spread.index}`}
-            >
-              <SpreadThumb spread={spread} />
-            </button>
-            <span className="layout-page-names">
-              {spread.pages.map((item) => (
-                <button
-                  key={item.index}
-                  type="button"
-                  className="layout-page-name"
-                  data-active={many.includes(item.index)}
-                  data-section={sections.has(item.index) && !editing ? 'true' : undefined}
-                  title={sections.has(item.index) && !editing ? t('pages.sectionStart', { marker: sections.get(item.index) || item.name }) : undefined}
-                  data-drop={`page:${item.index}`}
-                  data-dragging={drag.dragging?.kind === 'page' && drag.dragging.index === item.index ? 'true' : undefined}
-                  onPointerDown={(event) => !readOnly && !editing && drag.start({ kind: 'page', index: item.index }, event)}
-                  onClick={(event) => choose(item.index, event)}
-                  onDoubleClick={() => {
-                    setChosen(item.index)
-                    onShow(spread)
-                  }}
-                  onContextMenu={pageMenu(item.index)}
-                  data-testid={`layout-page-${item.index}`}
-                >
-                  {item.name}
-                </button>
-              ))}
-            </span>
-          </div>
-        ))}
-      </div>
-      <fieldset className="layout-stack layout-fieldset" disabled={readOnly || editing}>
-        <Choice
-          label={t('pageParent')}
-          value={parentOf ?? ''}
-          choices={[['', t('noParent')] as const, ...parents]}
-          onChange={(parent) => void run('layout.pages.applyParent', { pages: many.map((index) => index + 1), parent: parent || null })}
-          testId="layout-page-parent"
-        />
-      </fieldset>
       <PanelFooter
         start={
           <>
             <IconButton icon={ArrowUp} label={t('movePageUp')} disabled={readOnly || editing || page === 0 || many.length > 1} onClick={() => void run('layout.pages.move', { from: page, to: page - 1 }).then(() => setChosen(page - 1))} data-testid="layout-page-up" />
             <IconButton icon={ArrowDown} label={t('movePageDown')} disabled={readOnly || editing || page + 1 >= info.pageCount || many.length > 1} onClick={() => void run('layout.pages.move', { from: page, to: page + 1 }).then(() => setChosen(page + 1))} data-testid="layout-page-down" />
+            {/* The chosen pages' parent, in the footer's row (phase 12: the spreads keep the room). */}
+            <fieldset className="layout-fieldset layout-pages-parent" disabled={readOnly || editing}>
+              <Choice
+                label={t('pageParent')}
+                value={parentOf ?? ''}
+                choices={[['', t('noParent')] as const, ...parents]}
+                onChange={(parent) => void run('layout.pages.applyParent', { pages: many.map((index) => index + 1), parent: parent || null })}
+                testId="layout-page-parent"
+              />
+            </fieldset>
           </>
         }
         end={

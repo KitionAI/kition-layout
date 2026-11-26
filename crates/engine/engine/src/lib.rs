@@ -707,3 +707,5 @@ mod tests_roundtrip;
 mod tests_table;
 #[cfg(test)]
 mod tests_typing;
+#[cfg(test)]
+mod tests_walk2;

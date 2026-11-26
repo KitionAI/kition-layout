@@ -86,12 +86,16 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   const canvas = useRef<KitCanvasHandle>(null)
   // The engine's tools with their drawn cursors (rotate, the hollow arrow, the eyedropper, the loaded cursors).
   const { canvasTool } = tools
+  // Space and Ctrl reach the engine's tools, a modifier pressed mid-drag acts at once, a pause ends typing's undo step.
+  const claimPress = useEngineModifiers(session.doc)
   const engineTool = useMemo(() => {
     const cursor = drawnCursor(tools.active, canvasTool.cursor)
-    return cursor === canvasTool.cursor ? canvasTool : { ...canvasTool, cursor }
-  }, [canvasTool, tools.active])
-  // Space and Ctrl reach the engine's tools, a modifier pressed mid-drag acts at once, a pause ends typing's undo step.
-  useEngineModifiers(session.doc)
+    const drawn = cursor === canvasTool.cursor ? canvasTool : { ...canvasTool, cursor }
+    // A press the canvas gives the engine's tool takes its count of presses in a row (phase 12);
+    // the view tools' presses never reach the engine.
+    if (tools.active in HOST_TOOLS) return drawn
+    return { ...drawn, begin: (...args: Parameters<typeof canvasTool.begin>) => (claimPress(), canvasTool.begin(...args)) }
+  }, [canvasTool, tools.active, claimPress])
   const typing = useRef<() => boolean>(() => false)
   const runQuietRef = useRef<(command: string, params: Record<string, unknown>) => Promise<string | null>>(async () => null)
   // New objects go on the layer of what the person selected, and not on an empty layer a
@@ -99,7 +103,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   useActiveLayer(state, session.doc, runQuietRef)
   typing.current = () => tools.wantsText
   useCanvasWheel(canvas, () => typing.current())
-  useFocusOnOpen(doc != null)
+  useFocusOnOpen(doc)
   usePanelEnterReturnsFocus(() => typing.current())
   // After a dialog, a menu or text editing ends, the keys come back to the editor (phase 9).
   useKeyboardHome(() => typing.current(), tools.wantsText)
@@ -297,7 +301,9 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
       return true
     }
     // Escape drops the place cursor's front graphic (the last: the Selection tool comes back),
-    // and from a frame's selected graphic goes back to the frame.
+    // from a frame's selected graphic goes back to the frame, and from selected table cells back to
+    // the cell's text (the Type tool's toggle; the cells take no typed text, so the editor does not
+    // give it Esc itself).
     const escape = event.key === 'Escape' && !command && !event.altKey && !event.shiftKey && !tools.wantsText ? escapeAction(state, tools.active) : null
     if (escape === 'placeSkip') {
       const open = session.doc
@@ -306,6 +312,12 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
         if (!left) tools.select('selection')
         await settle()
       })()
+      return true
+    }
+    if (escape === 'cellText') {
+      // The engine decides with the selection it has then (a quick second Esc meets the first's).
+      const zoomNow = canvas.current?.view()?.zoom ?? zoom
+      void session.tool('toolKey', ['Escape', JSON.stringify({ shift: false, alt: false, command: false, control: false, space: false }), zoomNow], true)
       return true
     }
     if (escape === 'frame' && state) {

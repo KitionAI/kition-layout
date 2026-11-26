@@ -377,6 +377,16 @@ fn signature(doc: &Document, story: &Arc<Story>) -> (Vec<usize>, Vec<Arc<Item>>)
                     }
                 }
                 sig.push(usize::MAX);
+                // The parent items that wrap its pages' frames, page by page.
+                if let kition_layout_doc::SpreadRef::Doc(si) = loc.spread {
+                    for pi in 0..sp.pages.len() {
+                        for (it, dx) in crate::parent_wraps(doc, si, pi) {
+                            sig.extend([Arc::as_ptr(it) as usize, dx.to_bits() as usize]);
+                            keep.push(it.clone());
+                        }
+                        sig.push(usize::MAX - 1);
+                    }
+                }
             }
         }
     }

@@ -87,6 +87,8 @@ test('a gradient swatch: stops added where clicked, dragged along, dragged off; 
   assert.deepEqual(gradientEdit('Sea', opened, { ...opened, kind: 'radial' })?.gradient?.kind, 'radial')
   assert.deepEqual(gradientEdit('Sea', opened, { ...opened, name: 'Ocean' }, true), { name: 'Sea', rename: 'Ocean' })
   assert.equal(cssGradient(entry), 'linear-gradient(to right, #00ffff 0%, #ff0000 100%)')
+  // The chip in the Swatches panel shows each stop as the page does (phase 12).
+  assert.equal(cssGradient(entry, { asOnPage: true }), 'linear-gradient(to right, #00a0e9 0%, #ff0000 100%)')
   // A deleted gradient may take another gradient's place; a colour may not.
   const swatches = [{ name: '[Black]', kind: 'color' }, { name: 'Sea', kind: 'gradient' }, { name: 'Sky', kind: 'gradient' }]
   assert.deepEqual(swatchReplacements(swatches, 'Sea'), ['[Black]', 'Sky'])

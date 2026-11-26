@@ -8,10 +8,10 @@
  * Hand (fit the spread) and Zoom (100%) tools, focus in the editor when it opens and back on the
  * canvas after Enter in a panel's field, and a blinking text caret.
  */
-import { useEffect, useMemo, useRef, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react'
 import type { EngineOverlay, KitCanvasHandle, KitEngine, KitTool, OverlayDrawer } from '@kition/sdk/editor'
 import { wheelZoomFactor, zoomAbout } from './view'
-import { nextPress, takeCount, type Counted, type Press } from './clicks'
+import { claimNewest, nextPress, takeCount, type Counted, type Press } from './clicks'
 
 const SURFACE = 'kit-canvas-surface'
 /** A pause this long ends the typing's undo step. */
@@ -39,6 +39,7 @@ type Held = { space: boolean; control: boolean }
  * typing that pauses ends its undo step (the engine's `endTyping`).
  */
 export function useEngineModifiers(doc: KitEngine | null) {
+  const claim = useRef<() => void>(() => undefined)
   useEffect(() => {
     if (!doc) return undefined
     const held: Held = { space: false, control: false }
@@ -51,6 +52,7 @@ export function useEngineModifiers(doc: KitEngine | null) {
     // fast double click): each press's count waits in order for its own press (plan stage 6).
     let press: Press | null = null
     const counts: Counted[] = []
+    claim.current = () => claimNewest(counts)
     const own = doc as unknown as { tool: KitEngine['tool'] }
     const original = doc.tool.bind(doc)
     own.tool = ((name, args = [], settled = false) => {
@@ -81,7 +83,8 @@ export function useEngineModifiers(doc: KitEngine | null) {
       pointer = { x: event.clientX, y: event.clientY, id: event.pointerId, buttons: event.buttons, surface: onSurface(event.target) ? event.target : pointer.surface, over: onSurface(event.target) }
       if (event.type === 'pointerdown' && event.button === 0) {
         press = onSurface(event.target) ? nextPress(press, event.timeStamp, event.clientX, event.clientY) : null
-        if (press) counts.push({ count: press.count, at: performance.now() })
+        // Unclaimed until the canvas gives the press to the engine's tool (`claimPress`).
+        if (press) counts.push({ count: press.count, at: performance.now(), claimed: false })
         if (counts.length > 16) counts.shift()
       }
       if (event.type === 'pointerup' || event.type === 'pointercancel') dragging = false
@@ -130,8 +133,11 @@ export function useEngineModifiers(doc: KitEngine | null) {
       window.removeEventListener('keydown', key, true)
       window.removeEventListener('keyup', key, true)
       window.removeEventListener('blur', reset)
+      claim.current = () => undefined
     }
   }, [doc])
+  /** The canvas gives the press now going on to the engine's tool (call it before the tool's `begin`). */
+  return useCallback(() => claim.current(), [])
 }
 
 /**
@@ -255,26 +261,42 @@ export function useViewToolDoubleClicks(onHand: () => void, onZoom: () => void) 
 }
 
 /**
- * The editor takes the keyboard when the layout opens, so a tool key works without a click
- * first: when the page around it (a same-origin host such as dev.html) has nothing else focused.
- * A host on another origin gives its frame focus itself.
+ * Whether an element takes typed text of its own (a text field, a text area, a select, editable
+ * content): the person is typing there, so nothing takes the keyboard from it. A button, a
+ * disclosure or a file chooser does not.
  */
-export function useFocusOnOpen(ready: boolean) {
+export function takesText(element: Element | null) {
+  if (!element) return false
+  if (element.tagName === 'TEXTAREA' || element.tagName === 'SELECT') return true
+  if ((element as HTMLElement).isContentEditable) return true
+  if (element.tagName !== 'INPUT') return false
+  const type = (element.getAttribute('type') ?? 'text').toLowerCase()
+  return !['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'image', 'range', 'color'].includes(type)
+}
+
+/**
+ * The editor takes the keyboard whenever a document opens in it (the first one, and every one the
+ * host opens after, phase 12), so a tool key works without a click first: unless the page around
+ * it (a same-origin host such as dev.html) has a field the person types in focused. The host's
+ * button, menu or file chooser that opened the document does not keep the keys. A host on
+ * another origin gives its frame focus itself. Only focus moves: nothing runs while the host is
+ * opening the document.
+ */
+export function useFocusOnOpen(doc: unknown) {
   useEffect(() => {
-    if (!ready) return
-    let parentIdle = window.parent === window
-    try {
-      const active = window.parent.document.activeElement
-      parentIdle = parentIdle || active === null || active === window.parent.document.body || active === window.frameElement
-    } catch {
-      parentIdle = parentIdle || false
+    if (!doc) return
+    if (window.parent !== window) {
+      try {
+        if (takesText(window.parent.document.activeElement)) return
+      } catch {
+        return
+      }
     }
-    if (!parentIdle) return
     const app = document.querySelector<HTMLElement>('.kui-app')
-    if (!app || (document.activeElement && document.activeElement !== document.body)) return
+    if (!app || (document.activeElement && document.activeElement !== document.body && document.activeElement !== document.documentElement)) return
     window.focus()
     app.focus({ preventScroll: true })
-  }, [ready])
+  }, [doc])
 }
 
 /**
@@ -287,6 +309,24 @@ export function useFocusOnOpen(ready: boolean) {
 export function keyboardAdrift(active: Element | null, sink: Element | null, typing: boolean, body: Element | null) {
   if (active === null || active === body || active === body?.parentElement) return true
   return active === sink && !typing
+}
+
+/**
+ * Puts the keyboard in the newest dialog when it is not in one already: on its first field, else
+ * its first button, else the dialog itself, so its keys (Esc closes it) work at once.
+ */
+export function takeDialogFocus(root: Document) {
+  const dialogs = [...root.querySelectorAll<HTMLElement>('.kui-dialog')]
+  const newest = dialogs.at(-1)
+  const active = root.activeElement
+  if (!newest || (active && active.closest('.kui-dialog'))) return
+  const target =
+    newest.querySelector<HTMLElement>('input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])') ??
+    newest.querySelector<HTMLElement>('.kui-dialog-actions button:not([disabled])') ??
+    newest.querySelector<HTMLElement>('button:not([disabled])') ??
+    newest
+  if (target === newest && !newest.hasAttribute('tabindex')) newest.setAttribute('tabindex', '-1')
+  target.focus({ preventScroll: true })
 }
 
 /**
@@ -304,9 +344,19 @@ export function useKeyboardHome(typing: () => boolean, wantsText: boolean) {
   const check = useRef<() => void>(() => undefined)
   useEffect(() => {
     let queued = 0
+    /** The newest dialog the keyboard was given to. */
+    let dialogSeen: Element | null = null
     const settle = () => {
       queued = 0
       if (!document.hasFocus()) return
+      // A dialog that just opened takes the keyboard (phase 12): opened from a menu or a panel,
+      // focus stayed on the menu bar's button or the panel's row, where Esc did not reach a
+      // modeless one (Preflight, Check Spelling).
+      const newest = [...document.querySelectorAll('.kui-dialog')].at(-1) ?? null
+      if (newest !== dialogSeen) {
+        dialogSeen = newest
+        if (newest) takeDialogFocus(document)
+      }
       const app = document.querySelector<HTMLElement>('.kui-app')
       const sink = document.querySelector<HTMLTextAreaElement>('.kui-text-sink')
       const now = latest.current()

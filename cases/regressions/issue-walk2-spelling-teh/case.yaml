@@ -1,0 +1,19 @@
+format: 1
+id: regressions/issue-walk2-spelling-teh
+feature: layout.ui.paths-and-output
+intent: >-
+  Check Spelling never flagged "Teh": the word list, built for hyphenation, carries a few transposition typos of the
+  commonest words (teh, nad, ont) as words. They are flagged with the word they mistype among the suggestions.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-w2.md (second walkthrough, after phase 11, 2026-11-26)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: spelling_flags_teh_and_the_other_listed_typos }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

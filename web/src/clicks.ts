@@ -18,8 +18,20 @@ export function nextPress(last: Press | null, time: number, x: number, y: number
   return { time, x, y, count: near && last ? Math.min(last.count + 1, 255) : 1 }
 }
 
-/** A counted press waiting for the editor to send its press on (plan 2026-11-25, stage 6). */
-export type Counted = { count: number; at: number }
+/**
+ * A counted press waiting for the editor to send its press on (plan 2026-11-25, stage 6).
+ * `claimed` is false from the press until the canvas gives it to the engine's tool; a press the
+ * canvas kept (the hand while Space is held, an Alt-drag pan, a press on a guide, a view tool)
+ * stays unclaimed and its count is never taken (phase 12: it made the next triple click's presses
+ * take their counts one place late, selecting a word).
+ */
+export type Counted = { count: number; at: number; claimed?: boolean }
+
+/** The press counted last goes to the engine's tool: its count waits for its press to be sent. */
+export function claimNewest(waiting: Counted[]) {
+  const last = waiting.at(-1)
+  if (last && last.claimed === false) last.claimed = true
+}
 
 /** The longest a counted press waits for its own press to be sent (a press the view tools took is never sent). */
 export const PRESS_WAIT_MS = 2000
@@ -27,9 +39,10 @@ export const PRESS_WAIT_MS = 2000
 /**
  * The count for the press the editor sends now (at `now`): the oldest counted press still
  * waiting, so a press sent after the next one was counted (a fast double click) keeps its own
- * count; presses waiting too long are dropped first. One when none waits. Changes `waiting`.
+ * count; presses waiting too long, and presses the engine never got, are dropped first. One when
+ * none waits. Changes `waiting`.
  */
 export function takeCount(waiting: Counted[], now: number): number {
-  while (waiting.length && now - (waiting[0]?.at ?? now) > PRESS_WAIT_MS) waiting.shift()
+  while (waiting.length && (now - (waiting[0]?.at ?? now) > PRESS_WAIT_MS || waiting[0]?.claimed === false)) waiting.shift()
   return waiting.shift()?.count ?? 1
 }

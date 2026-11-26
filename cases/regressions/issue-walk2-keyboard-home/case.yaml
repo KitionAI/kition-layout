@@ -1,0 +1,26 @@
+format: 1
+id: regressions/issue-walk2-keyboard-home
+feature: layout.ui.keys-and-view
+intent: >-
+  Three moments left the keyboard with no home: after the host opened a file (focus on its own control) the tool keys
+  did nothing until a click; Esc did not close Preflight or Check Spelling opened from the menu; and in a table cell
+  Esc then V typed "v" into the cell. A document opening takes the keyboard (nothing runs meanwhile), a dialog that
+  opens takes it, and selected cells take no typed text, so V chooses the Selection tool; Esc twice goes back to the
+  cell's text.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-w2.md (second walkthrough, after phase 11, 2026-11-26)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, keyboardHome]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-26"

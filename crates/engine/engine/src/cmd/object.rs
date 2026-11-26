@@ -68,7 +68,8 @@ pub fn specs() -> Vec<CommandSpec> {
             "transform.again",
             "Transform Again",
             ["Object", "Transform Again"],
-            Some("Cmd+Alt+3"),
+            // Not Cmd+Alt+3: that is Show All on Spread's, beside Hide's Cmd+3 (phase 12).
+            Some("Cmd+Alt+4"),
             "{individually?: bool, sequence?: bool, ids?} — repeat the last transform (or the whole sequence applied to this selection), on the selection as a whole or on each object about its own centre",
             has_selection,
             transform_again

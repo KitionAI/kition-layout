@@ -178,7 +178,18 @@ export function MarginsColumnsDialog({ info, page, onClose }: { info: DocumentIn
         <SidesRows label={t('margins')} sides={margins} linked={linked} labels={sideLabels(t, info.settings.facingPages)} linkLabel={t('dialog.linkSides')} unit={unit} onChange={setMargins} onLink={setLinked} testId="layout-margins" />
         <NumberRow label={t('columns')} value={columns} min={1} max={216} decimals={0} onChange={(next) => next !== null && next >= 1 && setColumns(Math.round(next))} testId="layout-margins-columns" />
         <LengthRow label={t('gutter')} value={gutter} unit={unit} onChange={(next) => next !== null && next >= 0 && setGutter(next)} testId="layout-margins-gutter" />
-        <ChoiceRow label={t('dialog.applyTo')} value={scope} choices={[['all', t('dialog.allPages')], ['page', t('currentPage', { page: shown?.name ?? String(page + 1) })]] as const} onChange={setScope} testId="layout-margins-scope" />
+        <ChoiceRow
+          label={t('dialog.applyTo')}
+          value={scope}
+          choices={
+            [
+              ['all', t(info.editingParents ? 'dialog.allParentPages' : 'dialog.allPages')],
+              ['page', t(info.editingParents ? 'currentParentPage' : 'currentPage', { page: shown?.name ?? String(page + 1) })],
+            ] as const
+          }
+          onChange={setScope}
+          testId="layout-margins-scope"
+        />
       </div>
     </DialogFrame>
   )

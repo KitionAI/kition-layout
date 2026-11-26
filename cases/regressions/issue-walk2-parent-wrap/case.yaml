@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-walk2-parent-wrap
+feature: layout.ui.panels-and-styles
+intent: >-
+  An object with a text wrap on a parent page (the page's parent, or one that parent is based on) drew on the page
+  but the page's text ran under it. Parent objects wrap the page's text frames, and changing their wrap recomposes
+  the text.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-w2.md (second walkthrough, after phase 11, 2026-11-26)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: parent_objects_wrap_the_pages_text_through_the_based_on_chain }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

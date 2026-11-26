@@ -81,13 +81,23 @@ pub fn specs() -> Vec<CommandSpec> {
     ]
 }
 
+/// Typos the word list (built for hyphenation, not spelling) carries as words: transpositions of
+/// the commonest English words ("teh" for "the", "nad" for "and", "ont" for "not"). Walkthrough 2,
+/// D-5: Check Spelling never flagged "Teh".
+const NOT_WORDS: [&str; 3] = ["nad", "ont", "teh"];
+
+/// Is `w` (lowercase) in the word list as a word.
+fn listed(dict: &Dictionary, w: &str) -> bool {
+    !NOT_WORDS.contains(&w) && dict.get(w).is_some()
+}
+
 /// Is `w` (lowercase) a known word, allowing common inflections of dictionary stems?
 pub fn known(dict: &Dictionary, user: &[String], w: &str) -> bool {
-    if w.len() <= 1 || dict.get(w).is_some() || user.iter().any(|u| u == w) {
+    if w.len() <= 1 || listed(dict, w) || user.iter().any(|u| u == w) {
         return true;
     }
     let w = w.trim_end_matches("'s").trim_end_matches("’s");
-    if dict.get(w).is_some() {
+    if listed(dict, w) {
         return true;
     }
     let stems: [(&str, &[&str]); 9] = [
@@ -105,14 +115,14 @@ pub fn known(dict: &Dictionary, user: &[String], w: &str) -> bool {
         if let Some(base) = w.strip_suffix(suf) {
             for add in adds {
                 let cand = format!("{base}{add}");
-                if cand.len() > 1 && dict.get(&cand).is_some() {
+                if cand.len() > 1 && listed(dict, &cand) {
                     return true;
                 }
                 // Doubled consonant: "stopped" → "stop".
                 if let Some(c) = base.chars().last()
                     && base.len() > 2
                     && base.ends_with(&format!("{c}{c}"))
-                    && dict.get(&base[..base.len() - c.len_utf8()]).is_some()
+                    && listed(dict, &base[..base.len() - c.len_utf8()])
                 {
                     return true;
                 }
@@ -128,7 +138,7 @@ pub fn suggest(dict: &Dictionary, w: &str) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     let mut push = |c: Vec<char>| {
         let c: String = c.into_iter().collect();
-        if c != w && !out.contains(&c) && dict.get(&c).is_some() {
+        if c != w && !out.contains(&c) && listed(dict, &c) {
             out.push(c);
         }
     };

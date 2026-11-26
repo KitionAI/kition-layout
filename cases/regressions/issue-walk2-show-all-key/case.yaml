@@ -1,0 +1,20 @@
+format: 1
+id: regressions/issue-walk2-show-all-key
+feature: layout.ui.keys-and-view
+intent: >-
+  Cmd+Alt+3 belonged to Show All on Spread and to Transform Again; the editor ran Transform Again (greyed out with
+  nothing selected), so the key never showed hidden objects. Transform Again is Cmd+Alt+4 and no two commands share
+  a shortcut.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-w2.md (second walkthrough, after phase 11, 2026-11-26)
+  license: owned
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: no_two_commands_share_a_shortcut }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

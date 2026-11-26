@@ -1,0 +1,26 @@
+format: 1
+id: regressions/issue-walk2-dock-first-view
+feature: layout.ui.panels-and-styles
+intent: >-
+  At 1440 x 900, on first view and without scrolling the panel column, Pages showed no whole thumbnail and hid its page
+  numbers, Swatches two rows and Styles none (below the window), and a collapsed group gave its room to nobody. The
+  dock now has two columns on a wide window: a whole spread with its numbers in Pages, at least six rows in Layers,
+  Swatches and Styles, a collapsed group's room going to the others, dividers that move room and are remembered; one
+  column of three groups at 1024 x 700.
+layer: gate
+source:
+  kind: issue
+  from: kit-docs/layout/walkthrough/findings-w2.md (second walkthrough, after phase 11, 2026-11-26)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/fixes.mjs, chromium, firstView]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-26"

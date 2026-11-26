@@ -76,6 +76,8 @@ export type DocumentInfo = {
   selected: number
   selection: number[]
   editingText: boolean
+  /** Table cells are selected (Esc out of a cell's text): not typing, the letter keys choose tools (phase 12). */
+  cellsSelected: boolean
   /** The story the text cursor or text selection is in (null when not editing text). */
   textStory: number | null
   layers: Layer[]
@@ -114,7 +116,7 @@ type Inspected = {
   pageCount?: number
   spreads?: Array<{ index?: number; pages?: Array<Partial<Page>>; items?: Item[] }>
   canvas?: { spreads?: Array<{ x: number; y: number; width: number; height: number; guides?: unknown[] }> }
-  selection?: { items?: number[]; text?: { story?: number } | null; anchors?: Array<[number, number, number]> }
+  selection?: { items?: number[]; text?: { story?: number } | null; cells?: unknown; anchors?: Array<[number, number, number]> }
   layers?: Layer[]
   activeLayer?: number
   swatches?: string[]
@@ -166,6 +168,7 @@ export function describe(info: KitEngineInfo): DocumentInfo {
     selected: inspected.selection?.items?.length ?? 0,
     selection: inspected.selection?.items ?? [],
     editingText: inspected.selection?.text != null,
+    cellsSelected: inspected.selection?.cells != null,
     textStory: inspected.selection?.text?.story ?? null,
     layers: inspected.layers ?? [],
     activeLayer: inspected.activeLayer ?? null,
