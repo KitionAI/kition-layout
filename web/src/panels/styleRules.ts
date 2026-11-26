@@ -23,7 +23,21 @@ export type StyleDef = {
   uses?: number
 }
 
-export type StyleDefs = { paragraph: StyleDef[]; character: StyleDef[] }
+export type StyleDefs = { paragraph: StyleDef[]; character: StyleDef[]; object?: ObjectStyleDef[] }
+
+/** What an object style includes (each part null when the style leaves it out), as `inspect()` reads it (phase 11). */
+export type ObjectStyleParts = {
+  fill: string | null
+  fillTint: number | null
+  stroke: string | null
+  strokeTint: number | null
+  strokeWeight: number | null
+  paragraphStyle: string | null
+  textFrame: { columns: number; gutter: number; inset: number[]; verticalJustification: string } | null
+}
+
+/** An object style: its own parts, those with its Based On chain, and how many objects use it. */
+export type ObjectStyleDef = { name: string; basedOn?: string | null; own: ObjectStyleParts; resolved: ObjectStyleParts; uses?: number }
 
 /** A field of the dialog: an attribute of the style's `para` or `chars`. */
 export type StyleField = {

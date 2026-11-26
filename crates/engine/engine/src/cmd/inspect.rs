@@ -127,7 +127,11 @@ fn inspect(s: &mut Session, _p: &Value) -> Result<Value> {
         "spreads": spreads,
         // The original layout and its alternate layouts (`layout.addAlternate`).
         "layouts": super::liquid::layouts_json(d),
-        "parents": d.parents.iter().map(|p| json!({"id": p.id.0, "label": p.parent.as_ref().map(|i| i.label()), "pages": p.pages.len(), "items": p.items.len()})).collect::<Vec<_>>(),
+        "parents": d.parents.iter().map(|p| {
+            let info = p.parent.as_ref();
+            let based = info.and_then(|i| i.based_on).and_then(|b| d.parent_index(b)).and_then(|b| d.parents.get(b)).and_then(|b| b.parent.as_ref()).map(|b| b.label());
+            json!({"id": p.id.0, "label": info.map(|i| i.label()), "prefix": info.map(|i| &i.prefix), "name": info.map(|i| &i.name), "basedOn": based, "pages": p.pages.len(), "items": p.items.len()})
+        }).collect::<Vec<_>>(),
         "layers": d.layers,
         "stories": stories,
         "paragraphStyles": d.styles.paragraph.iter().map(|p| &p.name).collect::<Vec<_>>(),

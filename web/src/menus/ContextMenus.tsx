@@ -6,6 +6,7 @@ import type { Dialogs } from '../dialogs/DialogHost'
 import { asks } from '../dialogs/routes'
 import { VARIANT_LABELS, engineCommandOf } from './catalog'
 import { OWN_DIALOG_ROWS, contextRows, type Spot } from './contextRows'
+import { pagesText } from '../panels/panelLogic'
 import { viewChecked, viewRowLabel, type ViewState } from '../viewOptions'
 
 /** An open right-click menu: where it was opened and what is there. */
@@ -105,6 +106,14 @@ export function LayoutContextMenu({ menu, info, onClose, dialogs, onView, view: 
   // A Pages panel menu acts on its page (and that page's spread), not the page in view.
   const place = menu.spot.kind === 'page' && info ? { page: menu.spot.page, spread: spreadOfPage(info, menu.spot.page)?.index ?? 0 } : undefined
   const rows = contextRows(menu.spot)
+  // Pages chosen together in the Pages panel (phase 11): its page rows act on all of them.
+  const together = menu.spot.kind === 'page' && menu.spot.pages && menu.spot.pages.length > 1 ? menu.spot.pages : null
+  const forPages = (command: string): Record<string, unknown> | undefined => {
+    if (!together) return undefined
+    if (command === 'layout.pages.applyParent') return { pages: together.map((index) => index + 1) }
+    if (command === 'layout.pages.delete' || command === 'layout.pages.move') return { pagesText: pagesText(together) }
+    return undefined
+  }
   return (
     <ContextMenu at={{ x: menu.x, y: menu.y }} onClose={onClose} label={t(`context.${menu.spot.kind}`)} testId={`layout-context-${menu.spot.kind}`}>
       {rows.map((row, index) => {
@@ -136,7 +145,7 @@ export function LayoutContextMenu({ menu, info, onClose, dialogs, onView, view: 
             label={label}
             shortcut={variant ? null : byId.get(command)?.shortcut}
             disabled={!byId.has(command) || !enabled(id)}
-            onSelect={() => dialogs.current?.invoke(id, { place, params })}
+            onSelect={() => dialogs.current?.invoke(id, { place, params: forPages(command) ? { ...params, ...forPages(command) } : params })}
             testId={`layout-context-row-${id}`}
           />
         )

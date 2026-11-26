@@ -932,6 +932,11 @@
   user-select: none;
 }
 
+.layout-parent[data-active='true'] {
+  border-color: var(--kit-primary);
+  color: var(--kit-text);
+}
+
 .layout-editing-parents {
   flex-wrap: wrap;
   gap: 6px;
@@ -1008,4 +1013,52 @@
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
+}
+
+/* Gradient swatches (phase 11): the stop bar and its markers. */
+.layout-gradient-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px 0;
+}
+
+.layout-gradient-bar {
+  height: 22px;
+  border: 1px solid var(--kit-border);
+  border-radius: var(--kit-radius-control);
+  cursor: copy;
+}
+
+.layout-gradient-stops {
+  position: relative;
+  height: 16px;
+}
+
+.layout-gradient-marker {
+  position: absolute;
+  top: 0;
+  width: 12px;
+  height: 14px;
+  margin-left: -6px;
+  padding: 0;
+  border: 1px solid var(--kit-text-muted);
+  border-radius: 2px 2px 6px 6px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.layout-gradient-marker[data-active='true'] {
+  border: 2px solid var(--kit-primary);
+}
+
+.layout-gradient-marker[data-off='true'] {
+  opacity: 0.35;
+}
+
+/* A page that starts a numbering section (phase 11). */
+.layout-page-name[data-section='true']::before {
+  content: '▾';
+  margin-right: 1px;
+  color: var(--kit-text-muted);
 }

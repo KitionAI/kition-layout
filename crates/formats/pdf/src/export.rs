@@ -627,19 +627,22 @@ impl Exporter<'_> {
                 if !page.show_parent_items {
                     continue;
                 }
-                let Some((ppi, ppage)) = doc.parent_page_for(first + pi) else { continue };
-                let parent = &doc.parents[ppi];
-                let dx = page.x - parent.pages[ppage].x;
                 let page_name = doc.page_name(first + pi);
-                for it in &parent.items {
-                    if it.layer != layer.id || page.overridden.contains(&it.id) {
-                        continue;
+                // Its parent's items and those of the parents that one is based on, deepest first.
+                for (ppi, ppage) in doc.parent_pages_for(first + pi) {
+                    let Some(parent) = doc.parents.get(ppi) else { continue };
+                    let Some(base) = parent.pages.get(ppage) else { continue };
+                    let dx = page.x - base.x;
+                    for it in &parent.items {
+                        if it.layer != layer.id || page.overridden.contains(&it.id) {
+                            continue;
+                        }
+                        // Parent items belong to the parent page they sit on.
+                        if parent.page_at_x(it.bounds().center().x) != Some(ppage) && parent.pages.len() > 1 {
+                            continue;
+                        }
+                        self.top_item(s, it, Affine::translate((dx, 0.0)), Some(&page_name), true);
                     }
-                    // Parent items belong to the parent page they sit on.
-                    if parent.page_at_x(it.bounds().center().x) != Some(ppage) && parent.pages.len() > 1 {
-                        continue;
-                    }
-                    self.top_item(s, it, Affine::translate((dx, 0.0)), Some(&page_name), true);
                 }
             }
             for it in &sp.items {
@@ -1064,6 +1067,13 @@ impl Exporter<'_> {
     fn stroke(&mut self, s: &mut Surface, it: &Item, bp: &BezPath, path: &Path) {
         let st = &it.stroke;
         let Some(c) = self.swatch_color(&st.swatch, st.tint) else { return };
+        // A gradient swatch's stroke paints its gradient across the path's bounds (phase 11).
+        let gradient = if kition_layout_color::swatch::resolve_gradient(&self.doc.swatches, &st.swatch).is_some() {
+            self.fill_paint(&kition_layout_doc::Fill::swatch(&st.swatch), bp.bounding_box())
+        } else {
+            None
+        };
+        let paint = |c: &krilla::color::Color| -> krilla::paint::Paint { gradient.clone().unwrap_or_else(|| c.clone().into()) };
         let closed = it.path.is_closed();
         let mut cap = match st.cap {
             kition_layout_doc::Cap::Butt => krilla::paint::LineCap::Butt,
@@ -1084,7 +1094,7 @@ impl Exporter<'_> {
                 s.draw_path(path);
                 s.set_stroke(None);
             }
-            s.set_fill(Some(Fill { paint: c.into(), opacity: NormalizedF32::ONE, rule: FillRule::NonZero }));
+            s.set_fill(Some(Fill { paint: paint(&c), opacity: NormalizedF32::ONE, rule: FillRule::NonZero }));
             s.draw_path(&op);
             s.set_fill(None);
             return;
@@ -1136,7 +1146,7 @@ impl Exporter<'_> {
             s.draw_path(path);
         }
         s.set_stroke(Some(Stroke {
-            paint: c.clone().into(),
+            paint: paint(&c),
             width: width as f32,
             miter_limit: st.miter_limit.max(1.0) as f32,
             line_cap: cap,
@@ -1157,12 +1167,12 @@ impl Exporter<'_> {
             let Some(p) = to_path(&h.path) else { continue };
             match h.outline {
                 Some(w) => {
-                    s.set_stroke(Some(Stroke { paint: c.clone().into(), width: w as f32, opacity: NormalizedF32::ONE, ..Default::default() }));
+                    s.set_stroke(Some(Stroke { paint: paint(&c), width: w as f32, opacity: NormalizedF32::ONE, ..Default::default() }));
                     s.draw_path(&p);
                     s.set_stroke(None);
                 }
                 None => {
-                    s.set_fill(Some(krilla::paint::Fill { paint: c.clone().into(), opacity: NormalizedF32::ONE, rule: FillRule::NonZero }));
+                    s.set_fill(Some(krilla::paint::Fill { paint: paint(&c), opacity: NormalizedF32::ONE, rule: FillRule::NonZero }));
                     s.draw_path(&p);
                     s.set_fill(None);
                 }

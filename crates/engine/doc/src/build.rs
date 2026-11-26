@@ -605,6 +605,53 @@ impl Document {
         Ok(())
     }
 
+    /// The parent pages (spread index, page index) to show behind document page `abs`, back to
+    /// front: the parents its parent is based on (the deepest first), then its parent.
+    pub fn parent_pages_for(&self, abs: usize) -> Vec<(usize, usize)> {
+        match self.page(abs) {
+            Some(page) => self.parent_chain(page.parent, page.side),
+            None => Vec::new(),
+        }
+    }
+
+    /// The pages of parent `start` and of the parents it is based on, for a page on `side`, back
+    /// to front (the deepest base first). A cycle or a missing parent ends the chain.
+    pub fn parent_chain(&self, start: Option<SpreadId>, side: PageSide) -> Vec<(usize, usize)> {
+        let mut out = Vec::new();
+        let mut seen: Vec<SpreadId> = Vec::new();
+        let mut next = start;
+        while let Some(id) = next {
+            if seen.contains(&id) || seen.len() >= 64 {
+                break;
+            }
+            seen.push(id);
+            let Some(pi) = self.parent_index(id) else { break };
+            let Some(ps) = self.parents.get(pi) else { break };
+            let idx = if ps.pages.len() >= 2 && side == PageSide::Left { Some(0) } else { ps.pages.len().checked_sub(1) };
+            if let Some(idx) = idx {
+                out.push((pi, idx));
+            }
+            next = ps.parent.as_ref().and_then(|info| info.based_on);
+        }
+        out.reverse();
+        out
+    }
+
+    /// Whether basing parent `id` on parent `base` would make a cycle (`base` is `id` or is based,
+    /// directly or not, on `id`).
+    pub fn parent_basis_cycles(&self, id: SpreadId, base: SpreadId) -> bool {
+        let mut next = Some(base);
+        let mut steps = 0;
+        while let Some(at) = next {
+            if at == id || steps > 64 {
+                return true;
+            }
+            steps += 1;
+            next = self.parent_index(at).and_then(|pi| self.parents.get(pi)).and_then(|ps| ps.parent.as_ref()).and_then(|info| info.based_on);
+        }
+        false
+    }
+
     /// Parent page (spread index, page index) to show behind document page `abs`.
     pub fn parent_page_for(&self, abs: usize) -> Option<(usize, usize)> {
         let page = self.page(abs)?;

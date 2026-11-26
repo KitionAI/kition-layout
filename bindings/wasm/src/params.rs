@@ -165,6 +165,24 @@ pub fn complete(id: &str, schema: &mut Value) {
             json!({"oneOf":[{"type":"string","x-khp-name":"parentLabel","x-khp-types":["Spread"]},{"type":"null"}],"description":"parent prefix or full prefix-name label; null clears"}),
         );
     }
+    // Parent Page Options, Duplicate and Delete Parent Spread (phase 11): the parent they act on,
+    // and the parent it is based on or that takes its place (null: none).
+    if matches!(id, "layout.parents.set" | "layout.parents.duplicate" | "layout.parents.delete") {
+        properties.insert(
+            "parent".into(),
+            json!({"type":"string","x-khp-name":"parentLabel","x-khp-types":["Spread"],"description":"parent prefix or full prefix-name label"}),
+        );
+    }
+    for key in match id {
+        "layout.parents.set" => &["basedOn"][..],
+        "layout.parents.delete" => &["replaceWith"][..],
+        _ => &[][..],
+    } {
+        properties.insert(
+            (*key).into(),
+            json!({"oneOf":[{"type":"string","x-khp-name":"parentLabel","x-khp-types":["Spread"]},{"type":"null"}],"description":"parent prefix or full prefix-name label; null for none"}),
+        );
+    }
     if matches!(id, "style.cell.add" | "style.cell.edit") {
         for (key, node) in [
             ("basedOn", Kind::String.node()),

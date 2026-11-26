@@ -147,3 +147,37 @@ export function pageHasObjects(spread: { pages: ReadonlyArray<{ index: number; b
   const [x0, y0, x1, y1] = on.bounds
   return spread.items.some(({ bounds: [a, b, c, d] }) => a < x1 && c > x0 && b < y1 && d > y0)
 }
+
+/**
+ * The Pages panel's chosen pages after a click on page `index` (phase 11): a plain click chooses it
+ * alone, Shift chooses the run from the anchor (the last plain or Cmd click), Cmd/Ctrl adds or takes
+ * it away (the last chosen page cannot be taken away). Pages from 0, in order.
+ */
+export function choosePages(chosen: readonly number[], anchor: number, index: number, how: { range: boolean; toggle: boolean }): { pages: number[]; anchor: number } {
+  if (how.range) {
+    const [from, to] = anchor <= index ? [anchor, index] : [index, anchor]
+    const run = Array.from({ length: to - from + 1 }, (_, i) => from + i)
+    return { pages: how.toggle ? [...new Set([...chosen, ...run])].sort((a, b) => a - b) : run, anchor }
+  }
+  if (how.toggle) {
+    if (chosen.includes(index)) {
+      const rest = chosen.filter((page) => page !== index)
+      return rest.length ? { pages: rest, anchor: index } : { pages: [index], anchor: index }
+    }
+    return { pages: [...chosen, index].sort((a, b) => a - b), anchor: index }
+  }
+  return { pages: [index], anchor: index }
+}
+
+/** Pages from 0 as the page dialogs take them typed: "2, 4-6" (numbers from 1, runs joined). */
+export function pagesText(pages: readonly number[]): string {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b).map((page) => page + 1)
+  const parts: string[] = []
+  for (let i = 0; i < sorted.length; ) {
+    let j = i
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j += 1
+    parts.push(j > i ? `${sorted[i]}-${sorted[j]}` : String(sorted[i]))
+    i = j + 1
+  }
+  return parts.join(', ')
+}

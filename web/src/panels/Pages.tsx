@@ -8,7 +8,8 @@ import { PanelHeading } from './fields'
 import { dropSide, moveTarget } from './reorder'
 import { useRowDrag, type DragOver } from './rowDrag'
 import { useDialogs } from './dialogsContext'
-import { pageHasObjects } from './panelLogic'
+import { choosePages, pageHasObjects, pagesText } from './panelLogic'
+import { movePlan, movedTo, sectionStarts } from '../dialogs/pages'
 
 /** What a drag in the Pages panel carries: a page (to move it) or a parent (to apply it). */
 type Dragged = { kind: 'page'; index: number } | { kind: 'parent'; label: string | null }
@@ -110,10 +111,16 @@ function SpreadThumb({ spread }: { spread: Spread }) {
  * rows of the right-click menu.
  */
 export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; onShow: (spread: Spread) => void; onSetup: () => void }) {
-  const { run, phrase: p, t } = useKitEditor()
+  const { run, phrase: p, t, session } = useKitEditor()
   const { settle } = useEditorView()
   const readOnly = useReadOnly()
-  const [chosen, setChosen] = useState(0)
+  const [chosen, setChosenPage] = useState(0)
+  // The pages chosen together (phase 11: Shift and Cmd/Ctrl clicks), from 0, with the anchor of a Shift run.
+  const [together, setTogether] = useState<{ pages: number[]; anchor: number }>({ pages: [0], anchor: 0 })
+  const setChosen = (index: number) => {
+    setChosenPage(index)
+    setTogether({ pages: [index], anchor: index })
+  }
   const openMenu = useMenuOpener()
   const editing = info.editingParents
   const drop = (source: Dragged, over: DragOver) => {
@@ -126,21 +133,46 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
     const pages = kind === 'spread' ? (info.spreads.find((spread) => spread.index === at)?.pages.map((page) => page.index) ?? []) : kind === 'page' ? [at] : []
     if (!pages.length) return
     if (source.kind === 'parent') {
-      void run('layout.pages.applyParent', { pages: pages.map((page) => page + 1), parent: source.label })
+      // Onto one of the pages chosen together: all of them take it.
+      const onto = kind === 'page' && many.length > 1 && many.includes(at) ? many : pages
+      void run('layout.pages.applyParent', { pages: onto.map((page) => page + 1), parent: source.label })
       return
     }
     const side = dropSide(target.getBoundingClientRect(), over.x, over.y, true)
+    if (many.length > 1 && many.includes(source.index)) {
+      // The pages chosen together move as one, in their order, one undo step.
+      const plan = { pages: many.map((page) => page + 1), where: side === 'before' ? ('before' as const) : ('after' as const), page: (side === 'before' ? pages[0] : pages[pages.length - 1]) + 1, count: info.pageCount }
+      const steps = movePlan(plan)
+      if (steps?.length) void moveTogether(steps, movedTo(plan))
+      return
+    }
     const before = side === 'before' ? pages[0] : pages[pages.length - 1] + 1
     const to = moveTarget(source.index, before)
     if (to != null) void run('layout.pages.move', { from: source.index, to }).then(() => setChosen(to))
   }
+  /** Several page moves as one undo step; the moved pages stay chosen. */
+  const moveTogether = async (steps: Array<{ from: number; to: number }>, moved: number[]) => {
+    const open = session.doc
+    if (!open) return
+    await open.invoke('runSteps', t('pages.moveTogether'), JSON.stringify(steps.map((step) => ['layout.pages.move', step])))
+    await settle()
+    setChosenPage(moved[0] ?? 0)
+    setTogether({ pages: moved, anchor: moved[0] ?? 0 })
+  }
   const drag = useRowDrag<Dragged>(drop)
   const dialogs = useDialogs()
-  /** The trash: a page with objects on it is asked about first (in the Delete Pages dialog, as from the menu). */
-  const deletePage = (index: number) => {
-    const spread = info.spreads.find((item) => item.pages.some((one) => one.index === index))
-    if (spread && pageHasObjects(spread, index) && dialogs?.current) dialogs.current.invoke('layout.pages.delete', { place: { page: index, spread: spread.index } })
-    else void run('layout.pages.delete', { pages: [index] })
+  /**
+   * The trash: the chosen pages go; when one has objects on it, the Delete Pages dialog asks first
+   * (as from the menu). A document keeps one page.
+   */
+  const deletePages = (indexes: readonly number[]) => {
+    const spread = info.spreads.find((item) => item.pages.some((one) => one.index === indexes[0]))
+    const full = indexes.some((index) => {
+      const holder = info.spreads.find((item) => item.pages.some((one) => one.index === index))
+      return holder ? pageHasObjects(holder, index) : false
+    })
+    if (full && dialogs?.current) dialogs.current.invoke('layout.pages.delete', { place: { page: indexes[0] ?? 0, spread: spread?.index ?? 0 }, params: { pagesText: pagesText(indexes) } })
+    else void run('layout.pages.delete', { pages: [...indexes] }).then(() => setChosen(Math.max(0, Math.min(...indexes) - 1)))
   }
   /** Edit a parent: the canvas shows the parent spreads (and the panel lists them) until Back to Pages. */
   const editParents = async (on: boolean, label?: string | null) => {
@@ -160,13 +192,37 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
   const pageMenu = (index: number) => (event: MouseEvent<HTMLElement>) => {
     if (!openMenu) return
     event.preventDefault()
-    setChosen(index)
-    openMenu({ kind: 'page', page: index }, event.clientX, event.clientY)
+    // On one of the pages chosen together, the menu acts on all of them.
+    const keep = many.length > 1 && many.includes(index)
+    if (keep) setChosenPage(index)
+    else setChosen(index)
+    openMenu({ kind: 'page', page: index, pages: keep ? many : undefined }, event.clientX, event.clientY)
+  }
+  /** A click on a page's name: alone, a Shift run, or Cmd/Ctrl added or taken away (phase 11). */
+  const choose = (index: number, event: MouseEvent<HTMLElement>) => {
+    const next = choosePages(many, together.anchor, index, { range: event.shiftKey, toggle: event.metaKey || event.ctrlKey })
+    setChosenPage(index)
+    setTogether(next)
+  }
+  /** The parent chosen in the panel (a click on it): the panel menu has its rows (phase 11). */
+  const [chosenParent, setChosenParent] = useState<string | null>(null)
+  /** A right-click on a parent chooses it and opens the parent menu (options, duplicate, delete). */
+  const parentMenu = (label: string | null) => (event: MouseEvent<HTMLElement>) => {
+    if (!openMenu || !label) return
+    event.preventDefault()
+    setChosenParent(label)
+    if (!readOnly) openMenu({ kind: 'parent', parent: label }, event.clientX, event.clientY)
   }
   const page = Math.min(chosen, Math.max(0, info.pageCount - 1))
+  // The pages chosen together that the document still has (the chosen page when none is left).
+  const kept = together.pages.filter((index) => index < info.pageCount)
+  const many = kept.length ? kept : [page]
+  const sections = sectionStarts(info.sections)
   const spreadOf = info.spreads.find((spread) => spread.pages.some((item) => item.index === page))
   const parentOf = spreadOf?.pages.find((item) => item.index === page)?.parent ?? null
   const parents = info.parents.filter((parent) => parent.label).map((parent) => [parent.label ?? '', parent.label ?? ''] as const)
+  // The panel menu's parent: the one chosen, else the chosen page's, else the first.
+  const menuParent = (chosenParent && info.parents.some((parent) => parent.label === chosenParent) ? chosenParent : null) ?? parentOf ?? info.parents.find((parent) => parent.label)?.label ?? null
   return (
     <div className="layout-panel" data-testid="layout-pages-panel">
       <PanelHeading
@@ -180,7 +236,7 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
               disabled={readOnly || editing || !openMenu}
               onClick={(event) => {
                 const box = event.currentTarget.getBoundingClientRect()
-                openMenu?.({ kind: 'page', page }, box.left, box.bottom)
+                openMenu?.({ kind: 'page', page, pages: many.length > 1 ? many : undefined, parent: menuParent }, box.left, box.bottom)
               }}
               data-testid="layout-pages-menu"
             />
@@ -200,10 +256,13 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
           <span
             key={parent.id}
             className="layout-parent"
-            title={t('parentHint', { count: parent.items })}
+            data-active={parent.label != null && parent.label === chosenParent ? 'true' : undefined}
+            title={parent.basedOn ? `${t('parentHint', { count: parent.items })} ${t('parent.basedOnHint', { name: parent.basedOn })}` : t('parentHint', { count: parent.items })}
             data-dragging={drag.dragging?.kind === 'parent' && drag.dragging.label === parent.label ? 'true' : undefined}
             onPointerDown={(event) => !readOnly && !editing && drag.start({ kind: 'parent', label: parent.label }, event)}
+            onClick={() => setChosenParent(parent.label)}
             onDoubleClick={() => parent.label && !readOnly && void editParents(true, parent.label)}
+            onContextMenu={parentMenu(parent.label)}
             data-testid={`layout-parent-${parent.label ?? 'none'}`}
           >
             {parent.label ?? t('noParent')}
@@ -230,11 +289,13 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
                   key={item.index}
                   type="button"
                   className="layout-page-name"
-                  data-active={item.index === page}
+                  data-active={many.includes(item.index)}
+                  data-section={sections.has(item.index) && !editing ? 'true' : undefined}
+                  title={sections.has(item.index) && !editing ? t('pages.sectionStart', { marker: sections.get(item.index) || item.name }) : undefined}
                   data-drop={`page:${item.index}`}
                   data-dragging={drag.dragging?.kind === 'page' && drag.dragging.index === item.index ? 'true' : undefined}
                   onPointerDown={(event) => !readOnly && !editing && drag.start({ kind: 'page', index: item.index }, event)}
-                  onClick={() => setChosen(item.index)}
+                  onClick={(event) => choose(item.index, event)}
                   onDoubleClick={() => {
                     setChosen(item.index)
                     onShow(spread)
@@ -254,22 +315,22 @@ export function PagesSection({ info, onShow, onSetup }: { info: DocumentInfo; on
           label={t('pageParent')}
           value={parentOf ?? ''}
           choices={[['', t('noParent')] as const, ...parents]}
-          onChange={(parent) => void run('layout.pages.applyParent', { pages: [page + 1], parent: parent || null })}
+          onChange={(parent) => void run('layout.pages.applyParent', { pages: many.map((index) => index + 1), parent: parent || null })}
           testId="layout-page-parent"
         />
       </fieldset>
       <PanelFooter
         start={
           <>
-            <IconButton icon={ArrowUp} label={t('movePageUp')} disabled={readOnly || editing || page === 0} onClick={() => void run('layout.pages.move', { from: page, to: page - 1 }).then(() => setChosen(page - 1))} data-testid="layout-page-up" />
-            <IconButton icon={ArrowDown} label={t('movePageDown')} disabled={readOnly || editing || page + 1 >= info.pageCount} onClick={() => void run('layout.pages.move', { from: page, to: page + 1 }).then(() => setChosen(page + 1))} data-testid="layout-page-down" />
+            <IconButton icon={ArrowUp} label={t('movePageUp')} disabled={readOnly || editing || page === 0 || many.length > 1} onClick={() => void run('layout.pages.move', { from: page, to: page - 1 }).then(() => setChosen(page - 1))} data-testid="layout-page-up" />
+            <IconButton icon={ArrowDown} label={t('movePageDown')} disabled={readOnly || editing || page + 1 >= info.pageCount || many.length > 1} onClick={() => void run('layout.pages.move', { from: page, to: page + 1 }).then(() => setChosen(page + 1))} data-testid="layout-page-down" />
           </>
         }
         end={
           <>
             <IconButton icon={Settings2} label={p('Document Setup')} disabled={readOnly} onClick={onSetup} data-testid="layout-document-setup" />
             <IconButton icon={Copy} label={t('duplicateSpread')} disabled={readOnly || editing || !spreadOf} onClick={() => spreadOf && void run('layout.pages.duplicateSpread', { spread: spreadOf.index })} data-testid="layout-duplicate-spread" />
-            <IconButton icon={Trash} label={t('deletePage')} disabled={readOnly || editing || info.pageCount < 2} onClick={() => deletePage(page)} data-testid="layout-delete-page" />
+            <IconButton icon={Trash} label={t('deletePage')} disabled={readOnly || editing || info.pageCount < 2 || many.length >= info.pageCount} onClick={() => deletePages(many)} data-testid="layout-delete-page" />
           </>
         }
       />

@@ -55,6 +55,10 @@ enum On {
     FirstPage,
     /// Every parent spread (a new parent's next free prefix).
     Parents,
+    /// The parent spread `parent` names (by prefix or label).
+    NamedParent,
+    /// The items whose object style is the one `name` names, or a style based on it.
+    ObjectStyleItems,
     /// The first document spread (objects paste there).
     FirstSpread,
     /// Every top-level table cell.
@@ -140,6 +144,8 @@ fn rules(command: &str, params: &Value) -> Vec<Rule> {
             rule(On::Root, &["paragraphStyles", "characterStyles", "objectStyles"], &[]),
             rule(On::Swatches, &["name", "value"], &[]),
         ],
+        // A gradient swatch's stops may name colour swatches, whose colours they copy (phase 11).
+        "swatch.add" | "swatch.set" if params.get("gradient").is_some_and(|g| !g.is_null()) => vec![rule(On::Swatches, &["name", "value"], &[])],
         // Redefine Style reads the selected text's formats.
         "style.paragraph.edit" | "style.character.edit" if flag("fromSelection") => vec![rule(On::SelectedStory, &["text"], &[])],
         "swatch.addUnnamed" => vec![rule(On::Swatches, &["hidden"], &[])],
@@ -226,6 +232,48 @@ fn rules(command: &str, params: &Value) -> Vec<Rule> {
                 rules.push(rule(On::Parents, &["prefix"], &[]));
             }
             rules
+        }
+        // Parent Page Options (phase 11): a new page count lays the pages out by facing pages;
+        // a new base is checked along the based-on chain of every parent.
+        "layout.parents.set" => {
+            let mut rules = Vec::new();
+            if params.get("pages").is_some() {
+                rules.push(rule(On::Root, &["setup.facingPages"], &[]));
+            }
+            if params.get("prefix").is_some() || params.get("basedOn").is_some_and(|v| !v.is_null()) {
+                rules.push(rule(On::Parents, &["prefix", "basedOn"], &[]));
+                rules.push(rule(On::NamedParent, WHOLE, &[]));
+            }
+            rules
+        }
+        // Object Style Options (phase 11): which objects use the style (or one based on it), and
+        // the parts of theirs a change may reach; every object style resolved before and after.
+        "style.object.edit" => {
+            let mut rules = vec![
+                rule(On::AllItems, &["objectStyle"], &[]),
+                rule(On::ObjectStyleItems, &["objectStyle", "fill", "stroke", "textOptions"], &[]),
+                rule(On::Root, &["objectStyles"], &[]),
+            ];
+            if params.get("paragraphStyle").is_some() {
+                rules.push(rule(On::StoriesText, &["text"], &[]));
+            }
+            if params.get("rename").is_some() {
+                rules.push(rule(On::Root, &["settings.styleDefaults.defaultTextFrame", "settings.styleDefaults.defaultGraphicFrame"], &[]));
+            }
+            rules
+        }
+        // Delete Object Style hands its objects, the styles based on it and the default frame
+        // styles to the replacement.
+        "style.object.delete" => vec![
+            rule(On::AllItems, &["objectStyle"], &[]),
+            rule(On::Root, &["objectStyles", "settings.styleDefaults.defaultTextFrame", "settings.styleDefaults.defaultGraphicFrame"], &[]),
+        ],
+        // Duplicate Parent Spread copies the parent whole and takes the next free prefix.
+        "layout.parents.duplicate" => vec![rule(On::Parents, &["prefix"], &[]), rule(On::NamedParent, WHOLE, &[])],
+        // Delete Parent Spread hands every page using it, and every parent based on it, to the
+        // replacement.
+        "layout.parents.delete" => {
+            vec![rule(On::AllPages, &["parent", "overridden"], &[]), rule(On::Parents, &["basedOn"], &[]), rule(On::NamedParent, WHOLE, &[])]
         }
         // Two paths computing one fact ("two paths" class).
         "text.para" => vec![rule(On::TargetStyles, &["attrs", "basedOn"], &[])],
@@ -421,6 +469,36 @@ impl LayoutDocument {
                         to: doc.parents.len(),
                         time: None,
                     });
+                }
+                On::ObjectStyleItems => {
+                    if let Some(name) = params.get("name").and_then(Value::as_str) {
+                        let styles = &doc.styles;
+                        let uses = |style: &str| {
+                            let mut at = Some(style.to_string());
+                            for _ in 0..64 {
+                                match at {
+                                    Some(ref s) if s == name => return true,
+                                    Some(ref s) => at = styles.object_style(s).and_then(|o| o.based_on.clone()),
+                                    None => return false,
+                                }
+                            }
+                            false
+                        };
+                        for spread in doc.spreads.iter().chain(&doc.parents) {
+                            for top in &spread.items {
+                                top.walk(&mut |item| {
+                                    if uses(&item.object_style) {
+                                        held.push(json!(item.id.0));
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+                On::NamedParent => {
+                    if let Some(Some(parent)) = kition_layout_engine::cmd::parent_ref(doc, params.get("parent")) {
+                        held.push(json!(parent.0));
+                    }
                 }
                 On::FirstSpread => {
                     if state.selection.text.is_none() {

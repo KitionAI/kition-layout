@@ -89,3 +89,32 @@ export async function addPrimaryTextFrames(execute: (command: string, params: Re
   await execute('object.primaryTextFrame', { ids: [first], on: true })
   await execute('select.set', { ids: [] })
 }
+
+/** A numbering section as `inspect()` reads it (phase 11): its first page counted from 1. */
+export type SectionInfo = { page: number; startNumber?: number | null; style?: string; prefix?: string; includePrefix?: boolean; marker?: string }
+
+/**
+ * The values Numbering & Section Options opens with for page `page` (from 0, phase 11): the
+ * section that starts there as the document has it (a page that starts none: the engine's
+ * defaults, with the page only).
+ */
+export function sectionValues(sections: readonly SectionInfo[], page: number): Record<string, unknown> {
+  const section = sections.find((one) => one.page === page + 1)
+  if (!section) return { page: page + 1 }
+  const values: Record<string, unknown> = { page: page + 1, style: section.style ?? 'arabic', prefix: section.prefix ?? '', includePrefix: Boolean(section.includePrefix), marker: section.marker ?? '' }
+  if (section.startNumber != null) values.startNumber = section.startNumber
+  return values
+}
+
+/** The page (from 0) each section starts on, with what the Pages panel's mark tells: its marker or prefix. */
+export function sectionStarts(sections: readonly SectionInfo[]): Map<number, string> {
+  return new Map(sections.map((section) => [section.page - 1, section.marker || section.prefix || '']))
+}
+
+/** Where `pages` (numbers from 1) end up (indexes from 0) once `movePlan` with the same values has moved them. */
+export function movedTo({ pages, where, page, count }: { pages: readonly number[]; where: Where; page: number; count: number }): number[] {
+  const moving = pages.map((number) => number - 1)
+  const rest = Array.from({ length: count }, (_, index) => index).filter((index) => !moving.includes(index))
+  const at = where === 'start' ? 0 : where === 'end' ? rest.length : rest.indexOf(page - 1) + (where === 'after' ? 1 : 0)
+  return moving.map((_, i) => at + i)
+}

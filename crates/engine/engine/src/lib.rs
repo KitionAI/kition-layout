@@ -683,6 +683,8 @@ fn reflow_wanted(old: &Document, new: &Document) -> bool {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_gradients;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests_hosted;
 #[cfg(test)]
@@ -692,7 +694,11 @@ mod tests_images;
 #[cfg(test)]
 mod tests_incremental;
 #[cfg(test)]
+mod tests_object_styles;
+#[cfg(test)]
 mod tests_panels;
+#[cfg(test)]
+mod tests_parents;
 #[cfg(test)]
 mod tests_paths;
 #[cfg(test)]

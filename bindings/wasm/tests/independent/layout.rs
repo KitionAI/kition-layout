@@ -66,6 +66,28 @@ pub fn checks() -> Vec<Check> {
             &[("$A", &["*"]), ("$PAGE", &["props.transition"])],
             &["mode"],
         ),
+        // Phase 11 (2026-11-26), written blind from the commands' declared meaning.
+        check(
+            "layout.parents.set",
+            r#"{"parent":"$PARENT","name":"Renamed","pages":1}"#,
+            &[("$PARENT", &["prefix", "pages", "items"]), ("layout", &["setup.facingPages"])],
+            &[("$A", &["*"]), ("$PAGE", &["*"])],
+            &["mode"],
+        ),
+        check(
+            "layout.parents.duplicate",
+            r#"{"parent":"$PARENT"}"#,
+            &[("$PARENT", &["prefix", "name", "basedOn", "pages", "items"])],
+            &[("$A", &["*"]), ("$PAGE", &["*"])],
+            &["mode"],
+        ),
+        check(
+            "layout.parents.delete",
+            r#"{"parent":"$PARENT"}"#,
+            &[("$PARENT", &["prefix", "items"]), ("$PAGE", &["parent"]), ("$NEXT_PAGE", &["parent"])],
+            &[("$A", &["*"]), ("$PAGE", &["margins", "size"])],
+            &["mode"],
+        ),
         check("layout.parents.edit", r#"{"on":true}"#, &[], &[("$A", &["*"])], &[]),
         check(
             "layout.marginsAndColumns",
@@ -439,6 +461,27 @@ pub fn rows() -> Vec<Row> {
             "prefix: new name, omitted next unused A-Z or P<count>; name: new label, omitted Parent",
             "Existing parent prefixes/count; first document page margins/columns/gutter; document facingPages/pageWidth/pageHeight",
             "Append parent spread/pages",
+            &[],
+        ),
+        row(
+            "layout.parents.set",
+            "parent: prefix or full label of a parent spread; basedOn: parent prefix/label or null for none, omitted unchanged; prefix, name: new labels; pages: 1-10",
+            "Addressed parent's prefix/name/basedOn; other parents' prefixes when prefix given; the proposed base's basedOn chain (cycle check); with pages, the parent's page list, its item bounds (items on removed pages) and document facingPages",
+            "Parent prefix/name/basedOn; with pages, its page list (sides, x) and the items on removed pages with their stories",
+            &[],
+        ),
+        row(
+            "layout.parents.duplicate",
+            "parent: prefix or full label of a parent spread",
+            "Addressed parent's name/basedOn, pages, items and their stories; every parent's prefix for the next free one",
+            "Append a parent spread with copied pages, items and stories; allocate ids",
+            &[],
+        ),
+        row(
+            "layout.parents.delete",
+            "parent: prefix or full label of a parent spread; replaceWith: parent prefix/label or null, omitted none",
+            "Addressed parent's identity, items and their stories; every document page's parent reference and overridden list; every parent's basedOn and the replacement's basedOn chain (cycle check)",
+            "Remove the parent, its items and stories; pages using it and parents based on it take the replacement; dead selection removed",
             &[],
         ),
         row(

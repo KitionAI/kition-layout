@@ -187,6 +187,33 @@ pub fn specs() -> Vec<CommandSpec> {
                 Ok(json!({"id": id.0, "prefix": prefix}))
             })
         }),
+        cmd!(
+            "layout.parents.set",
+            "Parent Page Options…",
+            [],
+            None,
+            "{parent: \"A\" (prefix or label), prefix?, name?, basedOn?: parent | null (none), pages?: 1–10} — renames a parent, bases it on another parent (whose objects then show under its own), or sets how many pages it has (objects on pages taken away go with them) → {prefix, name, label}",
+            has_doc,
+            set_parent
+        ),
+        cmd!(
+            "layout.parents.duplicate",
+            "Duplicate Parent Spread",
+            [],
+            None,
+            "{parent: \"A\" (prefix or label)} — a copy of the parent and its objects with the next free prefix, based on the same parent → {id, prefix}",
+            has_doc,
+            duplicate_parent
+        ),
+        cmd!(
+            "layout.parents.delete",
+            "Delete Parent Spread",
+            [],
+            None,
+            "{parent: \"A\" (prefix or label), replaceWith?: parent | null (default: none)} — deletes the parent and its objects; the pages using it, and the parents based on it, take `replaceWith` → {deleted, pages}",
+            has_doc,
+            delete_parent
+        ),
         cmd!(noundo "layout.parents.edit", "Edit Parents", [], None, "{on: bool} — show parent spreads on the canvas", has_doc, |s, p| {
             let st = s.doc_mut()?;
             st.editing_parents = p.get("on").and_then(Value::as_bool).unwrap_or(!st.editing_parents);
@@ -638,6 +665,211 @@ pub fn parent_ref(d: &kition_layout_doc::Document, v: Option<&Value>) -> Option<
         Value::String(s) => Some(d.parents.iter().find(|p| p.parent.as_ref().is_some_and(|i| i.prefix == *s || i.label() == *s)).map(|p| p.id)),
         _ => None,
     }
+}
+
+/// The parent a parameter names (its prefix or its label); an error when it names none.
+fn named_parent(d: &kition_layout_doc::Document, v: Option<&Value>, id: &str) -> Result<SpreadId> {
+    match parent_ref(d, v) {
+        Some(Some(parent)) => Ok(parent),
+        _ => Err(bad(id, format!("no parent {}", v.map_or_else(|| "given".to_string(), Value::to_string)))),
+    }
+}
+
+/// A parent parameter that may also be `null` (no parent): `None` when absent.
+fn parent_or_none(d: &kition_layout_doc::Document, v: Option<&Value>, id: &str) -> Result<Option<Option<SpreadId>>> {
+    match v {
+        None => Ok(None),
+        Some(Value::Null) => Ok(Some(None)),
+        Some(other) => match parent_ref(d, Some(other)) {
+            Some(found @ Some(_)) => Ok(Some(found)),
+            Some(None) => Ok(Some(None)),
+            None => Err(bad(id, format!("no parent {other}"))),
+        },
+    }
+}
+
+/// Parent Page Options: a parent's prefix and name, the parent it is based on, its page count.
+fn set_parent(s: &mut crate::Session, p: &Value) -> Result<Value> {
+    const ID: &str = "layout.parents.set";
+    let d = &s.doc()?.doc;
+    let id = named_parent(d, p.get("parent"), ID)?;
+    let based = parent_or_none(d, p.get("basedOn"), ID)?;
+    let prefix = match p.get("prefix") {
+        None => None,
+        Some(v) => {
+            let text = v.as_str().map(str::trim).unwrap_or_default();
+            // InDesign's prefixes are one to four characters; a hyphen would split the label.
+            if text.is_empty() || text.chars().count() > 4 || text.contains('-') || text.starts_with('[') {
+                return Err(bad(ID, "a prefix is 1 to 4 characters, without a hyphen"));
+            }
+            if d.parents.iter().any(|other| other.id != id && other.parent.as_ref().is_some_and(|info| info.prefix == text)) {
+                return Err(bad(ID, format!("another parent has the prefix `{text}`")));
+            }
+            Some(text.to_string())
+        }
+    };
+    let name = match p.get("name") {
+        None => None,
+        Some(v) => {
+            let text = v.as_str().map(str::trim).unwrap_or_default();
+            if text.is_empty() {
+                return Err(bad(ID, "a parent needs a name"));
+            }
+            Some(text.to_string())
+        }
+    };
+    if let Some(Some(base)) = based
+        && d.parent_basis_cycles(id, base)
+    {
+        return Err(bad(ID, "a parent can't be based on itself or on a parent based on it"));
+    }
+    let pages = match p.get("pages") {
+        None => None,
+        Some(v) => Some(v.as_u64().filter(|n| (1..=10).contains(n)).ok_or_else(|| bad(ID, "a parent has 1 to 10 pages"))? as usize),
+    };
+    s.edit(|d, sel| {
+        let pi = d.parent_index(id).ok_or_else(|| bad(ID, "no such parent"))?;
+        if let Some(n) = pages {
+            resize_parent(d, pi, n)?;
+            sel.items.retain(|i| d.item(*i).is_some());
+        }
+        let sp = d.parents.get_mut(pi).ok_or_else(|| bad(ID, "no such parent"))?;
+        let sp = std::sync::Arc::make_mut(sp);
+        let info = sp.parent.get_or_insert_with(|| kition_layout_doc::ParentInfo { prefix: String::new(), name: String::new(), based_on: None });
+        if let Some(text) = &prefix {
+            info.prefix = text.clone();
+        }
+        if let Some(text) = &name {
+            info.name = text.clone();
+        }
+        if let Some(base) = based {
+            info.based_on = base;
+        }
+        Ok(json!({"prefix": info.prefix, "name": info.name, "label": info.label()}))
+    })
+}
+
+/// Give parent spread `pi` `n` pages: new pages copy its last page; pages taken away from the end
+/// take the objects on them. In a facing document the first page is a left page, the rest right.
+fn resize_parent(d: &mut kition_layout_doc::Document, pi: usize, n: usize) -> Result<()> {
+    use kition_layout_doc::PageSide;
+    let have = d.parents.get(pi).map_or(0, |sp| sp.pages.len());
+    if n == have {
+        return Ok(());
+    }
+    if n < have {
+        let Some(sp) = d.parents.get(pi) else { return Ok(()) };
+        let doomed: Vec<kition_layout_doc::ItemId> =
+            sp.items.iter().filter(|it| sp.page_at_x(it.bounds().center().x).is_some_and(|at| at >= n)).map(|it| it.id).collect();
+        for item in doomed {
+            let _ = d.remove_item(item);
+        }
+    }
+    let fresh: Vec<kition_layout_doc::PageId> = (have..n).map(|_| kition_layout_doc::PageId(d.alloc())).collect();
+    let facing = d.settings.facing_pages;
+    let sp = d.parents.get_mut(pi).ok_or_else(|| bad("layout.parents.set", "no such parent"))?;
+    let sp = std::sync::Arc::make_mut(sp);
+    if n < have {
+        sp.pages.truncate(n);
+    } else if let Some(last) = sp.pages.last().cloned() {
+        for id in fresh {
+            let mut page = last.clone();
+            page.id = id;
+            page.guides.clear();
+            sp.pages.push(page);
+        }
+    }
+    let count = sp.pages.len();
+    for (i, page) in sp.pages.iter_mut().enumerate() {
+        page.side = match (facing, i, count) {
+            (false, _, _) => PageSide::Single,
+            (true, 0, 1) => PageSide::Right,
+            (true, 0, _) => PageSide::Left,
+            (true, _, _) => PageSide::Right,
+        };
+    }
+    sp.relayout();
+    Ok(())
+}
+
+/// Duplicate Parent Spread: a copy with the next free prefix, its objects copied.
+fn duplicate_parent(s: &mut crate::Session, p: &Value) -> Result<Value> {
+    const ID: &str = "layout.parents.duplicate";
+    let id = named_parent(&s.doc()?.doc, p.get("parent"), ID)?;
+    s.edit(|d, _| {
+        let pi = d.parent_index(id).ok_or_else(|| bad(ID, "no such parent"))?;
+        let from = d.parents.get(pi).cloned().ok_or_else(|| bad(ID, "no such parent"))?;
+        let prefix = d.next_parent_prefix();
+        let nid = SpreadId(d.alloc());
+        let mut sp = (*from).clone();
+        sp.id = nid;
+        sp.items.clear();
+        let info = from.parent.clone();
+        sp.parent = Some(kition_layout_doc::ParentInfo {
+            prefix: prefix.clone(),
+            name: info.as_ref().map_or_else(|| "Parent".to_string(), |i| i.name.clone()),
+            based_on: info.and_then(|i| i.based_on),
+        });
+        for page in &mut sp.pages {
+            page.id = kition_layout_doc::PageId(d.alloc());
+        }
+        d.parents.push(std::sync::Arc::new(sp));
+        let at = d.parents.len() - 1;
+        let src = d.clone();
+        let ids: Vec<_> = from.items.iter().map(|it| it.id).collect();
+        super::object::duplicate_from(d, &src, &ids, kition_layout_doc::SpreadRef::Parent(at), kition_layout_geom::Vec2::ZERO)?;
+        Ok(json!({"id": nid.0, "prefix": prefix}))
+    })
+}
+
+/// Delete Parent Spread: its objects go; the pages using it and the parents based on it take
+/// `replaceWith` (none by default).
+fn delete_parent(s: &mut crate::Session, p: &Value) -> Result<Value> {
+    const ID: &str = "layout.parents.delete";
+    let d = &s.doc()?.doc;
+    let id = named_parent(d, p.get("parent"), ID)?;
+    let replace = parent_or_none(d, p.get("replaceWith"), ID)?.flatten();
+    if replace == Some(id) {
+        return Err(bad(ID, "a parent can't replace itself"));
+    }
+    s.edit(|d, sel| {
+        let pi = d.parent_index(id).ok_or_else(|| bad(ID, "no such parent"))?;
+        let label = d.parents.get(pi).and_then(|sp| sp.parent.as_ref()).map(|info| info.label());
+        let items: Vec<kition_layout_doc::ItemId> = d.parents.get(pi).map(|sp| sp.items.iter().map(|it| it.id).collect()).unwrap_or_default();
+        for item in &items {
+            let _ = d.remove_item(*item);
+        }
+        let pi = d.parent_index(id).ok_or_else(|| bad(ID, "no such parent"))?;
+        d.parents.remove(pi);
+        let mut pages = 0;
+        for spread in d.spreads.iter_mut() {
+            if !spread.pages.iter().any(|page| page.parent == Some(id)) {
+                continue;
+            }
+            for page in &mut std::sync::Arc::make_mut(spread).pages {
+                if page.parent == Some(id) {
+                    page.parent = replace;
+                    page.overridden.retain(|over| !items.contains(over));
+                    pages += 1;
+                }
+            }
+        }
+        let based: Vec<SpreadId> =
+            d.parents.iter().filter(|parent| parent.parent.as_ref().is_some_and(|info| info.based_on == Some(id))).map(|parent| parent.id).collect();
+        for own in based {
+            // Unbased first, so the cycle check sees the chain without the deleted parent.
+            let at = d.parent_index(own);
+            if let Some(info) = at.and_then(|at| d.parents.get_mut(at)).and_then(|parent| std::sync::Arc::make_mut(parent).parent.as_mut()) {
+                info.based_on = None;
+            }
+            let next = replace.filter(|r| !d.parent_basis_cycles(own, *r));
+            if let Some(info) = at.and_then(|at| d.parents.get_mut(at)).and_then(|parent| std::sync::Arc::make_mut(parent).parent.as_mut()) {
+                info.based_on = next;
+            }
+        }
+        sel.items.retain(|i| d.item(*i).is_some());
+        Ok(json!({"deleted": label, "pages": pages}))
+    })
 }
 
 #[allow(dead_code)]

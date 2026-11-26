@@ -234,6 +234,9 @@ const FRAMES: &[&str] = &[
     "table.resizeBorder",
 ];
 
+/// Parameters that name a parent spread by its prefix (or label).
+const PARENT_NAMES: &[&str] = &["parent", "basedOn", "replaceWith"];
+
 #[derive(Default)]
 struct Declaration {
     targets: Option<&'static str>,
@@ -273,7 +276,10 @@ fn declaration(command: &KitCommand) -> Declaration {
         // The key object is one of the selected items.
         "select.set" => parameters.push(("key", &["Item"], false)),
         "edit.findObjects" | "edit.replaceObjects" => parameters.push(("layer", &["Layer"], true)),
-        "layout.pages.applyParent" | "layout.pages.insert" => parameters.push(("parent", &["Spread"], true)),
+        "layout.pages.applyParent" | "layout.pages.insert" | "layout.parents.duplicate" => parameters.push(("parent", &["Spread"], true)),
+        // Parent Page Options and Delete Parent Spread (phase 11) name a second parent.
+        "layout.parents.set" => parameters.extend([("parent", &["Spread"][..], true), ("basedOn", &["Spread"][..], true)]),
+        "layout.parents.delete" => parameters.extend([("parent", &["Spread"][..], true), ("replaceWith", &["Spread"][..], true)]),
         "layer.move" | "layer.selectItems" | "layer.set" | "layer.delete" | "layer.others" | "layer.activate" | "layer.duplicate" => {
             targets = Some("id");
             parameters.push(("id", &["Layer"], false));
@@ -407,7 +413,9 @@ fn declaration(command: &KitCommand) -> Declaration {
         | "style.cell.edit"
         | "style.table.edit"
         | "style.paragraph.delete"
-        | "style.character.delete" => name("name", &["Style"]),
+        | "style.character.delete"
+        | "style.object.edit"
+        | "style.object.delete" => name("name", &["Style"]),
         "style.exportTag" | "xml.mapStyle" => name("style", &["Style"]),
         "style.group" => name("names", &["Style"]),
         "object.caption" => name("style", &["Style"]),
@@ -448,10 +456,17 @@ fn declaration(command: &KitCommand) -> Declaration {
             name("nextStyle", &["Style"]);
         }
         "style.character.add" | "style.character.edit" | "style.table.add" => name("basedOn", &["Style"]),
-        "style.paragraph.delete" | "style.character.delete" => name("replaceWith", &["Style"]),
+        "style.paragraph.delete" | "style.character.delete" | "style.object.delete" => name("replaceWith", &["Style"]),
         "style.object.add" | "style.cell.add" | "style.cell.edit" => {
             name("fill", &["Swatch"]);
             name("paragraphStyle", &["Style"]);
+        }
+        // Object Style Options (phase 11).
+        "style.object.edit" => {
+            name("fill", &["Swatch"]);
+            name("stroke", &["Swatch"]);
+            name("paragraphStyle", &["Style"]);
+            name("basedOn", &["Style"]);
         }
         _ => {}
     }
@@ -500,7 +515,7 @@ fn declaration(command: &KitCommand) -> Declaration {
         .iter()
         .filter(|(_, _, named)| *named)
         .map(|(path, types, _)| {
-            let field = if *path == "parent" && types.contains(&"Spread") {
+            let field = if types.contains(&"Spread") && PARENT_NAMES.contains(path) {
                 "prefix"
             } else if types.contains(&"Style") && !matches!(id, "style.exportTag" | "style.group") {
                 style_family(id, path, &serde_json::json!({}))
@@ -574,6 +589,7 @@ fn declare_reads(command: &mut KitCommand) {
                 "note.new",
                 "style.paragraph.add",
                 "style.object.add",
+                "style.object.edit",
                 "object.rename",
             ]
             .iter()
@@ -696,7 +712,7 @@ pub(crate) fn resolve(command: &str, params: &Value, replica: Option<&Replica>) 
                 && let Ok(ty) = replica.object_type(&object)
                 && types.contains(&ty.as_str())
             {
-                if ty == "Spread" && *path == "parent" {
+                if ty == "Spread" && PARENT_NAMES.contains(path) {
                     *value = replica.get(&object, "prefix").map_err(|error| error.to_string())?;
                 } else if matches!(ty.as_str(), "Style" | "Swatch") {
                     if ty == "Style" {

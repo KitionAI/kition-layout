@@ -1,5 +1,6 @@
 import type { KitEngineInfo, RasterRect } from '@kition/sdk/editor'
 import type { StyleDefs } from './panels/styleRules'
+import type { SectionInfo } from './dialogs/pages'
 
 /** A page in spread coordinates (points), as the engine reports it. */
 export type Page = {
@@ -28,6 +29,9 @@ export type Item = {
   story?: number
   asset?: number
   children?: Item[]
+  /** Its object style, and whether it differs from it in a part the style includes (phase 11: the "+"). */
+  objectStyle?: string
+  styleOverride?: boolean
 }
 export type Spread = {
   index: number
@@ -54,9 +58,12 @@ export type ColorValue = {
   tint?: number
   /** How many objects and runs of text use it. */
   uses?: number
+  /** A gradient swatch's kind and stops (phase 11): each stop's colour, location and midpoint to the next, in percent. */
+  gradient?: { kind: string; stops: Array<{ hex?: string; cmyk?: number[]; location: number; midpoint: number }> }
 }
 export type SwatchInfo = { name: string; kind: string; color: string | null; locked: boolean }
-export type ParentInfo = { id: number; label: string | null; items: number }
+/** A parent spread: its label (`A-Parent`), prefix and name, the parent it is based on (a label), its page and object counts. */
+export type ParentInfo = { id: number; label: string | null; prefix?: string | null; name?: string | null; basedOn?: string | null; pages?: number; items: number }
 /** The original layout (`name` null) and each alternate layout: a size of the document. */
 export type LayoutInfo = { name: string | null; firstPage: number; pages: number; width: number; height: number }
 
@@ -96,6 +103,8 @@ export type DocumentInfo = {
   styleDefs: StyleDefs
   /** The canvas shows the parent spreads, and `spreads` lists them (editing a parent). */
   editingParents: boolean
+  /** The numbering sections, each from its first page (phase 11). */
+  sections: SectionInfo[]
 }
 
 /** A graphic waiting in the place cursor. */
@@ -123,6 +132,7 @@ type Inspected = {
   placeQueue?: PlaceQueued[]
   styleDefs?: StyleDefs
   editingParents?: boolean
+  sections?: SectionInfo[]
 }
 
 const NO_BOUNDS: [number, number, number, number] = [0, 0, 0, 0]
@@ -175,6 +185,7 @@ export function describe(info: KitEngineInfo): DocumentInfo {
     placeQueue: inspected.placeQueue ?? [],
     styleDefs: inspected.styleDefs ?? { paragraph: [], character: [] },
     editingParents: inspected.editingParents ?? false,
+    sections: inspected.sections ?? [],
   }
 }
 

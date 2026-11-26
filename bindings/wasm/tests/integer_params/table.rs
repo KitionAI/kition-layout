@@ -209,6 +209,7 @@ const TABLE: &[(&str, &str, Class)] = &[
     ("layout.pages.move", "to", Place),
     ("layout.pages.toSpread", "page", Place),
     ("layout.pages.toSpread", "spread", Place),
+    ("layout.parents.set", "pages", Quantity),
     ("layout.removeOverrides", "page", Place),
     ("layout.rotateSpreadView", "angle", Quantity),
     ("layout.rotateSpreadView", "spread", Place),

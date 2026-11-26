@@ -399,17 +399,21 @@ impl Renderer {
             if !layer.visible || f.opts.printing_only && !layer.printable {
                 continue;
             }
-            if let SpreadRef::Doc(si) = sr {
-                let first = doc.first_page_of_spread(si);
-                for (pi, page) in sp.pages.iter().enumerate() {
-                    if !page.show_parent_items {
-                        continue;
+            // A page shows its parent's items, and those of the parents that one is based on
+            // (the deepest first). A parent spread being edited shows the parents it is based on.
+            for (pi, page) in sp.pages.iter().enumerate() {
+                let (chain, page_name) = match sr {
+                    SpreadRef::Doc(si) if page.show_parent_items => {
+                        let abs = doc.first_page_of_spread(si) + pi;
+                        (doc.parent_pages_for(abs), Some(doc.page_name(abs)))
                     }
-                    let Some((ppi, ppage)) = doc.parent_page_for(first + pi) else { continue };
-                    let parent = &doc.parents[ppi];
-                    let dx = page.x - parent.pages[ppage].x;
-                    let page_name = doc.page_name(first + pi);
-                    let pr = parent.pages[ppage].bounds();
+                    SpreadRef::Parent(_) => (doc.parent_chain(sp.parent.as_ref().and_then(|info| info.based_on), page.side), None),
+                    _ => continue,
+                };
+                for (ppi, ppage) in chain {
+                    let Some(parent) = doc.parents.get(ppi) else { continue };
+                    let Some(base) = parent.pages.get(ppage) else { continue };
+                    let dx = page.x - base.x;
                     for it in &parent.items {
                         if it.layer != layer.id || page.overridden.contains(&it.id) {
                             continue;
@@ -418,8 +422,7 @@ impl Renderer {
                         if parent.page_at_x(it.bounds().center().x) != Some(ppage) && parent.pages.len() > 1 {
                             continue;
                         }
-                        let _ = pr;
-                        self.draw_item(ctx, f, it, Affine::translate((dx, 0.0)), Some(&page_name));
+                        self.draw_item(ctx, f, it, Affine::translate((dx, 0.0)), page_name.as_deref());
                     }
                 }
             }
@@ -643,7 +646,7 @@ impl Renderer {
             _ => {}
         }
         ctx.set_transform(f.view * xf);
-        ctx.set_paint(color_of(&c, 1.0));
+        set_stroke_paint(ctx, f.doc, st, &c, bp.bounding_box());
         let closed = it.path.is_closed();
         // Arrowheads: the path is shortened under them; they're drawn after it.
         let arrows = kition_layout_doc::arrow::apply(bp, st, closed);
@@ -670,7 +673,7 @@ impl Renderer {
             if op {
                 ctx.pop_layer();
             }
-            ctx.set_paint(color_of(&c, 1.0));
+            set_stroke_paint(ctx, f.doc, st, &c, bp.bounding_box());
         }
         // Stripes, wavy and hash strokes are fills (along the path's centre line).
         if let Some(o) = kind.outline(bp, st.weight, 0.05 * f.px) {
@@ -875,6 +878,16 @@ pub fn color_of(c: &kition_layout_color::Color, alpha: f32) -> peniko::Color {
     }
     let [r, g, b, a] = c.to_rgba8(alpha);
     peniko::Color::from_rgba8(r, g, b, a)
+}
+
+/// A stroke's paint: its colour, or a gradient swatch's gradient across the path's bounds (phase 11).
+fn set_stroke_paint(ctx: &mut RenderContext, doc: &Document, st: &kition_layout_doc::Stroke, c: &kition_layout_color::Color, bounds: Rect) {
+    if kition_layout_color::swatch::resolve_gradient(&doc.swatches, &st.swatch).is_some()
+        && set_fill_paint(ctx, doc, &kition_layout_doc::Fill::swatch(&st.swatch), bounds)
+    {
+        return;
+    }
+    ctx.set_paint(color_of(c, 1.0));
 }
 
 /// Set a swatch fill (solid or gradient) as the paint. Returns false for [None]/unknown.

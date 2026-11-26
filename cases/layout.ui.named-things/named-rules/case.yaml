@@ -1,0 +1,24 @@
+format: 1
+id: layout.ui.named-things/named-rules
+feature: layout.ui.named-things
+intent: >-
+  The rules without a browser: Parent Page Options and Object Style Options set only what changed
+  and offer no base that would make a loop; a gradient swatch's stop is added with the colour the
+  gradient has there, moved, removed (two stay) and sent as swatch.add / swatch.set; the Pages
+  panel's Shift and Cmd clicks, the pages its rows act on and the section marks; the new rows and
+  every new word in Chinese; and the engine takes what each dialog sends and reads it back.
+layer: gate
+source:
+  kind: probe
+  from: web/src/panels/named.test.mjs (plan 2026-11-25, phase 11)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, --test, src/panels/named.test.mjs]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+timeout_s: 60
+since: "2026-11-26"

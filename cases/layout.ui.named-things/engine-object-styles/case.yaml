@@ -1,0 +1,22 @@
+format: 1
+id: layout.ui.named-things/engine-object-styles
+feature: layout.ui.named-things
+intent: >-
+  In the engine: style.object.edit changes an object style's fill, stroke, paragraph style and text
+  frame options and the objects using it (or a style based on it) follow except where they
+  override it, in one undo step; a style based on another takes what it leaves out from it;
+  fromSelection redefines it from the selected object; a rename follows every use; style.object.delete
+  hands its objects (keeping their look), the styles based on it and the defaults to the replacement.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/src/tests_object_styles.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: tests_object_styles }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

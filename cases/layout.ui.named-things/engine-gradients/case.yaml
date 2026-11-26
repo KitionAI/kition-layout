@@ -1,0 +1,22 @@
+format: 1
+id: layout.ui.named-things/engine-gradients
+feature: layout.ui.named-things
+intent: >-
+  In the engine: swatch.add with gradient makes a named gradient swatch (linear or radial, stops
+  from colour values or colour swatches, midpoints) in one undo step; on a fill and on a stroke the
+  screen shows the gradient; swatch.set changes its kind and stops and renames it with every use
+  following; swatch.delete hands its uses to a replacement; the swatch, its stops and midpoints
+  survive saving and reopening the .klayout file and IDML export and import.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/src/tests_gradients.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: tests_gradients }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

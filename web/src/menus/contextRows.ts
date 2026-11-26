@@ -14,7 +14,8 @@ export type Spot =
   | { kind: 'text' }
   | { kind: 'canvas' }
   | { kind: 'ruler'; spread: number }
-  | { kind: 'page'; page: number }
+  | { kind: 'page'; page: number; parent?: string | null; pages?: number[] }
+  | { kind: 'parent'; parent: string }
   | { kind: 'layer'; layer: number }
 
 /** One row: a command (with values of its own), or a separator. */
@@ -27,6 +28,11 @@ const rows = (...ids: string[]): ContextRow[] => ids.map((id) => (id === '-' ? '
 export const OWN_DIALOG_ROWS: Readonly<Record<string, { label: string; dialog: 'effects' | 'layerOptions' }>> = {
   'kit:object.effects': { label: 'Effects…', dialog: 'effects' },
   'kit:layer.options': { label: 'Layer Options…', dialog: 'layerOptions' },
+}
+
+/** A parent's rows (plan phase 11): its options, a copy of it, and deleting it (each asks first but the copy). */
+function parentRows(parent: string): ContextRow[] {
+  return [row('layout.parents.set', { parent }), row('layout.parents.duplicate', { parent }), row('layout.parents.delete', { parent })]
 }
 
 /** The rows of the menu at `spot`; separators never lead, trail or come twice. */
@@ -84,7 +90,13 @@ export function contextRows(spot: Spot): ContextRow[] {
         // The ruler unit (plan stage 3), the rulers and the spread's guides.
         return [...RULER_UNITS.map((unit) => row(`kit:view.unit.${unit}`)), '-', row('kit:view.rulers'), row('guide.deleteAll', { spread: spot.spread })]
       case 'page':
-        return rows('layout.pages.insert', 'layout.pages.move', 'layout.pages.duplicateSpread', 'layout.pages.delete', '-', 'layout.pages.applyParent', 'layout.marginsAndColumns', '-', 'kit:view.fitPage', 'kit:view.fitSpread')
+        // The Pages panel's menu also has the rows of the parent chosen in the panel (phase 11).
+        return [
+          ...rows('layout.pages.insert', 'layout.pages.move', 'layout.pages.duplicateSpread', 'layout.pages.delete', '-', 'layout.pages.applyParent', 'layout.marginsAndColumns', 'layout.section', '-', 'kit:view.fitPage', 'kit:view.fitSpread'),
+          ...(spot.parent ? ['-' as const, ...parentRows(spot.parent)] : []),
+        ]
+      case 'parent':
+        return [...parentRows(spot.parent), '-', row('layout.pages.applyParent', { parent: spot.parent }), row('layout.parents.new')]
       case 'layer':
         return [
           row('kit:layer.options', { id: spot.layer }),

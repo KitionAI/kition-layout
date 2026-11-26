@@ -2405,6 +2405,30 @@
  "layout.parents.new": {
   "description": "Creates a parent spread with a prefix and name."
  },
+ "layout.parents.set": {
+  "description": "Changes a parent spread's prefix, name, the parent it is based on (its objects show under this one's) or its number of pages.",
+  "params": {
+   "prefix": {
+    "description": "1 to 4 characters, no hyphen",
+    "type": "string"
+   },
+   "name": {
+    "type": "string"
+   },
+   "pages": {
+    "description": "1 to 10; pages taken away from the end take their objects",
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 10
+   }
+  }
+ },
+ "layout.parents.duplicate": {
+  "description": "Copies a parent spread and its objects under the next free prefix."
+ },
+ "layout.parents.delete": {
+  "description": "Deletes a parent spread and its objects; the pages using it and the parents based on it take replaceWith (or none)."
+ },
  "layout.removeOverrides": {
   "description": "Deletes a page's overridden parent copies so the parent items show again."
  },
@@ -4019,6 +4043,75 @@
    }
   }
  },
+ "style.object.edit": {
+  "description": "Changes an object style's name, base style, fill, stroke, paragraph style or text frame options, or redefines it from the selected object; the objects using it follow where they do not override it.",
+  "params": {
+   "rename": {
+    "description": "the new name (every use follows)",
+    "type": "string"
+   },
+   "basedOn": {
+    "description": "an object style name; null for none",
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "fill": {
+    "description": "a swatch name; null leaves the fill out of the style",
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "fillTint": {
+    "description": "0 to 1",
+    "type": "number"
+   },
+   "stroke": {
+    "description": "a swatch name; null leaves the stroke out of the style",
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "strokeTint": {
+    "description": "0 to 1",
+    "type": "number"
+   },
+   "strokeWeight": {
+    "description": "points",
+    "type": "number"
+   },
+   "paragraphStyle": {
+    "description": "a paragraph style name; null for none",
+    "type": [
+     "string",
+     "null"
+    ]
+   },
+   "textFrame": {
+    "description": "{columns, gutter, inset: [top, left, bottom, right], verticalJustification}; null leaves them out",
+    "type": [
+     "object",
+     "null"
+    ]
+   },
+   "fromSelection": {
+    "description": "Redefine Style: the style takes the first selected object's fill, stroke and text frame options",
+    "type": "boolean"
+   }
+  }
+ },
+ "style.object.delete": {
+  "description": "Deletes an object style; its objects, the styles based on it and the default frame styles take replaceWith ([None] by default), keeping their look.",
+  "params": {
+   "replaceWith": {
+    "description": "an object style name",
+    "type": "string"
+   }
+  }
+ },
  "style.paragraph.apply": {
   "description": "Applies a paragraph style to the selected paragraphs, clearing local overrides when asked."
  },
@@ -4122,11 +4215,15 @@
   "description": "Turns every unnamed colour in use into a swatch."
  },
  "swatch.add": {
-  "description": "Creates a colour swatch from hex, CMYK (0 to 100) or RGB, process or spot.",
+  "description": "Creates a colour swatch from hex, CMYK (0 to 100) or RGB, process or spot; or, with gradient, a named gradient swatch.",
   "params": {
    "color": {
     "description": "#rrggbb or a swatch name",
     "type": "string"
+   },
+   "gradient": {
+    "description": "{kind: linear|radial, stops: [{location: 0 to 100, color: #rrggbb, {c,m,y,k} or a colour swatch's name, midpoint: 13 to 87, to the next stop}]}",
+    "type": "object"
    }
   }
  },
@@ -4140,7 +4237,7 @@
   }
  },
  "swatch.set": {
-  "description": "Changes a swatch's name, colour, process or spot, or a tint swatch's tint; everything using it follows.",
+  "description": "Changes a swatch's name, colour, process or spot, a tint swatch's tint, or a gradient swatch's kind and stops; everything using it follows.",
   "params": {
    "color": {
     "description": "#rrggbb, or CMYK as {c,m,y,k} from 0 to 100",
@@ -4156,6 +4253,10 @@
    "tint": {
     "description": "0 to 1, a tint swatch's tint",
     "type": "number"
+   },
+   "gradient": {
+    "description": "a gradient swatch's {kind: linear|radial, stops: [{location: 0 to 100, color, midpoint: 13 to 87}]}",
+    "type": "object"
    }
   }
  },

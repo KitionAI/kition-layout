@@ -7,6 +7,7 @@ import { PagesSection } from './Pages'
 import { PropertiesPanel } from './Properties'
 import { SizesSection } from './Sizes'
 import { StylesSection } from './Styles'
+import { ObjectStylesSection } from './ObjectStyles'
 import { SwatchesSection } from './Swatches'
 
 type DockSpec = ReadonlyArray<{ group: string; tabs: readonly { id: string; label: string }[]; defaultHeight: number; compactHeight: number; minHeight: number; preferredFill?: number }>
@@ -105,6 +106,7 @@ export function LayoutDock({ info, spread, onShow, onSetup, dock }: { info: Docu
       <>
         <StylesSection info={info} kind="paragraph" />
         <StylesSection info={info} kind="character" />
+        <ObjectStylesSection info={info} />
       </>
     ),
   }

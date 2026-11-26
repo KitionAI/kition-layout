@@ -1,0 +1,22 @@
+format: 1
+id: layout.ui.named-things/engine-parents
+feature: layout.ui.named-things
+intent: >-
+  In the engine: layout.parents.set renames a parent, bases it on another (its objects then show on
+  the pages under the parent's own) and sets its page count (objects on pages taken away go), one
+  undo step each, refusing a loop, a taken prefix or a bad count; layout.parents.duplicate copies a
+  parent and its objects (new ids, a story of its own) under the next prefix; layout.parents.delete
+  hands the pages and the parents based on it to the replacement (or none) and undo brings it back.
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/src/tests_parents.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: tests_parents }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-26"

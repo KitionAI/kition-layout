@@ -140,11 +140,29 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!("style.object.apply", "Apply Object Style", [], None, "{name, ids?}", super::has_selection, apply_object),
         cmd!("style.object.add", "New Object Style…", [], None, "{name, fromSelection?: true, fill?, paragraphStyle?}", has_doc, create_object),
         cmd!(
+            "style.object.edit",
+            "Object Style Options…",
+            [],
+            None,
+            "{name, rename?, basedOn?: style | null, fill?: swatch | null (left out of the style), fillTint?: 0..1, stroke?: swatch | null, strokeWeight?, strokeTint?: 0..1, paragraphStyle?: style | null, textFrame?: {columns?, gutter?, inset?: [top, left, bottom, right], verticalJustification?: top|center|bottom|justify} | null, fromSelection?: bool (Redefine Style: the style takes the first selected object's fill, stroke and text frame options)} — objects using the style (or one based on it) follow, except where they override it; renaming updates every use",
+            has_doc,
+            edit_object
+        ),
+        cmd!(
+            "style.object.delete",
+            "Delete Object Style",
+            [],
+            None,
+            "{name, replaceWith?: style (default \"[None]\")} — objects using it, styles based on it and the default frame styles take `replaceWith`; the objects keep their look",
+            has_doc,
+            delete_object
+        ),
+        cmd!(
             "swatch.add",
             "New Color Swatch…",
             [],
             None,
-            "{name?, color: \"#rrggbb\"|{c,m,y,k}(0..100)|[r,g,b], spot?: bool}",
+            "{name?, color: \"#rrggbb\"|{c,m,y,k}(0..100)|[r,g,b], spot?: bool, gradient?: {kind?: linear|radial, stops: [{location: 0–100, color: \"#rrggbb\"|{c,m,y,k}|colour swatch name, midpoint?: 13–87}]} (a gradient swatch instead of a colour)}",
             has_doc,
             create_swatch
         ),
@@ -228,7 +246,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Swatch Options…",
             [],
             None,
-            "{name, rename?, color?: \"#rrggbb\"|{c,m,y,k}(0..100)|[r,g,b], spot?: bool, tint?: 0..1 (a tint swatch)} — changes a swatch; everything using it follows (renaming updates every use)",
+            "{name, rename?, color?: \"#rrggbb\"|{c,m,y,k}(0..100)|[r,g,b], spot?: bool, tint?: 0..1 (a tint swatch), gradient?: {kind?, stops: [{location, color, midpoint?}]} (a gradient swatch)} — changes a swatch; everything using it follows (renaming updates every use)",
             has_doc,
             set_swatch
         ),
@@ -837,7 +855,67 @@ fn edit_char(s: &mut Session, p: &Value) -> Result<Value> {
     })
 }
 
+/// A gradient swatch's gradient from `{kind?: linear|radial, stops: [{location: 0–100, color:
+/// "#rrggbb" | {c,m,y,k} | a colour swatch's name (its colour is copied), midpoint?: 13–87 (to the
+/// next stop)}]}` (phase 11): two to 64 stops, sorted by location.
+fn parse_gradient(d: &kition_layout_doc::Document, v: &Value, id: &str) -> Result<kition_layout_color::Gradient> {
+    use kition_layout_color::{GradientKind, GradientStop};
+    let kind = match v.get("kind").and_then(Value::as_str) {
+        None | Some("linear") => GradientKind::Linear,
+        Some("radial") => GradientKind::Radial,
+        Some(k) => return Err(bad(id, format!("unknown gradient kind {k}"))),
+    };
+    let list = v.get("stops").and_then(Value::as_array).ok_or_else(|| bad(id, "a gradient needs `stops`"))?;
+    if list.len() < 2 || list.len() > 64 {
+        return Err(bad(id, "a gradient has 2 to 64 stops"));
+    }
+    let mut stops = Vec::with_capacity(list.len());
+    for stop in list {
+        let color = match stop.get("color") {
+            Some(Value::String(name)) if !name.starts_with('#') => d
+                .swatch(name)
+                .filter(|w| !matches!(w.value, SwatchValue::Gradient { .. } | SwatchValue::None))
+                .and_then(|_| kition_layout_color::swatch::resolve(&d.swatches, name, 1.0))
+                .ok_or_else(|| bad(id, format!("no colour swatch `{name}`")))?,
+            Some(c) => parse_color(c).ok_or_else(|| bad(id, "a stop needs a colour"))?,
+            None => return Err(bad(id, "a stop needs a colour")),
+        };
+        let number = |k: &str, default: f64, min: f64, max: f64| -> Result<f32> {
+            match stop.get(k) {
+                None | Some(Value::Null) => Ok(default as f32 / 100.0),
+                Some(x) => Ok(x
+                    .as_f64()
+                    .filter(|n| n.is_finite() && (min..=max).contains(n))
+                    .ok_or_else(|| bad(id, format!("{k} is from {min} to {max}")))? as f32
+                    / 100.0),
+            }
+        };
+        stops.push(GradientStop {
+            offset: number("location", 0.0, 0.0, 100.0)?,
+            color,
+            opacity: 1.0,
+            midpoint: number("midpoint", 50.0, 13.0, 87.0)?,
+        });
+    }
+    let mut g = kition_layout_color::Gradient { kind, stops };
+    g.sort();
+    Ok(g)
+}
+
 fn create_swatch(s: &mut Session, p: &Value) -> Result<Value> {
+    // A gradient swatch (phase 11).
+    if let Some(spec) = p.get("gradient").filter(|v| !v.is_null()) {
+        let gradient = parse_gradient(&s.doc()?.doc, spec, "swatch.add")?;
+        let base = str_param(p, "name").map(str::trim).filter(|n| !n.is_empty()).unwrap_or("New Gradient Swatch").to_string();
+        if base.starts_with('[') {
+            return Err(bad("swatch.add", "a swatch name can't start with ["));
+        }
+        return s.edit(|d, _| {
+            let name = Styles::unique_name(|n| d.swatch(n).is_some(), &base);
+            d.swatches.push(Swatch { name: name.clone(), value: SwatchValue::Gradient { gradient }, locked: false, named: true, hidden: false });
+            Ok(json!({"name": name}))
+        });
+    }
     let c = p.get("color").ok_or_else(|| bad("swatch.add", "missing color"))?;
     let color = parse_color(c).ok_or_else(|| bad("swatch.add", "bad color"))?;
     let spot = p.get("spot").and_then(Value::as_bool).unwrap_or(false);
@@ -906,6 +984,10 @@ fn set_swatch(s: &mut Session, p: &Value) -> Result<Value> {
         None | Some(Value::Null) => None,
         Some(t) => Some(t.as_f64().filter(|t| (0.0..=1.0).contains(t)).ok_or_else(|| bad(ID, "tint is from 0 to 1"))? as f32),
     };
+    let gradient = match p.get("gradient") {
+        None | Some(Value::Null) => None,
+        Some(g) => Some(parse_gradient(&s.doc()?.doc, g, ID)?),
+    };
     s.edit(|d, _| {
         let w = d.swatch(&name).filter(|w| !w.hidden).ok_or_else(|| bad(ID, format!("no swatch `{name}`")))?;
         if w.locked && (rename.is_some() || !matches!(w.value, SwatchValue::Color { .. } | SwatchValue::Paper { .. })) {
@@ -949,11 +1031,23 @@ fn set_swatch(s: &mut Session, p: &Value) -> Result<Value> {
                     *t = next;
                 }
             }
+            // A gradient swatch's stops and kind (phase 11): everything using it follows.
+            SwatchValue::Gradient { gradient: g } => {
+                if color.is_some() || spot.is_some() || tint.is_some() {
+                    return Err(bad(ID, "a gradient swatch takes its colours from its stops"));
+                }
+                if let Some(next) = &gradient {
+                    *g = next.clone();
+                }
+            }
             _ => {
                 if color.is_some() || spot.is_some() || tint.is_some() {
                     return Err(bad(ID, "this swatch has no colour to change"));
                 }
             }
+        }
+        if gradient.is_some() && !matches!(w.value, SwatchValue::Gradient { .. }) {
+            return Err(bad(ID, "only a gradient swatch has a gradient"));
         }
         // A swatch named after its values follows them (InDesign's Name with Color Value).
         let to = match (&rename, color) {
@@ -1061,7 +1155,8 @@ pub fn parse_color(v: &Value) -> Option<kition_layout_color::Color> {
 
 fn apply_object(s: &mut Session, p: &Value) -> Result<Value> {
     let name = str_param(p, "name").ok_or_else(|| bad("style.object.apply", "missing name"))?.to_string();
-    let os = s.doc()?.doc.styles.object_style(&name).cloned().ok_or_else(|| bad("style.object.apply", format!("no object style `{name}`")))?;
+    // With what it leaves out taken from the styles it is based on.
+    let os = s.doc()?.doc.styles.resolved_object_style(&name).ok_or_else(|| bad("style.object.apply", format!("no object style `{name}`")))?;
     let ids = super::targets(s, p)?;
     s.edit(|d, _| {
         let mut stories = Vec::new();
@@ -1114,6 +1209,298 @@ fn create_object(s: &mut Session, p: &Value) -> Result<Value> {
         os.name = name.clone();
         d.styles_mut().object.push(os.clone());
         Ok(json!({"name": name}))
+    })
+}
+
+/// Object Style Options: what the style includes (fill, stroke, paragraph style, text frame
+/// options), its name and the style it is based on, or the first selected object's look (Redefine
+/// Style). Objects using the style, or one based on it, take each changed part they do not
+/// override; a text frame's story takes a new paragraph style where it used the old one.
+fn edit_object(s: &mut Session, p: &Value) -> Result<Value> {
+    use kition_layout_doc::{Fill, NO_OBJECT_STYLE, Stroke, TextFrameOptions};
+    const ID: &str = "style.object.edit";
+    let name = str_param(p, "name").ok_or_else(|| bad(ID, "missing name"))?.to_string();
+    let st = s.doc()?;
+    let d = &st.doc;
+    let style = d.styles.object_style(&name).cloned().ok_or_else(|| bad(ID, format!("no object style `{name}`")))?;
+    if name == NO_OBJECT_STYLE {
+        return Err(bad(ID, "[None] can't be changed"));
+    }
+    let rename = str_param(p, "rename").map(|n| n.trim().to_string()).filter(|n| *n != name);
+    if let Some(n) = &rename {
+        if name.starts_with('[') {
+            return Err(bad(ID, "built-in styles keep their name"));
+        }
+        if n.is_empty() || n.starts_with('[') || d.styles.object_style(n).is_some() {
+            return Err(bad(ID, format!("can't rename to `{n}`")));
+        }
+    }
+    let based = match p.get("basedOn") {
+        None => None,
+        Some(Value::Null) => Some(None),
+        Some(Value::String(b)) if b == NO_OBJECT_STYLE => Some(None),
+        Some(Value::String(b)) => {
+            if d.styles.object_style(b).is_none() {
+                return Err(bad(ID, format!("no object style `{b}`")));
+            }
+            if d.styles.object_based_on_cycles(&name, b) {
+                return Err(bad(ID, "a style can't be based on itself or on a style based on it"));
+            }
+            Some(Some(b.clone()))
+        }
+        Some(_) => return Err(bad(ID, "basedOn is a style name or null")),
+    };
+    let swatch = |key: &str| -> Result<Option<Option<String>>> {
+        match p.get(key) {
+            None => Ok(None),
+            Some(Value::Null) => Ok(Some(None)),
+            Some(Value::String(w)) if d.swatch(w).is_some_and(|w| !w.hidden) => Ok(Some(Some(w.clone()))),
+            Some(other) => Err(bad(ID, format!("no swatch {other}"))),
+        }
+    };
+    let (fill, stroke) = (swatch("fill")?, swatch("stroke")?);
+    let unit = |key: &str| -> Result<Option<f32>> {
+        match p.get(key) {
+            None | Some(Value::Null) => Ok(None),
+            Some(v) => Ok(Some(v.as_f64().filter(|t| (0.0..=1.0).contains(t)).ok_or_else(|| bad(ID, format!("{key} is from 0 to 1")))? as f32)),
+        }
+    };
+    let (fill_tint, stroke_tint) = (unit("fillTint")?, unit("strokeTint")?);
+    let weight = match p.get("strokeWeight") {
+        None | Some(Value::Null) => None,
+        Some(v) => Some(v.as_f64().filter(|w| w.is_finite() && (0.0..=1000.0).contains(w)).ok_or_else(|| bad(ID, "strokeWeight is from 0 to 1000"))?),
+    };
+    let para = match p.get("paragraphStyle") {
+        None => None,
+        Some(Value::Null) => Some(None),
+        Some(Value::String(ps)) if d.styles.para(ps).is_some() => Some(Some(ps.clone())),
+        Some(other) => return Err(bad(ID, format!("no paragraph style {other}"))),
+    };
+    let frame = match p.get("textFrame") {
+        None => None,
+        Some(Value::Null) => Some(None),
+        Some(Value::Object(patch)) => {
+            let mut v = serde_json::to_value(style.text_frame.clone().unwrap_or_default()).map_err(|e| bad(ID, e.to_string()))?;
+            if let Some(o) = v.as_object_mut() {
+                for (k, x) in patch {
+                    o.insert(k.clone(), x.clone());
+                }
+            }
+            let o: TextFrameOptions = serde_json::from_value(v).map_err(|e| bad(ID, format!("textFrame: {e}")))?;
+            if !(1..=40).contains(&o.columns) || !o.gutter.is_finite() || o.gutter < 0.0 || o.inset.iter().any(|i| !i.is_finite() || *i < 0.0) {
+                return Err(bad(ID, "textFrame: 1 to 40 columns, a gutter and insets of 0 or more"));
+            }
+            Some(Some(o))
+        }
+        Some(_) => return Err(bad(ID, "textFrame is an object or null")),
+    };
+    // Redefine Style: the first selected object's look.
+    let from = if p.get("fromSelection").and_then(Value::as_bool).unwrap_or(false) {
+        let id = st.selection.items.first().copied().ok_or_else(|| super::refused(ID, "needSelection", "select an object"))?;
+        Some(d.item(id).cloned().ok_or_else(|| bad(ID, "the selected object is gone"))?)
+    } else {
+        None
+    };
+    s.edit(|d, _| {
+        let before: Vec<(String, kition_layout_doc::ObjectStyle)> =
+            d.styles.object.iter().filter_map(|o| d.styles.resolved_object_style(&o.name).map(|r| (o.name.clone(), r))).collect();
+        {
+            let styles = d.styles_mut();
+            let o = styles.object.iter_mut().find(|o| o.name == name).ok_or_else(|| bad(ID, "no such style"))?;
+            if let Some(it) = &from {
+                o.fill = Some(it.fill.clone());
+                o.stroke = Some(it.stroke.clone());
+                if let Some(t) = it.text_frame() {
+                    o.text_frame = Some(t.options.clone());
+                }
+            }
+            if let Some(b) = &based {
+                o.based_on = b.clone();
+            }
+            match &fill {
+                Some(None) => o.fill = None,
+                Some(Some(w)) => o.fill.get_or_insert_with(Fill::none).swatch = w.clone(),
+                None => {}
+            }
+            if let Some(t) = fill_tint {
+                o.fill.get_or_insert_with(Fill::none).tint = t;
+            }
+            match &stroke {
+                Some(None) => o.stroke = None,
+                Some(Some(w)) => o.stroke.get_or_insert_with(Stroke::default).swatch = w.clone(),
+                None => {}
+            }
+            if let Some(t) = stroke_tint {
+                o.stroke.get_or_insert_with(Stroke::default).tint = t;
+            }
+            if let Some(w) = weight {
+                o.stroke.get_or_insert_with(Stroke::default).weight = w;
+            }
+            if let Some(ps) = &para {
+                o.paragraph_style = ps.clone();
+            }
+            if let Some(t) = &frame {
+                o.text_frame = t.clone();
+            }
+        }
+        follow_object_styles(d, &before);
+        if let Some(to) = &rename {
+            rename_object_style(d, &name, to);
+        }
+        Ok(json!({"name": rename.clone().unwrap_or_else(|| name.clone())}))
+    })
+}
+
+/// After object styles changed (`before`: each style resolved before), the objects using a style
+/// whose resolved look changed take each changed part they did not override; a text frame's story
+/// takes a new paragraph style where its paragraphs used the old one (or any, when it had none).
+fn follow_object_styles(d: &mut kition_layout_doc::Document, before: &[(String, kition_layout_doc::ObjectStyle)]) {
+    let mut changed: Vec<(String, kition_layout_doc::ObjectStyle, kition_layout_doc::ObjectStyle)> = Vec::new();
+    for (name, old) in before {
+        if let Some(new) = d.styles.resolved_object_style(name)
+            && new != *old
+        {
+            changed.push((name.clone(), old.clone(), new));
+        }
+    }
+    if changed.is_empty() {
+        return;
+    }
+    let mut users: Vec<(kition_layout_doc::ItemId, usize)> = Vec::new();
+    for sp in d.spreads.iter().chain(d.parents.iter()) {
+        for top in &sp.items {
+            top.walk(&mut |it| {
+                if let Some(at) = changed.iter().position(|(n, _, _)| *n == it.object_style) {
+                    users.push((it.id, at));
+                }
+            });
+        }
+    }
+    let mut stories = Vec::new();
+    for (id, at) in users {
+        let Some((_, old, new)) = changed.get(at) else { continue };
+        let Some(it) = d.item_mut(id) else { continue };
+        if let Some(f) = &new.fill
+            && old.fill.as_ref().is_none_or(|o| *o == it.fill)
+        {
+            it.fill = f.clone();
+        }
+        if let Some(k) = &new.stroke
+            && old.stroke.as_ref().is_none_or(|o| *o == it.stroke)
+        {
+            it.stroke = k.clone();
+        }
+        if let Some(tf) = it.text_frame_mut() {
+            if let Some(o) = &new.text_frame
+                && old.text_frame.as_ref().is_none_or(|x| *x == tf.options)
+            {
+                tf.options = o.clone();
+            }
+            if new.paragraph_style != old.paragraph_style
+                && let Some(ps) = &new.paragraph_style
+            {
+                stories.push((tf.story, old.paragraph_style.clone(), ps.clone()));
+            }
+        }
+    }
+    for (sid, old, ps) in stories {
+        if let Some(st) = d.story_mut(sid) {
+            let len = st.len();
+            let ranges = st.para_ranges();
+            let olds: Vec<bool> = st.paras.iter().map(|f| old.as_ref().is_none_or(|o| f.style == *o)).collect();
+            for (range, take) in ranges.into_iter().zip(olds) {
+                if take {
+                    st.format_paras(range.start..range.end.min(len), |f| f.style = ps.clone());
+                }
+            }
+        }
+    }
+}
+
+/// Every use of object style `from` takes the name `to`: objects, styles based on it, the default
+/// frame styles.
+fn rename_object_style(d: &mut kition_layout_doc::Document, from: &str, to: &str) {
+    let mut users = Vec::new();
+    for sp in d.spreads.iter().chain(d.parents.iter()) {
+        for top in &sp.items {
+            top.walk(&mut |it| {
+                if it.object_style == from {
+                    users.push(it.id);
+                }
+            });
+        }
+    }
+    for id in users {
+        if let Some(it) = d.item_mut(id) {
+            it.object_style = to.to_string();
+        }
+    }
+    let styles = d.styles_mut();
+    for o in &mut styles.object {
+        if o.name == from {
+            o.name = to.to_string();
+        }
+        if o.based_on.as_deref() == Some(from) {
+            o.based_on = Some(to.to_string());
+        }
+    }
+    for default in [&mut styles.default_text_frame, &mut styles.default_graphic_frame] {
+        if default == from {
+            *default = to.to_string();
+        }
+    }
+}
+
+/// Delete Object Style: its objects, the styles based on it and the default frame styles take
+/// `replaceWith`; the objects keep their look.
+fn delete_object(s: &mut Session, p: &Value) -> Result<Value> {
+    use kition_layout_doc::NO_OBJECT_STYLE;
+    const ID: &str = "style.object.delete";
+    let name = str_param(p, "name").ok_or_else(|| bad(ID, "missing name"))?.to_string();
+    let to = str_param(p, "replaceWith").unwrap_or(NO_OBJECT_STYLE).to_string();
+    let d = &s.doc()?.doc;
+    if d.styles.object_style(&name).is_none() {
+        return Err(bad(ID, format!("no object style `{name}`")));
+    }
+    if name.starts_with('[') {
+        return Err(bad(ID, "built-in styles can't be deleted"));
+    }
+    if to == name || d.styles.object_style(&to).is_none() {
+        return Err(bad(ID, format!("no object style `{to}` to replace it")));
+    }
+    s.edit(|d, _| {
+        let mut users = Vec::new();
+        for sp in d.spreads.iter().chain(d.parents.iter()) {
+            for top in &sp.items {
+                top.walk(&mut |it| {
+                    if it.object_style == name {
+                        users.push(it.id);
+                    }
+                });
+            }
+        }
+        let objects = users.len();
+        for id in users {
+            if let Some(it) = d.item_mut(id) {
+                it.object_style = to.clone();
+            }
+        }
+        let styles = d.styles_mut();
+        styles.object.retain(|o| o.name != name);
+        let base = if to == NO_OBJECT_STYLE { None } else { Some(to.clone()) };
+        let fallback: Vec<String> = styles.object.iter().map(|o| o.name.clone()).collect();
+        for o in &mut styles.object {
+            if o.based_on.as_deref() == Some(name.as_str()) {
+                // The replacement, unless that would base a style on itself.
+                o.based_on = base.clone().filter(|b| *b != o.name && fallback.contains(b));
+            }
+        }
+        for default in [&mut styles.default_text_frame, &mut styles.default_graphic_frame] {
+            if *default == name {
+                *default = to.clone();
+            }
+        }
+        Ok(json!({"deleted": name, "replacedWith": to, "objects": objects}))
     })
 }
 

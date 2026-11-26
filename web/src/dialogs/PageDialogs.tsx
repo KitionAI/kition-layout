@@ -225,10 +225,11 @@ export function InsertPagesDialog({ info, page, onClose }: { info: DocumentInfo;
 }
 
 /** Layout › Pages › Move Pages…: one page or a range, to after or before a page, or to the start or end. */
-export function MovePagesDialog({ info, page, onClose }: { info: DocumentInfo; page: number; onClose: () => void }) {
+export function MovePagesDialog({ info, page, pages: chosen, onClose }: { info: DocumentInfo; page: number; pages?: string; onClose: () => void }) {
   const { t } = useKitEditor()
   const run = useRunInDialog()
-  const [text, setText] = useState(String(page + 1))
+  // The pages chosen in the Pages panel (phase 11), else the page in view.
+  const [text, setText] = useState(chosen ?? String(page + 1))
   const [where, setWhere] = useState<Where>('end')
   const [at, setAt] = useState(1)
   const moving = pagesFromText(text, info.pageCount)
@@ -253,10 +254,11 @@ export function MovePagesDialog({ info, page, onClose }: { info: DocumentInfo; p
 }
 
 /** Layout › Pages › Delete Pages…: which pages (the one in view at first), asked before they go. */
-export function DeletePagesDialog({ info, page, onClose }: { info: DocumentInfo; page: number; onClose: () => void }) {
+export function DeletePagesDialog({ info, page, pages: chosen, onClose }: { info: DocumentInfo; page: number; pages?: string; onClose: () => void }) {
   const { t } = useKitEditor()
   const run = useRunInDialog()
-  const [text, setText] = useState(String(page + 1))
+  // The pages chosen in the Pages panel (phase 11), else the page in view.
+  const [text, setText] = useState(chosen ?? String(page + 1))
   const pages = pagesFromText(text, info.pageCount)
   // A layout keeps one page at least.
   const valid = pages !== null && pages.length < info.pageCount

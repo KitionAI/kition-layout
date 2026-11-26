@@ -692,6 +692,49 @@ impl Styles {
         self.object.iter().find(|s| s.name == name)
     }
 
+    /// An object style with what it leaves out taken from the styles it is based on (the nearest
+    /// first); cycle-safe. `None` for a style that does not exist.
+    pub fn resolved_object_style(&self, name: &str) -> Option<ObjectStyle> {
+        let mut out = self.object_style(name)?.clone();
+        let mut seen = vec![out.name.clone()];
+        let mut next = out.based_on.clone();
+        while let Some(base) = next {
+            if seen.len() >= MAX_DEPTH || seen.contains(&base) {
+                break;
+            }
+            let Some(style) = self.object_style(&base) else { break };
+            seen.push(base);
+            if out.fill.is_none() {
+                out.fill = style.fill.clone();
+            }
+            if out.stroke.is_none() {
+                out.stroke = style.stroke.clone();
+            }
+            if out.paragraph_style.is_none() {
+                out.paragraph_style = style.paragraph_style.clone();
+            }
+            if out.text_frame.is_none() {
+                out.text_frame = style.text_frame.clone();
+            }
+            next = style.based_on.clone();
+        }
+        Some(out)
+    }
+
+    /// Whether basing object style `name` on `base` makes a cycle.
+    pub fn object_based_on_cycles(&self, name: &str, base: &str) -> bool {
+        let mut at = Some(base.to_string());
+        let mut steps = 0;
+        while let Some(style) = at {
+            if style == name || steps > MAX_DEPTH {
+                return true;
+            }
+            steps += 1;
+            at = self.object_style(&style).and_then(|s| s.based_on.clone());
+        }
+        false
+    }
+
     /// The paragraph style chain from root to `name` (cycle-safe).
     fn para_chain(&self, name: &str) -> Vec<&ParagraphStyle> {
         let mut chain = Vec::new();

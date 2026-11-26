@@ -1,0 +1,31 @@
+format: 1
+id: layout.ui.named-things/styles
+feature: layout.ui.named-things
+intent: >-
+  A person with the panels: a parent's right-click menu duplicates it (one step), opens Parent Page
+  Options with its prefix, name and pages (Cancel leaves nothing; OK renames it, bases it on
+  another parent and gives it one page in one step; a parent cannot be based on one based on it)
+  and, from the Pages panel menu, deletes it with its pages handed to the parent chosen; Object
+  Style Options open with the style's values, show a change on the object live and keep it as one
+  step, an object that overrides the style shows "+", Clear Overrides and Redefine Style work, and
+  deleting a style in use asks for a replacement; a gradient swatch is made with a stop added on
+  the bar, edited live (a stop dragged, one dragged off) and applied to a stroke; pages chosen with
+  Shift take a parent together and are deleted together; a page that starts a section is marked
+  and Numbering & Section Options opens with its values.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/styles.mjs (plan 2026-11-25, phase 11)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/styles.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-26"

@@ -7,6 +7,8 @@
 //! character style's definition and resolved values (`styleDefs`, the style options), and how
 //! each colour swatch is made (process or spot, a tint's base and tint). Stage 8 adds a drawn
 //! path's anchor points on its spread (`subpaths`), which the Pen and Direct Selection edit.
+//! Phase 11 adds each object style's definition (`styleDefs.object`) and each object's object
+//! style and whether it overrides it (`objectStyle`, `styleOverride`).
 
 use kition_layout_doc::color::{Color, SwatchValue, swatch};
 use kition_layout_doc::{Content, Document, Item, ItemId};
@@ -34,6 +36,23 @@ pub fn extend(inspected: &mut Value, doc: &Document, scratch: &Session) {
     if let Some(object) = inspected.as_object_mut() {
         object.insert("colors".into(), colors(doc));
         object.insert("styleDefs".into(), style_defs(doc));
+        // Phase 11: the numbering sections, each from its first page (counted from 1), for the
+        // Pages panel's section marks and Numbering & Section Options.
+        let sections: Vec<Value> = doc
+            .sections
+            .iter()
+            .map(|section| {
+                json!({
+                    "page": section.start + 1,
+                    "startNumber": section.start_number,
+                    "style": section.style,
+                    "prefix": section.prefix,
+                    "includePrefix": section.include_prefix,
+                    "marker": section.marker,
+                })
+            })
+            .collect();
+        object.insert("sections".into(), Value::Array(sections));
     }
 }
 
@@ -85,7 +104,59 @@ fn style_defs(doc: &Document) -> Value {
             })
         })
         .collect();
-    json!({ "paragraph": paragraph, "character": character })
+    // Phase 11: each object style, what it includes and what it resolves to with its Based On
+    // chain, and how many objects use it (Delete asks for a replacement only then).
+    let mut objects: HashMap<&str, usize> = HashMap::new();
+    for spread in doc.spreads.iter().chain(&doc.parents) {
+        for top in &spread.items {
+            top.walk(&mut |item| *objects.entry(item.object_style.as_str()).or_default() += 1);
+        }
+    }
+    let object: Vec<Value> = styles
+        .object
+        .iter()
+        .map(|style| {
+            let resolved = styles.resolved_object_style(&style.name).unwrap_or_else(|| style.clone());
+            json!({
+                "name": style.name,
+                "basedOn": style.based_on,
+                "own": object_style_json(style),
+                "resolved": object_style_json(&resolved),
+                "uses": objects.get(style.name.as_str()).copied().unwrap_or(0),
+            })
+        })
+        .collect();
+    json!({ "paragraph": paragraph, "character": character, "object": object })
+}
+
+/// What an object style includes, each part `null` when the style leaves it out.
+fn object_style_json(style: &kition_layout_doc::ObjectStyle) -> Value {
+    json!({
+        "fill": style.fill.as_ref().map(|f| f.swatch.clone()),
+        "fillTint": style.fill.as_ref().map(|f| f.tint),
+        "stroke": style.stroke.as_ref().map(|k| k.swatch.clone()),
+        "strokeTint": style.stroke.as_ref().map(|k| k.tint),
+        "strokeWeight": style.stroke.as_ref().map(|k| k.weight),
+        "paragraphStyle": style.paragraph_style,
+        "textFrame": style.text_frame.as_ref().map(|t| json!({
+            "columns": t.columns,
+            "gutter": t.gutter,
+            "inset": t.inset,
+            "verticalJustification": t.vertical_justification,
+        })),
+    })
+}
+
+/// Whether an object differs from its object style (resolved) in a part the style includes: the
+/// Object Styles panel's "+".
+fn overrides_style(doc: &Document, item: &Item) -> bool {
+    let Some(style) = doc.styles.resolved_object_style(&item.object_style) else { return false };
+    style.fill.as_ref().is_some_and(|f| *f != item.fill)
+        || style.stroke.as_ref().is_some_and(|k| *k != item.stroke)
+        || match (&style.text_frame, &item.content) {
+            (Some(options), Content::Text(text)) => *options != text.options,
+            _ => false,
+        }
 }
 
 /// Groups nest at most this deep before the read-backs stop (a hostile file).
@@ -98,6 +169,10 @@ fn extend_item(entry: &mut Value, doc: &Document, depth: usize) {
     if let Some(item) = entry.get("id").and_then(Value::as_u64).and_then(|id| doc.item(ItemId(id))) {
         add_item_fields(entry, item);
         add_subpaths(entry, doc, item);
+        if let Some(object) = entry.as_object_mut() {
+            object.insert("objectStyle".into(), json!(item.object_style));
+            object.insert("styleOverride".into(), json!(overrides_style(doc, item)));
+        }
     }
     if let Some(children) = entry.get_mut("children").and_then(Value::as_array_mut) {
         for child in children {
@@ -211,6 +286,29 @@ fn colors(doc: &Document) -> Value {
             SwatchValue::Tint { base, tint } => swatch::resolve(&doc.swatches, base, *tint),
             _ => None,
         };
+        // A gradient swatch (phase 11): its kind and stops, each stop's colour as the screen shows
+        // it (and its CMYK), location and midpoint to the next stop in percent.
+        if let SwatchValue::Gradient { gradient } = &swatch_entry.value {
+            let stops: Vec<Value> = gradient
+                .stops
+                .iter()
+                .map(|stop| {
+                    let [r, g, b, _] = stop.color.to_rgba8(1.0);
+                    let mut value =
+                        json!({ "hex": format!("#{r:02x}{g:02x}{b:02x}"), "location": percent(stop.offset), "midpoint": percent(stop.midpoint) });
+                    if let Color::Cmyk { c, m, y, k } = stop.color {
+                        value["cmyk"] = json!([percent(c), percent(m), percent(y), percent(k)]);
+                    }
+                    value
+                })
+                .collect();
+            let kind = if gradient.kind == kition_layout_doc::color::GradientKind::Radial { "radial" } else { "linear" };
+            out.insert(
+                swatch_entry.name.clone(),
+                json!({ "gradient": { "kind": kind, "stops": stops }, "uses": uses.get(swatch_entry.name.as_str()).copied().unwrap_or(0) }),
+            );
+            continue;
+        }
         let Some(color) = defined else { continue };
         let [r, g, b, _] = color.to_rgba8(1.0);
         let mut value = json!({ "hex": format!("#{r:02x}{g:02x}{b:02x}") });

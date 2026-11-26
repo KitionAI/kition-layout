@@ -8,10 +8,12 @@ import { DocumentSetupDialog } from './DocumentSetup'
 import { ExportDialog } from './Export'
 import { FrameSizeDialog, PolygonSettingsDialog, TextFrameOptionsDialog, type FrameSizeRequest } from './FrameDialogs'
 import { DeletePagesDialog, GoToPageDialog, InsertPagesDialog, MarginsColumnsDialog, MovePagesDialog, NewDocumentDialog } from './PageDialogs'
+import { sectionValues } from './pages'
 import { ParamsDialog } from './ParamsDialog'
 import { PreferencesDialog } from './Preferences'
 import { EffectsDialog } from './Effects'
 import { LayerOptionsDialog } from './LayerOptions'
+import { DeleteParentDialog, ParentOptionsDialog } from './ParentDialogs'
 import { dialogFor, type DialogKind } from './routes'
 import { TemplatesDialog } from './Templates'
 import { ConfirmDialog, FindChangeDialog, InsertTableDialog, lastFind } from './TextDialogs'
@@ -120,7 +122,9 @@ export function LayoutDialogs({ api, info, place, onShowPage, onShowArea }: { ap
       if (!kind || !command) return false
       if (current || !now.enabled(id) || uiNow.state(`command:${id}`, command.menu).denied) return true
       if (contextReason(id, menuContext(infoNow))) return true
-      show({ kind, command, values: { ...placeValues(id, where), ...values }, place: where })
+      // Numbering & Section Options opens with the section the page starts, as the document has it (phase 11).
+      const sectionNow = id === 'layout.section' && infoNow ? sectionValues(infoNow.sections, where.page) : {}
+      show({ kind, command, values: { ...placeValues(id, where), ...sectionNow, ...values }, place: where })
       return true
     }
     api.current = {
@@ -217,9 +221,13 @@ export function LayoutDialogs({ api, info, place, onShowPage, onShowArea }: { ap
       case 'insertPages':
         return <InsertPagesDialog info={info} page={page} onClose={close} />
       case 'movePages':
-        return <MovePagesDialog info={info} page={page} onClose={close} />
+        return <MovePagesDialog info={info} page={page} pages={typeof open.values?.pagesText === 'string' ? open.values.pagesText : undefined} onClose={close} />
       case 'deletePages':
-        return <DeletePagesDialog info={info} page={page} onClose={close} />
+        return <DeletePagesDialog info={info} page={page} pages={typeof open.values?.pagesText === 'string' ? open.values.pagesText : undefined} onClose={close} />
+      case 'parentOptions':
+        return <ParentOptionsDialog info={info} parent={String(open.values?.parent ?? '')} onClose={close} />
+      case 'parentDelete':
+        return <DeleteParentDialog info={info} parent={String(open.values?.parent ?? '')} onClose={close} />
       case 'textFrameOptions':
         return <TextFrameOptionsDialog info={info} onClose={close} />
       case 'insertTable':

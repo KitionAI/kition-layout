@@ -21,8 +21,12 @@ export function swatchEdit(name: string, from: SwatchDraft, to: SwatchDraft): Re
   return Object.keys(params).length > 1 ? params : null
 }
 
-/** What may take a deleted swatch's place: the other swatches that are colours, [Black] first. */
+/**
+ * What may take a deleted swatch's place: the other swatches that are colours, [Black] first; for
+ * a gradient swatch the other gradients too (phase 11).
+ */
 export function swatchReplacements(swatches: ReadonlyArray<{ name: string; kind: string }>, deleting: string): string[] {
-  const others = swatches.filter((swatch) => swatch.name !== deleting && swatch.kind !== 'registration' && swatch.kind !== 'gradient').map((swatch) => swatch.name)
+  const gradient = swatches.some((swatch) => swatch.name === deleting && swatch.kind === 'gradient')
+  const others = swatches.filter((swatch) => swatch.name !== deleting && swatch.kind !== 'registration' && (gradient || swatch.kind !== 'gradient')).map((swatch) => swatch.name)
   return others.includes('[Black]') ? ['[Black]', ...others.filter((name) => name !== '[Black]')] : others
 }

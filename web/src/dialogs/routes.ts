@@ -9,7 +9,7 @@ import { hiddenReason } from '../menus/hidden.ts'
  */
 
 /** The purpose-built dialogs, and `params`, the generic one drawn from a command's parameters. */
-export type DialogKind = 'documentSetup' | 'marginsColumns' | 'insertPages' | 'movePages' | 'deletePages' | 'textFrameOptions' | 'insertTable' | 'findChange' | 'preflight' | 'spelling' | 'params'
+export type DialogKind = 'documentSetup' | 'marginsColumns' | 'insertPages' | 'movePages' | 'deletePages' | 'textFrameOptions' | 'insertTable' | 'findChange' | 'preflight' | 'spelling' | 'parentOptions' | 'parentDelete' | 'params'
 
 /** Commands with a dialog of their own. */
 export const PURPOSE_BUILT: Readonly<Record<string, DialogKind>> = {
@@ -25,6 +25,9 @@ export const PURPOSE_BUILT: Readonly<Record<string, DialogKind>> = {
   // Their results show in a dialog that stays open (plan stage 8).
   'preflight.run': 'preflight',
   'spelling.check': 'spelling',
+  // Parent pages (plan phase 11): the parent's options, and what takes a deleted one's place.
+  'layout.parents.set': 'parentOptions',
+  'layout.parents.delete': 'parentDelete',
 }
 
 /** Commands the generic dialog asks before they run. */

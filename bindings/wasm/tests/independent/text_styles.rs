@@ -735,6 +735,37 @@ fn style_checks() -> Vec<Check> {
             &["selection", "mode"],
         ),
         check("style.object.add", r#"{"name":"Box","fromSelection":true}"#, &[], &[("$A", &["fill", "stroke", "content"])], &["selection", "mode"]),
+        // Phase 11 (2026-11-26), written blind from the commands' declared meaning: an edit reads
+        // which objects use the style and, for those, the parts it may change; a delete reads
+        // which objects use it and the default frame styles.
+        Check {
+            id: "style.object.edit",
+            params: r#"{"name":"Box","fill":"[Black]","strokeWeight":2}"#,
+            setup: &[
+                ("style.object.add", r#"{"name":"Box","fromSelection":false,"fill":"Ink"}"#),
+                ("style.object.apply", r#"{"name":"Box","ids":["$A"]}"#),
+            ],
+            required: &[("$A", &["objectStyle", "fill", "stroke"]), ("$B", &["objectStyle"]), ("$FRAME", &["objectStyle"])],
+            free: &[("$B", &["fill", "stroke", "xf"]), ("$STORY", &["text"])],
+            editor: &["selection", "mode"],
+            provenance: "blind",
+        },
+        Check {
+            id: "style.object.delete",
+            params: r#"{"name":"Box"}"#,
+            setup: &[
+                ("style.object.add", r#"{"name":"Box","fromSelection":false,"fill":"Ink"}"#),
+                ("style.object.apply", r#"{"name":"Box","ids":["$A"]}"#),
+            ],
+            required: &[
+                ("$A", &["objectStyle"]),
+                ("$B", &["objectStyle"]),
+                ("layout", &["settings.styleDefaults.defaultTextFrame", "settings.styleDefaults.defaultGraphicFrame"]),
+            ],
+            free: &[("$A", &["fill", "stroke", "xf"]), ("$STORY", &["text"])],
+            editor: &["mode"],
+            provenance: "blind",
+        },
         check("swatch.add", r##"{"name":"Fresh Ink","color":"#123456"}"##, &[], &[], &["mode"]),
         check(
             "object.gradient",
@@ -1665,6 +1696,20 @@ fn styles() -> Vec<Row> {
             "object namespace names; selected item's fill/stroke/text-frame options when fromSelection",
             "append object style",
             &["selection"],
+        ),
+        row(
+            "style.object.edit",
+            "name object style (not [None]); rename new label; basedOn object style or null; fill, stroke swatch or null (left out); paragraphStyle paragraph style or null; textFrame option patch or null; fromSelection first selected item",
+            "target definition and every object style resolved through its based-on chain (before and after); every item's objectStyle and, for items using a changed style, their fill/stroke/text frame options (overrides kept) and, with a new paragraph style, their stories' paragraph styles; named swatch and paragraph style existence; the first selected item's fill/stroke/text frame options when fromSelection; with rename, every item's objectStyle, object styles' basedOn and the default frame styles",
+            "patch the style; changed parts onto the objects using it (or a style based on it) that do not override them; optional rename of every use",
+            &["selection"],
+        ),
+        row(
+            "style.object.delete",
+            "name object style (not built-in); replaceWith object style, default [None]",
+            "target and replacement existence; every item's objectStyle; object styles' basedOn; the default text and graphic frame styles",
+            "remove the style; its objects, the styles based on it and the defaults naming it take the replacement; object looks unchanged",
+            &[],
         ),
         row(
             "swatch.add",
