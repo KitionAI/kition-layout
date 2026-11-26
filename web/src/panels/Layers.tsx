@@ -44,7 +44,11 @@ function useFittedRows(panel: RefObject<HTMLDivElement | null>) {
       const list = element.querySelector<HTMLElement>('.layout-virtual')
       if (!list) return
       const style = getComputedStyle(body)
-      const room = body.clientHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0) - (element.offsetHeight - list.offsetHeight)
+      // The heading and the footer (and the gaps between the panel's parts) stay; the list has the rest.
+      const parts = [...element.children].filter((child): child is HTMLElement => child instanceof HTMLElement && child !== list)
+      const gap = parseFloat(getComputedStyle(element).rowGap) || 0
+      const others = parts.reduce((sum, part) => sum + part.offsetHeight, 0) + gap * parts.length
+      const room = body.clientHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0) - others
       setFitted(Math.max(3, Math.floor(room / ROW)))
     }
     measure()

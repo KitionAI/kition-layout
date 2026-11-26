@@ -15,14 +15,17 @@ const asked = new Map<string, Promise<unknown>>()
 /**
  * kit-editor's `useEngineQuery`, for the panels: the answer to a query command, asked again after
  * each change. The same query at the same revision is asked once for every panel that shows it
- * (the Properties and Styles panels both read `text.selectionAttrs`); and when changes come in a
- * burst, the panel keeps its last answer and asks once the document has been still for
- * `QUERY_IDLE_MS`. A new `extra` (another selection) asks at once.
+ * (the Properties and Styles panels both read `text.selectionAttrs`); and while text is typed,
+ * the panel keeps its last answer and asks once the document has been still for `QUERY_IDLE_MS`.
+ * A new `extra` (another selection) asks at once.
  */
 export function usePanelQuery<R>(id: string, params: Record<string, unknown> = {}, extra: unknown = undefined): R | null {
   const { query, session } = useKitEditor()
   const { doc } = session
   const revision = session.change.revision
+  // Only typing comes in bursts this fast; elsewhere a panel reads every change at once (a field
+  // showing a value a moment old could write it back).
+  const typing = Boolean((session.state as { editingText?: unknown } | null)?.editingText)
   const [answer, setAnswer] = useState<R | null>(null)
   const shown = JSON.stringify(params)
   const lastChange = useRef({ revision, at: 0 })
@@ -33,7 +36,7 @@ export function usePanelQuery<R>(id: string, params: Record<string, unknown> = {
     let stale = false
     const subject = `${id}|${shown}|${String(extra)}`
     // A burst of changes (typing): wait for a still moment, unless the panel shows something else now.
-    const wait = askedFor.current === subject ? Math.max(0, lastChange.current.at + QUERY_IDLE_MS - performance.now()) : 0
+    const wait = typing && askedFor.current === subject ? Math.max(0, lastChange.current.at + QUERY_IDLE_MS - performance.now()) : 0
     const ask = () => {
       const key = `${revision}|${id}|${shown}`
       let pending = asked.get(key)
@@ -58,6 +61,6 @@ export function usePanelQuery<R>(id: string, params: Record<string, unknown> = {
       stale = true
       if (timer !== null) window.clearTimeout(timer)
     }
-  }, [doc, extra, id, query, revision, shown])
+  }, [doc, extra, id, query, revision, shown, typing])
   return answer
 }

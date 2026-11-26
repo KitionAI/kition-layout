@@ -3,14 +3,18 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 /** Moves past this many pixels make a press a drag (less is a click). */
 const THRESHOLD = 4
 
-/** Within this many pixels of a scrolling list's top or bottom edge, a drag scrolls the list. */
+/** Within this many pixels of a scrolling list's top or bottom edge, a drag held there scrolls the list. */
 export const AUTO_SCROLL_EDGE = 28
+/** How long a drag stays at the edge before the list scrolls (a drop on the edge row does not scroll). */
+export const AUTO_SCROLL_DWELL_MS = 350
 
 /** How far a list scrolls per frame while a drag is at its edge: faster nearer (and past) the edge. */
 export function autoScrollStep(y: number, top: number, bottom: number, edge = AUTO_SCROLL_EDGE) {
-  if (bottom - top < edge * 3) return 0
-  if (y < top + edge) return -Math.ceil(Math.min(edge, top + edge - y) / 2)
-  if (y > bottom - edge) return Math.ceil(Math.min(edge, y - (bottom - edge)) / 2)
+  // A short list keeps a middle where nothing scrolls: its edges are a quarter of it at most.
+  const zone = Math.min(edge, (bottom - top) / 4)
+  if (zone < 4) return 0
+  if (y < top + zone) return -Math.ceil(Math.min(edge, top + zone - y) / 2)
+  if (y > bottom - zone) return Math.ceil(Math.min(edge, y - (bottom - zone)) / 2)
   return 0
 }
 
@@ -62,12 +66,23 @@ export function useRowDrag<T>(onDrop: (source: T, over: DragOver) => void) {
       marked?.setAttribute('data-drop-over', 'true')
     }
     // While the pointer is at the list's edge, the list scrolls and the target under it follows.
+    let edgeSince: number | null = null
     const scroll = () => {
       frame = 0
       if (!on || !list) return
       const box = list.getBoundingClientRect()
       const step = autoScrollStep(pointer.y, box.top, box.bottom)
-      if (!step) return
+      if (!step) {
+        edgeSince = null
+        return
+      }
+      // Held at the edge a moment first: a quick drag onto the edge row drops there.
+      const now = performance.now()
+      edgeSince ??= now
+      if (now - edgeSince < AUTO_SCROLL_DWELL_MS) {
+        frame = window.requestAnimationFrame(scroll)
+        return
+      }
       const before = list.scrollTop
       list.scrollTop = before + step
       if (list.scrollTop === before) return
