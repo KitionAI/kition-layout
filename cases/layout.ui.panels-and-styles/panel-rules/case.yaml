@@ -1,0 +1,25 @@
+format: 1
+id: layout.ui.panels-and-styles/panel-rules
+feature: layout.ui.panels-and-styles
+intent: >-
+  The panels' rules without a browser: the style options open with a style's own values and edit
+  only what changed (a character style unsets what is cleared); a duplicate copies what a style
+  sets; Swatch Options set only what changed; the Effects dialog runs each changed effect with all
+  its settings; a dragged page, layer or object goes where it is dropped; Layer Options set only
+  what changed; the new rows and every new word in Chinese; and the engine takes every edit the
+  dialogs make and reads it back as they open with it.
+layer: gate
+source:
+  kind: probe
+  from: web/src/panels/panels.test.mjs (plan 2026-11-25, stage 7)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, --test, src/panels/panels.test.mjs]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+timeout_s: 60
+since: "2026-11-25"

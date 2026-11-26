@@ -208,6 +208,7 @@ impl LayoutDocument {
                                     | "style.paragraph.delete"
                                     | "style.character.delete"
                                     | "swatch.delete"
+                                    | "swatch.set"
                                     | "style.group"
                                     | "swatch.addToSwatches"
                                     | "swatch.moveToGroup"

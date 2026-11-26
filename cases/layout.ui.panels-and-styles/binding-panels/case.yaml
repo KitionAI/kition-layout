@@ -1,0 +1,21 @@
+format: 1
+id: layout.ui.panels-and-styles/binding-panels
+feature: layout.ui.panels-and-styles
+intent: >-
+  In the binding: inspect reads back each style's own and resolved values and uses, each swatch's
+  process or spot and uses, and each object's blend mode and every effect; previewSteps previews
+  several commands as one step and refuses unknown parameters; while parents are edited, spreads
+  lists the parent spreads the canvas shows, their pages named for the parent.
+layer: gate
+source:
+  kind: synthetic
+  from: bindings/wasm/src/lib.rs, bindings/wasm/src/readback.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-kit, filter: the_panels_read_back_styles_swatches_and_effects }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

@@ -1,4 +1,5 @@
 import type { KitEngineInfo, RasterRect } from '@kition/sdk/editor'
+import type { StyleDefs } from './panels/styleRules'
 
 /** A page in spread coordinates (points), as the engine reports it. */
 export type Page = {
@@ -39,11 +40,21 @@ export type Spread = {
   /** Its ruler guides a person can take (shown, unlocked), as the engine reports them. */
   guides: unknown[]
 }
-export type Layer = { id: number; name: string; visible: boolean; locked: boolean; color: number[] }
+export type Layer = { id: number; name: string; visible: boolean; locked: boolean; color: number[]; printable?: boolean }
 /** A story; `words` and `oversetChars` (the characters that do not fit) for the status bar. */
 export type Story = { id: number; frames: number[]; overset: boolean; preview: string; length: number; words?: number; oversetChars?: number }
 /** A swatch's colour (`inspect().colors`, unnamed ones too): as the screen shows it, and its CMYK percentages when defined so. */
-export type ColorValue = { hex?: string; cmyk?: number[] }
+export type ColorValue = {
+  hex?: string
+  cmyk?: number[]
+  /** A colour swatch printed as a spot ink (plan stage 7: Swatch Options). */
+  spot?: boolean
+  /** A tint swatch's base swatch and tint (0 to 1). */
+  base?: string
+  tint?: number
+  /** How many objects and runs of text use it. */
+  uses?: number
+}
 export type SwatchInfo = { name: string; kind: string; color: string | null; locked: boolean }
 export type ParentInfo = { id: number; label: string | null; items: number }
 /** The original layout (`name` null) and each alternate layout: a size of the document. */
@@ -79,6 +90,10 @@ export type DocumentInfo = {
   keyObject: number | null
   /** The graphics in the place cursor, the one a click places first. */
   placeQueue: PlaceQueued[]
+  /** Each paragraph and character style's settings (plan stage 7: the style options). */
+  styleDefs: StyleDefs
+  /** The canvas shows the parent spreads, and `spreads` lists them (editing a parent). */
+  editingParents: boolean
 }
 
 /** A graphic waiting in the place cursor. */
@@ -104,6 +119,8 @@ type Inspected = {
   selectionContent?: boolean
   keyObject?: number | null
   placeQueue?: PlaceQueued[]
+  styleDefs?: StyleDefs
+  editingParents?: boolean
 }
 
 const NO_BOUNDS: [number, number, number, number] = [0, 0, 0, 0]
@@ -153,6 +170,8 @@ export function describe(info: KitEngineInfo): DocumentInfo {
     selectionContent: inspected.selectionContent ?? false,
     keyObject: inspected.keyObject ?? null,
     placeQueue: inspected.placeQueue ?? [],
+    styleDefs: inspected.styleDefs ?? { paragraph: [], character: [] },
+    editingParents: inspected.editingParents ?? false,
   }
 }
 

@@ -60,6 +60,7 @@ export function DialogFrame({
   keepOpen,
   modal,
   preview,
+  testId = DIALOG_TEST_ID,
   children,
 }: {
   command: string
@@ -73,6 +74,8 @@ export function DialogFrame({
   keepOpen?: boolean
   modal?: boolean
   preview?: CommandPreview
+  /** The dialog's test id (its buttons: `-ok`, `-cancel`, `-preview`). */
+  testId?: string
   children: ReactNode
 }) {
   const place = useDialogPlace()
@@ -97,7 +100,7 @@ export function DialogFrame({
         else onClose(false)
       }}
       onReset={onReset}
-      testId={DIALOG_TEST_ID}
+      testId={testId}
     >
       <div className="layout-dialog" data-command={command}>
         {children}

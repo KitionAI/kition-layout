@@ -210,6 +210,33 @@ impl LayoutDocument {
     }
 }
 
+/// The parent spreads as `file.inspect` lists document spreads (with the read-backs), each page
+/// named for its parent ("A-Parent" and its left or right page), for the editor while it edits
+/// parents.
+fn parent_spreads(doc: &kition_layout_doc::Document) -> Result<Value, String> {
+    let mut copy = doc.clone();
+    copy.spreads = doc.parents.clone();
+    let mut scratch = files::session();
+    scratch.add_document(DocState::new(copy.clone(), None));
+    let mut listed = scratch.execute("file.inspect", &json!({})).map_err(engine_error)?;
+    readback::extend(&mut listed, &copy, &scratch);
+    let mut spreads = listed.get_mut("spreads").map(Value::take).unwrap_or_else(|| json!([]));
+    if let Some(list) = spreads.as_array_mut() {
+        for (index, spread) in list.iter_mut().enumerate() {
+            let label = doc.parents.get(index).and_then(|parent| parent.parent.as_ref()).map(|info| info.label()).unwrap_or_default();
+            let pages = spread.get_mut("pages").and_then(Value::as_array_mut);
+            let count = pages.as_ref().map_or(0, |pages| pages.len());
+            for (at, page) in pages.into_iter().flatten().enumerate() {
+                let side = if count > 1 { if at == 0 { " L" } else { " R" } } else { "" };
+                page["name"] = json!(format!("{label}{side}"));
+                page["parent"] = Value::Null;
+            }
+            spread["parent"] = json!(label);
+        }
+    }
+    Ok(spreads)
+}
+
 fn request_out(request: UiRequest) -> Option<ToolRequest> {
     match request {
         UiRequest::Dialog { id, params } => Some(ToolRequest::Dialog { name: id, params }),
@@ -503,6 +530,15 @@ impl KitDocument for LayoutDocument {
         let mut inspected = scratch.execute("file.inspect", &json!({})).map_err(engine_error)?;
         // What the Properties panel and the status bar read back (plan 2026-11-25, stage 4).
         readback::extend(&mut inspected, &state.doc, &scratch);
+        // Editing parents (stage 7), the canvas shows the parent spreads: `spreads` lists them
+        // (pages named for their parent, their objects), as `canvas.spreads` places them.
+        if state.editing_parents {
+            let parents = parent_spreads(&state.doc)?;
+            if let Some(object) = inspected.as_object_mut() {
+                object.insert("spreads".into(), parents);
+                object.insert("editingParents".into(), Value::Bool(true));
+            }
+        }
         let origin = self.origin();
         let layout = self.session.layout();
         let spreads: Vec<Value> = layout
@@ -820,6 +856,23 @@ impl LayoutDocument {
         self.session.preview_command(command, &params).map_err(engine_error)
     }
 
+    /// A dialog's live preview of several commands (`steps`: a JSON array of `[command, params]`),
+    /// kept as one history step named `label` (plan 2026-11-25, stage 7: the Effects dialog).
+    pub fn preview_steps(&mut self, label: &str, steps: &str) -> Result<(), String> {
+        let list: Vec<(String, Value)> =
+            serde_json::from_str(steps).map_err(|error| format!("steps are a JSON array of [command, params]: {error}"))?;
+        if list.len() > 64 {
+            return Err("at most 64 steps".into());
+        }
+        let mut resolved = Vec::with_capacity(list.len());
+        for (command, params) in list {
+            self.refuse_unknown(&command, &params)?;
+            let params = addresses::resolve(&command, &params, self.session.kdm().map(|kdm| kdm.replica()))?;
+            resolved.push((command, params));
+        }
+        self.session.preview_steps(label, &resolved).map_err(engine_error)
+    }
+
     /// Keeps the dialog's preview as one history step; false when none was showing.
     pub fn commit_preview(&mut self) -> Result<bool, String> {
         let kept = self.session.commit_preview().map_err(engine_error)?;
@@ -916,6 +969,12 @@ pub mod web {
         #[wasm_bindgen(js_name = previewCommand)]
         pub fn preview_command(&mut self, command: &str, params: &str) -> Result<(), JsError> {
             self.0.preview_command(command, params).map_err(error)
+        }
+
+        /// A dialog's live preview of several commands as one step (JSON `[[command, params], …]`).
+        #[wasm_bindgen(js_name = previewSteps)]
+        pub fn preview_steps(&mut self, label: &str, steps: &str) -> Result<(), JsError> {
+            self.0.preview_steps(label, steps).map_err(error)
         }
 
         /// Keeps the dialog's preview as one history step.
@@ -1517,6 +1576,64 @@ mod tests {
         assert_eq!(cursor(&mut doc, 200.0, 350.0), "no-drop", "the linked frame: a click unthreads");
         assert_eq!(cursor(&mut doc, 420.0, 350.0), "alias", "an empty frame: a click threads");
         assert_eq!(cursor(&mut doc, 200.0, 600.0), "copy", "empty space: the loaded cursor");
+    }
+
+    /// Plan 2026-11-25, stage 7: the style options, Swatch Options and the Effects dialog read
+    /// back what they show; the Effects dialog previews several commands as one step; while
+    /// parents are edited, `spreads` lists the parent spreads the canvas shows.
+    #[test]
+    fn the_panels_read_back_styles_swatches_and_effects() {
+        let mut doc = LayoutDocument::create("Panels.klayout", 612, 792).unwrap();
+        doc.execute("style.paragraph.add", json!({ "name": "Head", "chars": { "size": 24 }, "para": { "spaceAfter": 9 } })).unwrap();
+        doc.execute("style.paragraph.add", json!({ "name": "Sub", "basedOn": "Head", "chars": { "tracking": 20 } })).unwrap();
+        doc.execute("style.character.add", json!({ "name": "Em", "chars": { "fontStyle": "Italic" } })).unwrap();
+        doc.execute("swatch.add", json!({ "name": "Spot Red", "color": { "c": 0, "m": 100, "y": 100, "k": 0 }, "spot": true })).unwrap();
+        let id = doc.execute("frame.add", json!({ "rect": [10, 10, 110, 110], "content": "unassigned" })).unwrap()["id"].as_u64().unwrap();
+        doc.execute("object.opacity", json!({ "ids": [id], "opacity": 0.5, "blend": "multiply" })).unwrap();
+        doc.execute("object.dropShadow", json!({ "ids": [id], "on": true, "distance": 4 })).unwrap();
+        let inspected = doc.inspect().unwrap();
+        let sub = inspected["styleDefs"]["paragraph"].as_array().unwrap().iter().find(|style| style["name"] == "Sub").unwrap().clone();
+        assert_eq!(sub["basedOn"], "Head");
+        assert_eq!(sub["chars"]["tracking"], 20.0, "what it sets itself");
+        assert!(sub["chars"].get("size").is_none());
+        assert_eq!(sub["resolvedChars"]["size"], 24.0, "with its Based On chain");
+        assert_eq!(sub["resolvedPara"]["spaceAfter"], 9.0);
+        let em = inspected["styleDefs"]["character"].as_array().unwrap().iter().find(|style| style["name"] == "Em").unwrap().clone();
+        assert_eq!(em["chars"]["fontStyle"], "Italic");
+        assert_eq!(inspected["colors"]["Spot Red"]["spot"], true);
+        assert_eq!(inspected["colors"]["Spot Red"]["cmyk"], json!([0.0, 100.0, 100.0, 0.0]));
+        assert_eq!(inspected["colors"]["Spot Red"]["uses"], 0, "nothing uses it yet");
+        assert_eq!(sub["uses"], 0);
+        doc.execute("object.fill", json!({ "ids": [id], "swatch": "Spot Red" })).unwrap();
+        assert_eq!(doc.inspect().unwrap()["colors"]["Spot Red"]["uses"], 1, "the rectangle's fill");
+        let item = inspected["spreads"][0]["items"].as_array().unwrap().iter().find(|item| item["id"] == json!(id)).unwrap().clone();
+        assert_eq!(item["blend"], "Multiply");
+        assert_eq!(item["effects"]["dropShadow"]["on"], true);
+        assert_eq!(item["effects"]["dropShadow"]["distance"], 4.0);
+        assert_eq!(item["effects"]["innerShadow"]["on"], false, "every effect, the ones off too");
+
+        // The Effects dialog's preview: several commands, Cancel leaves no step, OK one.
+        let undo = |doc: &mut LayoutDocument| doc.execute("file.history", json!({})).unwrap()["undo"].as_array().map_or(0, Vec::len);
+        let before = undo(&mut doc);
+        let steps = json!([["object.opacity", { "ids": [id], "opacity": 0.2 }], ["object.innerShadow", { "ids": [id], "on": true }]]).to_string();
+        doc.preview_steps("Effects", &steps).unwrap();
+        assert!(doc.cancel_preview());
+        assert_eq!(undo(&mut doc), before);
+        doc.preview_steps("Effects", &steps).unwrap();
+        assert!(doc.commit_preview().unwrap());
+        assert_eq!(undo(&mut doc), before + 1);
+        assert!(doc.preview_steps("Effects", "[[\"object.opacity\", {\"nope\": 1}]]").is_err(), "unknown parameters are refused");
+
+        // Editing parents: the parent spreads, their pages named for the parent.
+        doc.execute("layout.parents.edit", json!({ "on": true })).unwrap();
+        let editing = doc.inspect().unwrap();
+        assert_eq!(editing["editingParents"], true);
+        let spreads = editing["spreads"].as_array().unwrap();
+        assert_eq!(spreads.len(), editing["canvas"]["spreads"].as_array().unwrap().len());
+        assert!(spreads[0]["pages"][0]["name"].as_str().unwrap().starts_with("A-"), "{}", spreads[0]["pages"]);
+        assert_eq!(editing["pageCount"], inspected["pageCount"], "the document's pages still count");
+        doc.execute("layout.parents.edit", json!({ "on": false })).unwrap();
+        assert!(doc.inspect().unwrap().get("editingParents").is_none());
     }
 
     #[test]

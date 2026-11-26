@@ -3936,6 +3936,10 @@
    },
    "rename": {
     "type": "string"
+   },
+   "fromSelection": {
+    "description": "Redefine Style: the style takes the selected text's look",
+    "type": "boolean"
    }
   }
  },
@@ -4053,6 +4057,10 @@
    },
    "rename": {
     "type": "string"
+   },
+   "fromSelection": {
+    "description": "Redefine Style: the style takes the selected text's look",
+    "type": "boolean"
    }
   }
  },
@@ -4123,7 +4131,33 @@
   }
  },
  "swatch.delete": {
-  "description": "Deletes a swatch by name."
+  "description": "Deletes a swatch by name; with replaceWith, everything using it takes that swatch.",
+  "params": {
+   "replaceWith": {
+    "description": "a swatch name",
+    "type": "string"
+   }
+  }
+ },
+ "swatch.set": {
+  "description": "Changes a swatch's name, colour, process or spot, or a tint swatch's tint; everything using it follows.",
+  "params": {
+   "color": {
+    "description": "#rrggbb, or CMYK as {c,m,y,k} from 0 to 100",
+    "type": "string"
+   },
+   "rename": {
+    "description": "the new name (every use follows)",
+    "type": "string"
+   },
+   "spot": {
+    "type": "boolean"
+   },
+   "tint": {
+    "description": "0 to 1, a tint swatch's tint",
+    "type": "number"
+   }
+  }
  },
  "swatch.load": {
   "description": "Loads colour swatches from an .ase file, replacing the existing ones when asked."

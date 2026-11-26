@@ -17,6 +17,7 @@ import {
   type Phrases,
   type RasterView,
   useFrameMode,
+  toast,
 } from '@kition/sdk/editor'
 import { engineManifest } from './engine'
 import { useEngineBackdrop } from './backdrop'
@@ -136,7 +137,7 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   }, [doc, viewOptions, selectedGuide, movingGuide, refreshTools])
   // Input methods: marked text in place at the caret, the candidate window next to it (stage 5).
   useInputMethod({ doc, canvas, typing: () => typing.current(), repaint, revision: change.revision })
-  const editorView = useMemo<EditorView>(() => ({ view: viewOptions, setView: (change) => setViewOptions(change), repaint }), [viewOptions, repaint])
+  const editorView = useMemo<EditorView>(() => ({ view: viewOptions, setView: (change) => setViewOptions(change), repaint, settle }), [viewOptions, repaint, settle])
   const runQuiet = useCallback((command: string, params: Record<string, unknown>) => editor.session.run(command, params), [editor.session])
   runQuietRef.current = runQuiet
   const guides = useMemo(() => guidesOf(state), [state])
@@ -192,6 +193,8 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
   // The menus are made once: their handlers reach the latest selection through this.
   const lists = useRef(toggleList)
   lists.current = toggleList
+  const infoNow = useRef(state)
+  infoNow.current = state
   const runKit = (command: string) => {
     const option = viewChange(command, viewShown.current)
     const list = LIST_ROWS.find(([kind]) => command === `kit:text.${kind}`)
@@ -200,6 +203,11 @@ export function App({ host, phrase }: { host: HostConnection; phrase: Phrases })
     else if (command === 'kit:file.place') dialogs.current?.place()
     else if (command === 'kit:layout.goToPage') showDialog('goToPage')
     else if (command === 'kit:edit.preferences') showDialog('preferences')
+    else if (command === 'kit:object.effects') {
+      // Effects acts on the selected objects.
+      if (infoNow.current?.selection.length) showDialog('effects')
+      else toast('info', t('hint.needSelection'))
+    }
     else if (command.startsWith('kit:view.')) viewActions.current(command.slice('kit:view.'.length) as ViewAction)
   }
   /**

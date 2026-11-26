@@ -10,12 +10,14 @@ import { FrameSizeDialog, PolygonSettingsDialog, TextFrameOptionsDialog, type Fr
 import { DeletePagesDialog, GoToPageDialog, InsertPagesDialog, MarginsColumnsDialog, MovePagesDialog, NewDocumentDialog } from './PageDialogs'
 import { ParamsDialog } from './ParamsDialog'
 import { PreferencesDialog } from './Preferences'
+import { EffectsDialog } from './Effects'
+import { LayerOptionsDialog } from './LayerOptions'
 import { dialogFor, type DialogKind } from './routes'
 import { TemplatesDialog } from './Templates'
 import { ConfirmDialog, FindChangeDialog, InsertTableDialog, lastFind } from './TextDialogs'
 
 /** The editor's own dialogs, opened by name (menus' `kit:` rows, Home, the Pages panel, the engine's tools). */
-export type OwnDialog = 'newDocument' | 'goToPage' | 'polygon' | 'sample' | 'export' | 'templates' | 'documentSetup' | 'preferences'
+export type OwnDialog = 'newDocument' | 'goToPage' | 'polygon' | 'sample' | 'export' | 'templates' | 'documentSetup' | 'preferences' | 'effects' | 'layerOptions'
 
 /**
  * The dialog host (plan 2026-11-25, stage 1): every way a person runs a command (a menu row, a
@@ -35,8 +37,8 @@ export type Dialogs = {
   open: (command: string, values?: Record<string, unknown>) => boolean
   /** Whether `command` opens a dialog. */
   asks: (command: string) => boolean
-  /** Opens one of the editor's own dialogs. */
-  show: (dialog: OwnDialog) => void
+  /** Opens one of the editor's own dialogs (with its values: Layer Options' `id`). */
+  show: (dialog: OwnDialog, values?: Record<string, unknown>) => void
   /** The engine's tool asks for a dialog (`frameSize`, `cmd:<command>`). */
   engine: (name: string, params: unknown) => void
   /** File › Place…: an image the host picks, into the selected frame or onto the page. */
@@ -46,7 +48,7 @@ export type Dialogs = {
 /** Where a run comes from, when not the page in view, and values of its own. */
 export type InvokeOptions = { place?: Place; params?: Record<string, unknown> }
 
-type Shown = ({ kind: DialogKind; command: KitCommand; values?: Record<string, unknown> } | { kind: OwnDialog } | { kind: 'frameSize'; request: FrameSizeRequest }) & { place?: Place }
+type Shown = ({ kind: DialogKind; command: KitCommand; values?: Record<string, unknown> } | { kind: OwnDialog; values?: Record<string, unknown> } | { kind: 'frameSize'; request: FrameSizeRequest }) & { place?: Place }
 type Open = Shown & { serial: number }
 
 /** The selection as the menu rules read it. */
@@ -163,8 +165,8 @@ export function LayoutDialogs({ api, info, place, onShowPage }: { api: RefObject
         void run(command, params)
       },
       asks: (id) => dialogFor(id) !== null,
-      show: (dialog) => {
-        if (!latest.current.open) show({ kind: dialog })
+      show: (dialog, values) => {
+        if (!latest.current.open) show({ kind: dialog, values })
       },
       place: () => {
         const { placing: now, editor: editorNow } = latest.current
@@ -200,6 +202,10 @@ export function LayoutDialogs({ api, info, place, onShowPage }: { api: RefObject
         return <DocumentSetupDialog info={info} onClose={close} />
       case 'preferences':
         return <PreferencesDialog onClose={close} />
+      case 'effects':
+        return <EffectsDialog info={info} onClose={close} />
+      case 'layerOptions':
+        return <LayerOptionsDialog info={info} id={Number(open.values?.id)} onClose={close} />
       case 'frameSize':
         return <FrameSizeDialog request={open.request} onClose={close} />
       case 'marginsColumns':

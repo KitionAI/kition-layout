@@ -1,4 +1,6 @@
-import { Choice, NumberField, Segmented, toast, useKitEditor } from '@kition/sdk/editor'
+import { Button, Choice, NumberField, Segmented, toast, useKitEditor } from '@kition/sdk/editor'
+import { useDialogs } from '../dialogsContext'
+import { BLEND_MODES } from '../effects'
 import type { DocumentInfo, Item } from '../../layout'
 import { useEditorView } from '../../viewContext'
 import { ColorWell } from '../ColorWell'
@@ -17,6 +19,9 @@ export type InspectedItem = Item & {
   strokeDetail?: { swatch: string; tint: number; weight: number; type?: { kind: string }; align?: string; cap?: string; join?: string; miterLimit?: number; start?: string; end?: string; gapSwatch?: string }
   textFrame?: { columns: number; gutter: number; inset: [number, number, number, number]; verticalJustification: string; autoSize?: string }
   wrap?: { mode: string; offsets?: [number, number, number, number] }
+  /** The blend mode and every effect (plan stage 7, the Effects dialog). */
+  blend?: string
+  effects?: Record<string, unknown>
 }
 
 /** The swatches to choose from, with `name` even when it is an unnamed colour. */
@@ -45,6 +50,7 @@ export function useAddSwatch() {
  */
 export function AppearanceGroup({ info, item }: { info: DocumentInfo; item: InspectedItem }) {
   const { run, t, phrase: p } = useKitEditor()
+  const dialogs = useDialogs()
   const { unit } = useEditorView().view
   const live = useLiveRun()
   const addSwatch = useAddSwatch()
@@ -86,6 +92,12 @@ export function AppearanceGroup({ info, item }: { info: DocumentInfo; item: Insp
           <Choice label={t('props.arrowEnd')} value={stroke?.end ?? 'none'} choices={ARROWHEADS.map((value) => [value, t(`arrow.${value}`)] as const)} onChange={(end) => strokeParams({ end })} testId="layout-arrow-end" />
         </div>
         <NumberField label={p('Opacity')} value={Math.round((item.opacity ?? 1) * 100)} min={0} max={100} step={1} unit="%" track onChange={(value, final) => final && void run('object.opacity', { opacity: value / 100, ids })} testId="layout-opacity" />
+        <span className="layout-color">
+          <Choice label={t('effects.blend')} value={item.blend ?? 'Normal'} choices={BLEND_MODES.map((mode) => [mode, t(`blend.${mode}`)] as const)} onChange={(blend) => void run('object.opacity', { opacity: item.opacity ?? 1, blend, ids })} testId="layout-blend" />
+          <Button onClick={() => dialogs?.current?.show('effects')} data-testid="layout-effects-button">
+            {p('Effects…')}
+          </Button>
+        </span>
         <div className="layout-grid layout-grid-tight">
           <Choice
             label={t('props.cornerShape')}

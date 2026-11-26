@@ -11,9 +11,14 @@ export type EditorView = {
   setView: (change: (view: ViewState) => ViewState) => void
   /** Draws the document and the engine's overlays again. */
   repaint: () => void
+  /**
+   * After an editor method that changed the document (`runSteps`): the session's info and the
+   * panels follow (a settled tool call), and the canvas draws again.
+   */
+  settle: () => Promise<void>
 }
 
-const EditorViewContext = createContext<EditorView>({ view: VIEW_DEFAULTS, setView: () => undefined, repaint: () => undefined })
+const EditorViewContext = createContext<EditorView>({ view: VIEW_DEFAULTS, setView: () => undefined, repaint: () => undefined, settle: async () => undefined })
 
 export const EditorViewProvider = EditorViewContext.Provider
 

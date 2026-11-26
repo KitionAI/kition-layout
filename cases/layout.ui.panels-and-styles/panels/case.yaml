@@ -1,0 +1,34 @@
+format: 1
+id: layout.ui.panels-and-styles/panels
+feature: layout.ui.panels-and-styles
+intent: >-
+  A person with the panels: a paragraph style's options open with its own values, a change shows
+  on the text at once with no history step, Cancel takes it back leaving no undo or redo step and
+  OK keeps it as one step; a text override marks the style with "+" and Redefine Style takes it
+  into the style; Duplicate copies a style, and deleting one that text uses asks which style the
+  text takes; Swatch Options shows a colour change live, Cancel takes it back, OK renames the
+  swatch, makes it spot and every object using it follows in one step; deleting a swatch in use
+  asks for a replacement; a click on a layer's name makes it the layer new objects go on; a layer
+  and objects dragged in Layers move (one undo step each), onto another layer or just in front of
+  another object; Layer Options sets the name (live), colour and printing in one step; a page
+  dragged in Pages moves, a parent dragged onto a page applies, a double-click shows a page, the
+  panel menu opens Insert Pages, a double-click on a parent edits it and an object drawn there goes
+  on the parent; the Effects dialog shows opacity and a drop shadow live, Cancel leaves nothing,
+  OK keeps opacity, blend mode and shadow as one undo step and Undo takes them back.
+layer: gate
+source:
+  kind: probe
+  from: web/tests/panels.mjs (plan 2026-11-25, stage 7)
+  license: owned
+input: []
+steps:
+  - exec:
+      cmd: [pnpm, --dir, web, exec, node, tests/panels.mjs, chromium]
+expected:
+  - actual: out:exec
+    compare: exit
+    value: 0
+tags: [browser]
+requires: [chromium]
+timeout_s: 300
+since: "2026-11-25"

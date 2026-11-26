@@ -95,7 +95,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Paragraph Style Options…",
             [],
             None,
-            "{name, rename?, basedOn?, nextStyle?, para?: {… ruleAbove?/ruleBelow?: only the named rule fields change}, chars?: {…}}",
+            "{name, rename?, basedOn?, nextStyle?, para?: {… ruleAbove?/ruleBelow?: only the named rule fields change}, chars?: {…}, fromSelection?: bool (Redefine Style: the style takes the selected text's look; `para` and `chars` go over it)}",
             has_doc,
             edit_para
         ),
@@ -123,7 +123,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Character Style Options…",
             [],
             None,
-            "{name, rename?, basedOn?: style | \"[None]\" | null, chars?: {attr: value | null (no longer set)}} — renaming updates every use",
+            "{name, rename?, basedOn?: style | \"[None]\" | null, chars?: {attr: value | null (no longer set)}, fromSelection?: bool (Redefine Style: the style takes the selected text's look where it differs)} — renaming updates every use",
             has_doc,
             edit_char
         ),
@@ -214,19 +214,24 @@ pub fn specs() -> Vec<CommandSpec> {
                 Ok(json!({"added": n}))
             })
         }),
-        cmd!("swatch.delete", "Delete Swatch", [], None, "{name}", has_doc, |s, p| {
-            let name = str_param(p, "name").unwrap_or("").to_string();
-            s.edit(|d, _| {
-                if d.swatch(&name).is_some_and(|w| w.locked) {
-                    return Err(bad("swatch.delete", "special swatches can't be deleted"));
-                }
-                d.swatches.retain(|w| w.name != name);
-                for g in &mut d.color_groups {
-                    g.swatches.retain(|w| *w != name);
-                }
-                ok()
-            })
-        }),
+        cmd!(
+            "swatch.delete",
+            "Delete Swatch",
+            [],
+            None,
+            "{name, replaceWith?: swatch} — with `replaceWith`, every use of the swatch (objects, text, styles, tints) takes that swatch",
+            has_doc,
+            delete_swatch
+        ),
+        cmd!(
+            "swatch.set",
+            "Swatch Options…",
+            [],
+            None,
+            "{name, rename?, color?: \"#rrggbb\"|{c,m,y,k}(0..100)|[r,g,b], spot?: bool, tint?: 0..1 (a tint swatch)} — changes a swatch; everything using it follows (renaming updates every use)",
+            has_doc,
+            set_swatch
+        ),
         cmd!(query "ink.list", "Ink Manager", [], None, "{} → {allToProcess, inks: [{name, process: bool (printed as process), alias?}]} — the spot inks", has_doc, |s, _| {
             let d = &s.doc()?.doc;
             let inks: Vec<Value> = d
@@ -482,6 +487,8 @@ fn edit_para(s: &mut Session, p: &Value) -> Result<Value> {
     let rename = str_param(p, "rename").map(str::to_string);
     let based = p.get("basedOn").cloned();
     let next = p.get("nextStyle").cloned();
+    let picked =
+        if p.get("fromSelection").and_then(Value::as_bool).unwrap_or(false) { Some(selection_look(s, "style.paragraph.edit")?) } else { None };
     s.edit(|d, _| {
         if let Some(to) = rename.as_deref()
             && to != name
@@ -495,9 +502,14 @@ fn edit_para(s: &mut Session, p: &Value) -> Result<Value> {
             return Err(bad("style.paragraph.edit", "based-on would create a cycle"));
         }
         // A rule object changes only the rule fields it names, over the style's resolved rule.
-        let (current, _) = d.styles.resolve_para_style(&name);
+        let (current, current_chars) = d.styles.resolve_para_style(&name);
         let para: ParaAttrs = attrs(p.get("para"), |a: &mut ParaAttrs, k, v| a.set_json_over(k, v, &current))?;
         let st = d.styles_mut().para_mut(&name).ok_or_else(|| bad("style.paragraph.edit", format!("no style `{name}`")))?;
+        // Redefine Style: what the selected text has where the style differs.
+        if let Some((look_para, look_chars)) = &picked {
+            st.para.merge(&current.delta(look_para));
+            st.chars.merge(&current_chars.delta(look_chars));
+        }
         st.para.merge(&para);
         st.chars.merge(&chars);
         match based {
@@ -510,12 +522,90 @@ fn edit_para(s: &mut Session, p: &Value) -> Result<Value> {
             Some(Value::Null) => st.next_style = None,
             _ => {}
         }
+        if picked.is_some() {
+            // The overrides that now say what the style says are no overrides any more.
+            drop_redundant_overrides(d, &name);
+        }
         if let Some(n) = rename.clone() {
             // Every use: other styles, stories, table cells, footnotes, object styles.
             rename_style(d, true, &name, &n);
         }
         ok()
     })
+}
+
+/// Character style `name` redefined from `look` (the selected text in a paragraph of style
+/// `paragraph`): every attribute the style sets takes the text's value, and so does every one
+/// where the text differs from its paragraph's look.
+fn redefined_chars(d: &kition_layout_doc::Document, name: &str, look: &kition_layout_doc::CharProps, paragraph: &str) -> Result<CharAttrs> {
+    const ID: &str = "style.character.edit";
+    let mut out = d.styles.resolve_para_style(paragraph).1.delta(look);
+    let values = serde_json::to_value(look).map_err(|e| bad(ID, e.to_string()))?;
+    let set = d.styles.char_style_attrs(name);
+    for key in set.keys() {
+        let camel = snake_to_camel(key);
+        if let Some(value) = values.get(&camel) {
+            out.set_json(&camel, value).map_err(|e| bad(ID, e))?;
+        }
+    }
+    Ok(out)
+}
+
+fn snake_to_camel(snake: &str) -> String {
+    let mut out = String::with_capacity(snake.len());
+    let mut upper = false;
+    for c in snake.chars() {
+        if c == '_' {
+            upper = true;
+        } else if upper {
+            out.extend(c.to_uppercase());
+            upper = false;
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// The resolved paragraph and character attributes at the text selection (Redefine Style's source).
+fn selection_look(s: &mut Session, id: &str) -> Result<(kition_layout_doc::ParaProps, kition_layout_doc::CharProps)> {
+    let at = s.execute("text.selectionAttrs", &json!({}))?;
+    if at.is_null() {
+        return Err(bad(id, "select text to redefine the style from"));
+    }
+    let para = serde_json::from_value(at["para"].clone()).map_err(|e| bad(id, e.to_string()))?;
+    let chars = serde_json::from_value(at["chars"].clone()).map_err(|e| bad(id, e.to_string()))?;
+    Ok((para, chars))
+}
+
+/// In every paragraph of style `name`, drops the paragraph overrides equal to the style's values,
+/// and the character overrides of runs without a character style that equal them (each run wholly
+/// inside such paragraphs).
+fn drop_redundant_overrides(d: &mut kition_layout_doc::Document, name: &str) {
+    let (para, chars) = d.styles.resolve_para_style(name);
+    for sid in d.stories.keys().copied().collect::<Vec<_>>() {
+        let Some(story) = d.story_mut(sid) else { continue };
+        story.for_each_text_mut(&mut |st| {
+            let ranges = st.para_ranges();
+            let styled: Vec<bool> = st.paras.iter().map(|f| f.style == name).collect();
+            if !styled.iter().any(|on| *on) {
+                return;
+            }
+            for f in st.paras.iter_mut().filter(|f| f.style == name) {
+                f.para = f.para.diff_from(&para);
+            }
+            let mut at = 0usize;
+            for run in &mut st.chars {
+                let end = at.saturating_add(run.len);
+                let inside = ranges.iter().zip(&styled).filter(|(r, _)| r.start < end.max(at + 1) && r.end > at).all(|(_, on)| *on);
+                if inside && run.format.style == kition_layout_doc::NO_CHAR_STYLE {
+                    run.format.over = run.format.over.diff_from(&chars);
+                }
+                at = end;
+            }
+            st.rev += 1;
+        });
+    }
 }
 
 /// Rename a paragraph or character style everywhere it's used.
@@ -701,6 +791,13 @@ fn edit_char(s: &mut Session, p: &Value) -> Result<Value> {
         Some(Value::String(b)) => Some(Some(b.clone())),
         Some(_) => return Err(bad("style.character.edit", "`basedOn` is a style name or null")),
     };
+    let picked = if p.get("fromSelection").and_then(Value::as_bool).unwrap_or(false) {
+        let at = s.execute("text.selectionAttrs", &json!({}))?;
+        let paragraph = at.get("paragraphStyle").and_then(Value::as_str).unwrap_or(kition_layout_doc::BASIC_PARAGRAPH).to_string();
+        Some((selection_look(s, "style.character.edit")?.1, paragraph))
+    } else {
+        None
+    };
     s.edit(|d, _| {
         if let Some(Some(b)) = &based {
             if d.styles.char_style(b).is_none() {
@@ -715,7 +812,16 @@ fn edit_char(s: &mut Session, p: &Value) -> Result<Value> {
         {
             return Err(bad("style.character.edit", format!("can't rename to `{n}`")));
         }
+        // Redefine Style: the attributes the style sets take the selected text's values, and so
+        // do those where the text differs from its paragraph's look.
+        let redefined = match &picked {
+            Some((look, paragraph)) => Some(redefined_chars(d, &name, look, paragraph)?),
+            None => None,
+        };
         let st = d.styles_mut().char_style_mut(&name).ok_or_else(|| bad("style.character.edit", format!("no character style `{name}`")))?;
+        if let Some(r) = &redefined {
+            st.chars.merge(r);
+        }
         st.chars.merge(&chars);
         for k in &unset {
             st.chars.set_json(k, &Value::Null).map_err(|e| bad("style.character.edit", e))?;
@@ -756,6 +862,184 @@ fn create_swatch(s: &mut Session, p: &Value) -> Result<Value> {
         });
         Ok(json!({"name": name}))
     })
+}
+
+fn delete_swatch(s: &mut Session, p: &Value) -> Result<Value> {
+    const ID: &str = "swatch.delete";
+    let name = str_param(p, "name").unwrap_or("").to_string();
+    let replace = str_param(p, "replaceWith").map(str::to_string);
+    s.edit(|d, _| {
+        if d.swatch(&name).is_some_and(|w| w.locked) {
+            return Err(bad(ID, "special swatches can't be deleted"));
+        }
+        if let Some(to) = &replace {
+            if *to == name {
+                return Err(bad(ID, "a swatch can't replace itself"));
+            }
+            if d.swatch(to).is_none_or(|w| w.hidden) {
+                return Err(bad(ID, format!("no swatch `{to}`")));
+            }
+            if d.swatch(&name).is_none() {
+                return Err(bad(ID, format!("no swatch `{name}`")));
+            }
+            replace_swatch_uses(d, &name, to);
+        }
+        d.swatches.retain(|w| w.name != name);
+        for g in &mut d.color_groups {
+            g.swatches.retain(|w| *w != name);
+        }
+        Ok(json!({"deleted": name, "replacedWith": replace}))
+    })
+}
+
+/// Swatch Options: a swatch's name, colour (and process or spot), or a tint swatch's tint.
+fn set_swatch(s: &mut Session, p: &Value) -> Result<Value> {
+    const ID: &str = "swatch.set";
+    let name = str_param(p, "name").ok_or_else(|| bad(ID, "missing name"))?.to_string();
+    let rename = str_param(p, "rename").map(|n| n.trim().to_string()).filter(|n| *n != name);
+    let color = match p.get("color") {
+        None | Some(Value::Null) => None,
+        Some(c) => Some(parse_color(c).ok_or_else(|| bad(ID, "bad color"))?),
+    };
+    let spot = p.get("spot").and_then(Value::as_bool);
+    let tint = match p.get("tint") {
+        None | Some(Value::Null) => None,
+        Some(t) => Some(t.as_f64().filter(|t| (0.0..=1.0).contains(t)).ok_or_else(|| bad(ID, "tint is from 0 to 1"))? as f32),
+    };
+    s.edit(|d, _| {
+        let w = d.swatch(&name).filter(|w| !w.hidden).ok_or_else(|| bad(ID, format!("no swatch `{name}`")))?;
+        if w.locked && (rename.is_some() || !matches!(w.value, SwatchValue::Color { .. } | SwatchValue::Paper { .. })) {
+            return Err(bad(ID, "special swatches keep their name"));
+        }
+        if w.locked && (color.is_some() || spot.is_some() || tint.is_some()) && !matches!(w.value, SwatchValue::Paper { .. }) {
+            return Err(bad(ID, "special swatches can't be changed"));
+        }
+        if let Some(n) = &rename
+            && (n.is_empty() || n.starts_with('[') || d.swatch(n).is_some())
+        {
+            return Err(bad(ID, format!("can't rename to `{n}`")));
+        }
+        let auto_name = !w.named;
+        let w = d.swatches.iter_mut().find(|w| w.name == name).ok_or_else(|| bad(ID, format!("no swatch `{name}`")))?;
+        match &mut w.value {
+            SwatchValue::Color { color: c, color_type } => {
+                if let Some(next) = color {
+                    *c = next;
+                }
+                if let Some(on) = spot {
+                    *color_type = if on { kition_layout_color::ColorType::Spot } else { kition_layout_color::ColorType::Process };
+                }
+                if tint.is_some() {
+                    return Err(bad(ID, "only a tint swatch has a tint"));
+                }
+            }
+            SwatchValue::Paper { color: c } => {
+                if let Some(next) = color {
+                    *c = next;
+                }
+                if spot.is_some() || tint.is_some() {
+                    return Err(bad(ID, "Paper is a colour only"));
+                }
+            }
+            SwatchValue::Tint { tint: t, .. } => {
+                if color.is_some() || spot.is_some() {
+                    return Err(bad(ID, "a tint swatch takes its colour from its base"));
+                }
+                if let Some(next) = tint {
+                    *t = next;
+                }
+            }
+            _ => {
+                if color.is_some() || spot.is_some() || tint.is_some() {
+                    return Err(bad(ID, "this swatch has no colour to change"));
+                }
+            }
+        }
+        // A swatch named after its values follows them (InDesign's Name with Color Value).
+        let to = match (&rename, color) {
+            (Some(n), _) => Some(n.clone()),
+            (None, Some(c)) if auto_name => {
+                let n = value_name(c);
+                (n != name && d.swatch(&n).is_none()).then_some(n)
+            }
+            _ => None,
+        };
+        if let Some(to) = &to {
+            if let Some(w) = d.swatches.iter_mut().find(|w| w.name == name) {
+                w.name = to.clone();
+                w.named = w.named || rename.is_some();
+            }
+            replace_swatch_uses(d, &name, to);
+        }
+        Ok(json!({"name": to.unwrap_or(name)}))
+    })
+}
+
+/// Points every use of swatch `from` at swatch `to`: objects' fills and strokes, text and the
+/// text formats of styles, object styles, table cells, tint swatches and colour groups.
+fn replace_swatch_uses(d: &mut kition_layout_doc::Document, from: &str, to: &str) {
+    let swap = |name: &mut String| {
+        if name == from {
+            *name = to.to_string();
+        }
+    };
+    let chars = |a: &mut CharAttrs| {
+        for field in [&mut a.fill, &mut a.stroke, &mut a.underline_color, &mut a.strikethrough_color].into_iter().flatten() {
+            if field == from {
+                *field = to.to_string();
+            }
+        }
+    };
+    for sp in d.spreads.iter_mut().chain(d.parents.iter_mut()) {
+        let sp = std::sync::Arc::make_mut(sp);
+        for top in &mut sp.items {
+            rename_in(std::sync::Arc::make_mut(top), from, to);
+        }
+    }
+    for sid in d.stories.keys().copied().collect::<Vec<_>>() {
+        let Some(story) = d.story_mut(sid) else { continue };
+        story.for_each_text_mut(&mut |st| {
+            for run in &mut st.chars {
+                chars(&mut run.format.over);
+            }
+            for f in &mut st.paras {
+                chars(&mut f.chars);
+            }
+            for t in st.tables.values_mut() {
+                for c in &mut std::sync::Arc::make_mut(t).cells {
+                    if c.fill == from {
+                        c.fill = to.to_string();
+                    }
+                }
+            }
+            st.rev += 1;
+        });
+    }
+    let styles = d.styles_mut();
+    for st in &mut styles.paragraph {
+        chars(&mut st.chars);
+    }
+    for st in &mut styles.character {
+        chars(&mut st.chars);
+    }
+    for st in &mut styles.object {
+        if let Some(f) = &mut st.fill {
+            swap(&mut f.swatch);
+        }
+        if let Some(k) = &mut st.stroke {
+            swap(&mut k.swatch);
+        }
+    }
+    for w in &mut d.swatches {
+        if let SwatchValue::Tint { base, .. } = &mut w.value {
+            swap(base);
+        }
+    }
+    for g in &mut d.color_groups {
+        for w in &mut g.swatches {
+            swap(w);
+        }
+    }
 }
 
 pub fn parse_color(v: &Value) -> Option<kition_layout_color::Color> {

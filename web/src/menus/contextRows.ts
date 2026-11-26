@@ -23,6 +23,12 @@ export type ContextRow = { id: string; params?: Record<string, unknown> } | '-'
 const row = (id: string, params?: Record<string, unknown>): ContextRow => (params ? { id, params } : { id })
 const rows = (...ids: string[]): ContextRow[] => ids.map((id) => (id === '-' ? '-' : row(id)))
 
+/** The editor's own rows that open its dialogs (plan stage 7): the row, its label, the dialog. */
+export const OWN_DIALOG_ROWS: Readonly<Record<string, { label: string; dialog: 'effects' | 'layerOptions' }>> = {
+  'kit:object.effects': { label: 'Effects…', dialog: 'effects' },
+  'kit:layer.options': { label: 'Layer Options…', dialog: 'layerOptions' },
+}
+
 /** The rows of the menu at `spot`; separators never lead, trail or come twice. */
 export function contextRows(spot: Spot): ContextRow[] {
   const out: ContextRow[] = (() => {
@@ -34,7 +40,7 @@ export function contextRows(spot: Spot): ContextRow[] {
           ...rows('arrange.bringToFront', 'arrange.bringForward', 'arrange.sendBackward', 'arrange.sendToBack', '-'),
           ...(spot.image ? rows('object.fit|fillProportionally', 'object.fit|fitProportionally', 'object.fit|fitFrameToContent', 'object.fit|centerContent', '-') : []),
           ...(spot.textFrame ? rows('object.textFrameOptions') : []),
-          ...rows('object.dropShadow', 'object.cornerOptions', '-'),
+          ...rows('kit:object.effects', 'object.cornerOptions', '-'),
           ...rows('object.lock', spot.group ? 'arrange.ungroup' : spot.count > 1 ? 'arrange.group' : '-', 'edit.delete'),
         ]
       case 'text':
@@ -80,7 +86,16 @@ export function contextRows(spot: Spot): ContextRow[] {
       case 'page':
         return rows('layout.pages.insert', 'layout.pages.move', 'layout.pages.duplicateSpread', 'layout.pages.delete', '-', 'layout.pages.applyParent', 'layout.marginsAndColumns', '-', 'kit:view.fitPage', 'kit:view.fitSpread')
       case 'layer':
-        return [row('layer.new'), row('layer.duplicate', { id: spot.layer }), row('layer.selectItems', { id: spot.layer }), '-', row('layer.delete', { id: spot.layer }), row('layer.deleteUnused')]
+        return [
+          row('kit:layer.options', { id: spot.layer }),
+          '-',
+          row('layer.new'),
+          row('layer.duplicate', { id: spot.layer }),
+          row('layer.selectItems', { id: spot.layer }),
+          '-',
+          row('layer.delete', { id: spot.layer }),
+          row('layer.deleteUnused'),
+        ]
     }
   })()
   return out.filter((entry, index) => entry !== '-' || (index > 0 && index < out.length - 1 && out[index - 1] !== '-'))

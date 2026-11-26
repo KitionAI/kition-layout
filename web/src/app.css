@@ -411,6 +411,11 @@
   align-items: center;
   gap: 4px;
   padding: 0 10px 6px;
+  /* Kept in view while the spreads scroll: a parent is dragged onto any page (stage 7). */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--kit-surface);
 }
 
 .layout-parent {
@@ -842,4 +847,88 @@
 
 .layout-place-count {
   padding: 0 4px;
+}
+
+/* Options dialogs with sections (plan 2026-11-25, stage 7: style options, Effects): a list of the
+   sections beside one scrolling page. */
+.layout-dialog:has(> .layout-options) {
+  max-width: 720px;
+}
+
+.layout-options {
+  display: flex;
+  gap: 12px;
+  width: 640px;
+  max-width: calc(100vw - 96px);
+  height: min(460px, calc(100vh - 220px));
+}
+
+.layout-options-nav {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 190px;
+  overflow-y: auto;
+  border-right: 1px solid var(--kit-border);
+}
+
+.layout-options-nav .layout-list-item {
+  padding: 5px 8px;
+}
+
+.layout-options-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.layout-options-heading {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.layout-effects-entry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 6px;
+}
+
+.layout-effects-entry .layout-list-item {
+  padding-left: 2px;
+}
+
+/* A style the text overrides, and a swatch's kind. */
+.layout-override-mark,
+.layout-swatch-mark {
+  margin-left: auto;
+  padding-left: 6px;
+  font-size: 11px;
+}
+
+/* Dragging rows (Pages, Layers): the row being dragged, and where it would drop. */
+[data-dragging='true'] {
+  opacity: 0.5;
+}
+
+[data-drop-over='true'] {
+  outline: 2px solid var(--kit-primary);
+  outline-offset: -2px;
+}
+
+.layout-parent {
+  cursor: grab;
+  user-select: none;
+}
+
+.layout-editing-parents {
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
 }

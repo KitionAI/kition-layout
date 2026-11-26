@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "test:unit": "node --test src/exporting.test.mjs src/dialogs/dialogs.test.mjs src/dialogs/menuRows.test.mjs src/view.test.mjs src/units.test.mjs src/viewOptions.test.mjs src/panels/properties.test.mjs src/text.test.mjs src/images.test.mjs",
+    "test:unit": "node --test src/exporting.test.mjs src/dialogs/dialogs.test.mjs src/dialogs/menuRows.test.mjs src/view.test.mjs src/units.test.mjs src/viewOptions.test.mjs src/panels/properties.test.mjs src/text.test.mjs src/images.test.mjs src/panels/panels.test.mjs",
     "test:flow": "node tests/flow.mjs chromium && node tests/flow.mjs webkit",
     "test:export": "node tests/export.mjs chromium && node tests/export.mjs webkit",
     "test:modes": "node tests/modes.mjs chromium && node tests/modes.mjs webkit",
@@ -24,6 +24,7 @@
     "test:properties": "node tests/properties.mjs chromium && node tests/properties.mjs webkit",
     "test:text": "node tests/text.mjs chromium && node tests/text.mjs webkit",
     "test:images": "node tests/images.mjs chromium && node tests/images.mjs webkit",
+    "test:panels": "node tests/panels.mjs chromium && node tests/panels.mjs webkit",
     "test:contract": "node ../../kition-sdk/tools/check-manifest.mjs ../kit.json --module public/engine"
   },
   "dependencies": {

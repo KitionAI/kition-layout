@@ -383,7 +383,11 @@ fn declaration(command: &KitCommand) -> Declaration {
             name("shadow", &["Swatch"]);
         }
         "object.textFrameOptions" => name("columnRuleColor", &["Swatch"]),
-        "swatch.delete" => name("name", &["Swatch"]),
+        "swatch.delete" => {
+            name("name", &["Swatch"]);
+            name("replaceWith", &["Swatch"]);
+        }
+        "swatch.set" => name("name", &["Swatch"]),
         "swatch.addToSwatches" => name("swatch", &["Swatch"]),
         "swatch.save" => name("names", &["Swatch"]),
         "swatch.moveToGroup" | "swatch.newColorGroup" => name("swatches", &["Swatch"]),

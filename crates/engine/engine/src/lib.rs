@@ -287,6 +287,9 @@ pub struct Session {
     /// A dialog's live preview is showing ([`Session::preview_command`]): the interaction is the
     /// dialog's, not a tool's.
     pub(crate) dialog_preview: bool,
+    /// The commands a dialog's preview of several steps shows ([`Session::preview_steps`]): the
+    /// journal takes them when the preview is kept.
+    pub(crate) dialog_steps: Vec<(String, Value)>,
     /// Character formatting chosen at a bare caret in text, for what is typed there next.
     pub(crate) typing_format: Option<cmd::text::TypingFormat>,
     /// The word, line, paragraph or story several clicks selected: a drag after them grows the
@@ -329,6 +332,7 @@ impl Session {
             typing: None,
             typing_now: false,
             dialog_preview: false,
+            dialog_steps: Vec::new(),
             typing_format: None,
             text_unit: None,
         }
@@ -652,6 +656,8 @@ mod tests_hosted;
 mod tests_idml;
 #[cfg(test)]
 mod tests_images;
+#[cfg(test)]
+mod tests_panels;
 #[cfg(test)]
 mod tests_roundtrip;
 #[cfg(test)]

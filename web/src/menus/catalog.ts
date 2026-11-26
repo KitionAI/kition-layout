@@ -338,6 +338,8 @@ const MENUS: ReadonlyArray<readonly [string, readonly Entry[]]> = [
       '<',
       '-',
       '>Effects',
+      k('object.effects', 'Effects…'),
+      '-',
       c('object.dropShadow'),
       c('object.innerShadow'),
       c('object.outerGlow'),

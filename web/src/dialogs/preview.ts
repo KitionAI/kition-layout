@@ -20,6 +20,27 @@ export type CommandPreview = PreviewDialogPreview & { keep: (params: Record<stri
  * shows the document as it is. Undefined without an open document.
  */
 export function useCommandPreview(command: string, params: Record<string, unknown> | null): CommandPreview | undefined {
+  return usePreview(command, params, (doc, draft) => doc.invoke('previewCommand', command, JSON.stringify(draft)))
+}
+
+/** Several commands a dialog runs together (`[command, params]` each), one history step named by its label. */
+export type Steps = Array<[string, Record<string, unknown>]>
+
+/**
+ * A dialog's live preview of several commands (plan 2026-11-25, stage 7: the Effects dialog sets
+ * the opacity and each effect), as `useCommandPreview` previews one: the engine's `previewSteps`
+ * shows them in order on the document as it was when the dialog opened; OK keeps them as one step
+ * named `label` when the preview shows just those steps (`keep({steps})`). `steps` null or empty
+ * shows the document as it is.
+ */
+export function useStepsPreview(label: string, steps: Steps | null): CommandPreview | undefined {
+  return usePreview(`steps:${label}`, steps && steps.length ? { steps } : null, (doc, draft) => doc.invoke('previewSteps', label, JSON.stringify(draft.steps)))
+}
+
+type PreviewDoc = NonNullable<ReturnType<typeof useKitEditor>['session']['doc']>
+
+function usePreview(key: string, params: Record<string, unknown> | null, showDraft: (doc: PreviewDoc, draft: Record<string, unknown>) => Promise<unknown>): CommandPreview | undefined {
+  const command = key
   const { session, t } = useKitEditor()
   const { repaint } = useEditorView()
   const doc = session.doc
@@ -49,7 +70,7 @@ export function useCommandPreview(command: string, params: Record<string, unknow
       if (!draft) return cancel()
       try {
         showing = null
-        await doc.invoke('previewCommand', command, JSON.stringify(draft))
+        await showDraft(doc, draft)
         showing = JSON.stringify(draft)
       } catch (error) {
         const reason = refusalReason(error)

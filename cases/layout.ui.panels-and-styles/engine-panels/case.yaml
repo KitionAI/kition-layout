@@ -1,0 +1,23 @@
+format: 1
+id: layout.ui.panels-and-styles/engine-panels
+feature: layout.ui.panels-and-styles
+intent: >-
+  In the engine: swatch.set changes a swatch's colour, process or spot and a tint swatch's tint in
+  one undo step, a new name (or a value-named swatch's new colour) follows every use (objects,
+  text, styles, tints), special swatches keep theirs; swatch.delete with replaceWith hands every
+  use to another swatch; Redefine Style (fromSelection) takes the selected text's look into a
+  paragraph or character style and drops the overrides that now say the same; a dialog previews
+  several commands as one step (Cancel leaves nothing, OK one step, a failing step nothing).
+layer: gate
+source:
+  kind: synthetic
+  from: crates/engine/engine/src/tests_panels.rs
+  license: Apache-2.0
+input: []
+steps:
+  - cargo-test: { package: kition-layout-engine, filter: tests_panels }
+expected:
+  - actual: out:cargo-test
+    compare: exit
+    value: 0
+since: "2026-11-25"

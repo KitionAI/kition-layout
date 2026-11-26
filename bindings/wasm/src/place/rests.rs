@@ -126,6 +126,22 @@ fn rules(command: &str, params: &Value) -> Vec<Rule> {
         "style.exportTag" => vec![rule(On::Root, &["settings.exportTags"], &[])],
         "style.paragraph.delete" | "style.character.delete" | "style.object.apply" | "style.group" => vec![rule(On::StoriesText, &["text"], &[])],
         "swatch.save" => vec![rule(On::Swatches, &["value"], &[])],
+        // Replacing a swatch or renaming it (stage 7) points every use at the new name: objects'
+        // fills and strokes, text formats, the styles and the tints based on it.
+        "swatch.delete" if params.get("replaceWith").is_some() => vec![
+            rule(On::AllItems, &["fill", "stroke"], &[]),
+            rule(On::StoriesText, &["text"], &[]),
+            rule(On::Root, &["paragraphStyles", "characterStyles", "objectStyles"], &[]),
+            rule(On::Swatches, &["name", "value", "hidden"], &[]),
+        ],
+        "swatch.set" if params.get("rename").is_some() || params.get("color").is_some() => vec![
+            rule(On::AllItems, &["fill", "stroke"], &[]),
+            rule(On::StoriesText, &["text"], &[]),
+            rule(On::Root, &["paragraphStyles", "characterStyles", "objectStyles"], &[]),
+            rule(On::Swatches, &["name", "value"], &[]),
+        ],
+        // Redefine Style reads the selected text's formats.
+        "style.paragraph.edit" | "style.character.edit" if flag("fromSelection") => vec![rule(On::SelectedStory, &["text"], &[])],
         "swatch.addUnnamed" => vec![rule(On::Swatches, &["hidden"], &[])],
         "swatch.newColorGroup" => vec![rule(On::Root, &["settings.colorGroups"], &[]), rule(On::Swatches, &["locked"], &[])],
         "swatch.moveToGroup" => vec![rule(On::Root, &["settings.colorGroups"], &[])],

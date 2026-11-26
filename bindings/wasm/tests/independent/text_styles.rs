@@ -756,6 +756,7 @@ fn style_checks() -> Vec<Check> {
         check("swatch.addToSwatches", r#"{"swatch":"Ink"}"#, &[], &[("$INK", &["locked", "hidden"])], &["selection", "mode"]),
         check("swatch.addUnnamed", r#"{}"#, &[], &[("$INK", &["hidden"])], &["mode"]),
         check("swatch.delete", r#"{"name":"Ink"}"#, &[], &[("$INK", &["locked", "name"])], &["mode"]),
+        check("swatch.set", r#"{"name":"Ink","spot":true}"#, &[], &[("$INK", &["locked", "name", "hidden", "named", "value"])], &["mode"]),
         check("ink.options", r#"{"allToProcess":true}"#, &[], &[("layout", &["settings.inks.allToProcess"])], &["mode"]),
         check(
             "swatch.newColorGroup",
@@ -1717,9 +1718,16 @@ fn styles() -> Vec<Row> {
         row("swatch.addUnnamed", "all hidden swatches", "swatch hidden flags/membership", "unhide every hidden swatch", &[]),
         row(
             "swatch.delete",
-            "name swatch",
-            "swatch locked flag and color-group references",
-            "remove unlocked named swatch and group membership; item references remain",
+            "name swatch; replaceWith optional visible swatch",
+            "swatch locked flag and color-group references; with replaceWith every item fill/stroke, story run and paragraph text format, paragraph/character/object style colour, table cell fill and tint base naming it",
+            "remove unlocked named swatch and group membership; item references remain unless replaceWith renames every use",
+            &[],
+        ),
+        row(
+            "swatch.set",
+            "name visible swatch; rename, color, spot, tint optional",
+            "swatch value kind, locked and named flags; swatch namespace for a new or value-derived name; with a new name every use (item fill/stroke, text formats, style colours, cell fills, tint bases, color groups)",
+            "patch color/process-spot or tint; rename and every use when renamed or auto-named colour changes",
             &[],
         ),
         row("ink.list", "query spot inks", "spot swatches and ink manager aliases/process settings", "query only", &[]),

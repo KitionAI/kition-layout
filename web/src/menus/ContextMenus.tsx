@@ -5,7 +5,7 @@ import { VIEW_ACTIONS, itemAt, spreadOfPage, type ViewAction } from '../view'
 import type { Dialogs } from '../dialogs/DialogHost'
 import { asks } from '../dialogs/routes'
 import { VARIANT_LABELS, engineCommandOf } from './catalog'
-import { contextRows, type Spot } from './contextRows'
+import { OWN_DIALOG_ROWS, contextRows, type Spot } from './contextRows'
 import { viewChecked, viewRowLabel, type ViewState } from '../viewOptions'
 
 /** An open right-click menu: where it was opened and what is there. */
@@ -113,6 +113,17 @@ export function LayoutContextMenu({ menu, info, onClose, dialogs, onView, view: 
         if (id.startsWith('kit:view.unit.')) return <MenuItem key={id} label={t(`unit.${id.slice('kit:view.unit.'.length)}`)} checked={viewChecked(id, options)} onSelect={() => onViewOption(id)} testId={`layout-context-row-${id}`} />
         const option = viewRowLabel(id)
         if (option) return <MenuItem key={id} label={p(option)} checked={viewChecked(id, options)} onSelect={() => onViewOption(id)} testId={`layout-context-row-${id}`} />
+        const own = OWN_DIALOG_ROWS[id]
+        if (own)
+          return (
+            <MenuItem
+              key={id}
+              label={p(own.label)}
+              disabled={own.dialog === 'effects' && !info?.selection.length}
+              onSelect={() => dialogs.current?.show(own.dialog, params)}
+              testId={`layout-context-row-${id}`}
+            />
+          )
         const view = VIEW_ROW.get(id)
         if (view) return <MenuItem key={id} label={p(view.label)} shortcut={view.shortcut} onSelect={() => onView(view.action)} testId={`layout-context-row-${id}`} />
         const command = engineCommandOf(id) ?? id

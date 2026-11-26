@@ -252,12 +252,63 @@ impl Session {
             self.begin_interaction(spec.label.trim_end_matches('…'))?;
             self.dialog_preview = true;
         }
+        self.dialog_steps.clear();
         // Run as a nested command: the top-level bookkeeping (writing the replica, ending the
         // typing, taking a preview back) is the preview's own.
         self.depth += 1;
         let result = self.preview(cmd, params.clone());
         self.depth = self.depth.saturating_sub(1);
         result
+    }
+
+    /// A dialog's live preview of several commands (an Effects dialog sets opacity and each
+    /// effect): shows `steps` in order on the document as it was when the preview began, replacing
+    /// the previous preview, as [`Session::preview_command`] shows one. Kept, they are one undo
+    /// step named `label`; a step that fails leaves the document as it was before the steps.
+    pub fn preview_steps(&mut self, label: &str, steps: &[(String, Value)]) -> Result<()> {
+        for (cmd, _) in steps {
+            let spec = crate::find_command(cmd).ok_or_else(|| EngineError::UnknownCommand(cmd.clone()))?;
+            if !spec.undoable {
+                return Err(EngineError::Other(format!("`{cmd}` changes nothing a preview could show")));
+            }
+        }
+        if !self.dialog_preview {
+            if self.tool_busy() || self.doc()?.interaction.is_some() {
+                return Err(EngineError::Other("finish the gesture in progress before a preview".into()));
+            }
+            self.begin_interaction(label.trim_end_matches('…'))?;
+            self.dialog_preview = true;
+        }
+        let st = self.doc_mut()?;
+        let Some(it) = st.interaction.clone() else { return Err(EngineError::Other("no interaction".into())) };
+        st.doc = it.doc.clone();
+        st.selection = it.selection.clone();
+        if let Some(i) = st.interaction.as_mut() {
+            i.preview = None;
+        }
+        self.dialog_steps.clear();
+        let journaled = self.journal.len();
+        self.depth += 1;
+        let mut failed = None;
+        for (cmd, params) in steps {
+            if let Err(error) = self.execute(cmd, params) {
+                failed = Some(error);
+                break;
+            }
+        }
+        self.depth = self.depth.saturating_sub(1);
+        // Journal only the committed result.
+        self.journal.truncate(journaled);
+        if let Some(error) = failed {
+            if let Ok(st) = self.doc_mut() {
+                st.doc = it.doc;
+                st.selection = it.selection;
+                st.revision = st.revision.saturating_add(1);
+            }
+            return Err(error);
+        }
+        self.dialog_steps = steps.to_vec();
+        Ok(())
     }
 
     /// Keeps a dialog's preview as one undo step, labelled with its command. False when no preview
@@ -268,7 +319,9 @@ impl Session {
         }
         // Typing in progress is a step of its own, not part of the dialog's.
         self.end_typing();
+        let steps = std::mem::take(&mut self.dialog_steps);
         self.commit_interaction()?;
+        self.journal.extend(steps);
         Ok(true)
     }
 
@@ -309,6 +362,7 @@ impl Session {
 
     pub fn cancel_interaction(&mut self) {
         self.dialog_preview = false;
+        self.dialog_steps.clear();
         if let Some(st) = self.active_mut()
             && let Some(it) = st.interaction.take()
         {
