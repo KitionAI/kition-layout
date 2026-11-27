@@ -1,4 +1,4 @@
-//! `document.identity` and `document.fork` (Kit Process Protocol section 5.6, KitModel M7a)
+//! `file.identity` and `file.fork` (Kit Process Protocol section 5.6, KitModel M7a)
 //! through the real `kition-layout` process: a `.klayout` holds the layout's content
 //! (`content.json`, the KDM content: the state, no history), so a byte copy of a file is the same
 //! document. A host reads the identity a file carries without opening the layout, and forks a file
@@ -77,7 +77,7 @@ async fn objects(kit: &HeadlessKit, path: &str) -> Value {
     assert!(ids.len() >= 4, "the layout, a page and its frames: {inventory}");
     let load: Vec<Value> = ids.iter().map(|id| json!({ "target": id })).collect();
     let loaded = batch(json!({ "ops": [], "load": load })).await.unwrap();
-    kit.request("document.close", json!({ "documentId": document }), LIMIT).await.unwrap();
+    kit.request("file.close", json!({ "documentId": document }), LIMIT).await.unwrap();
     json!({ "objects": inventory["objects"], "loaded": loaded["loaded"] })
 }
 
@@ -110,7 +110,7 @@ async fn a_layout_tells_its_identity_and_forks_into_a_new_document_without_histo
     let dir = workspace("embedded");
     std::fs::write(dir.join("Plan.klayout"), layout()).unwrap();
     let kit = launch(&dir).await;
-    assert!(kit.serves("document.identity"), "{}", kit.capabilities());
+    assert!(kit.serves("file.identity"), "{}", kit.capabilities());
 
     // The identity the file carries, read without opening it, and the same for a byte copy.
     let source_id = kit.identity("Plan.klayout", LIMIT).await.unwrap().doc_id.expect("a layout file has an identity");
@@ -138,7 +138,7 @@ async fn a_layout_tells_its_identity_and_forks_into_a_new_document_without_histo
         .await
         .unwrap();
     assert_ne!(draft["documentId"], state["documentId"], "{draft}");
-    kit.request("document.close", json!({ "documentId": state["documentId"] }), LIMIT).await.unwrap();
+    kit.request("file.close", json!({ "documentId": state["documentId"] }), LIMIT).await.unwrap();
 
     // The fork's file: the new id in meta.json and in its content too, no history, only the
     // referenced blobs, everything else kept.

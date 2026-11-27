@@ -329,7 +329,7 @@ impl Agent {
 
     fn check(&mut self, id: &str) -> Value {
         let found = self.kit.check(id).unwrap();
-        self.answers.push(("document.check".into(), found.clone()));
+        self.answers.push(("file.check".into(), found.clone()));
         found
     }
 }

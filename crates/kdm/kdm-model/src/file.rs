@@ -119,7 +119,7 @@ pub(crate) fn export_file(replica: &Replica, blobs: &dyn BlobSource) -> Result<V
     write(replica, blobs, Vec::new()).map(|(bytes, _)| bytes)
 }
 
-/// The replica a `.klayout` file embeds (`document.identity`, KitModel M7a): its content,
+/// The replica a `.klayout` file embeds (`file.identity`, KitModel M7a): its content,
 /// checked against `meta.json`'s copy of the docId. `None` for a file that holds no replica: an
 /// empty file (one made for the kit before it saved a layout there) or an IDML package (another
 /// program's file, which opens as a new replica each time). Other bytes answer `not-a-layout: …`
@@ -133,7 +133,7 @@ pub fn embedded_replica(bytes: &[u8]) -> Result<Option<Vec<u8>>> {
 }
 
 /// `bytes` (a `.klayout` file) holding the document `snapshot` instead of its own
-/// (`document.fork`, KitModel M7a): `content.json` is the snapshot's content, `meta.json`'s docId
+/// (`file.fork`, KitModel M7a): `content.json` is the snapshot's content, `meta.json`'s docId
 /// the snapshot's, and the blobs only the ones
 /// its state references (what a save writes), so no earlier identity stays in the file. Entries
 /// this build does not know are kept.

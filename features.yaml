@@ -609,7 +609,7 @@ features:
     cases: [layout.file.new-document/a4-millimetres, regressions/issue-walk-new-document, regressions/issue-walk-new-document-parent, regressions/issue-walk-primary-pages]
     since: "2026-11-25"
   - id: layout.platform.document-identity
-    title: "A host reads the document id a .klayout carries and forks a copied layout into a new document with no history (document.identity, document.fork; Kit Process Protocol 5.6)"
+    title: "A host reads the document id a .klayout carries and forks a copied layout into a new document with no history (file.identity, file.fork; Kit Process Protocol 5.6)"
     dimension: [platform, data-safety]
     priority: P1
     status: has

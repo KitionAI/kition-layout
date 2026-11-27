@@ -5,7 +5,7 @@ intent: >-
   Through the real kition-layout process: an empty .klayout (made for the kit before it saved a
   layout) and an IDML package (another program's file, a new layout each time it opens) carry no
   identity, and their forks are the same bytes with no docId; bytes that are not a layout are
-  refused as unsupported_format by both document.identity and document.fork, never answered with
+  refused as unsupported_format by both file.identity and file.fork, never answered with
   no identity, and the fork writes nothing.
 layer: gate
 tags: [headless]

@@ -12,7 +12,7 @@ workspace = true
 [dependencies]
 kition-layout-kit = { path = "../wasm" }
 kition-headless = { workspace = true }
-# The layout container's replica (`LayoutFiles`, document.identity): its schema and error type.
+# The layout container's replica (`LayoutFiles`, file.identity): its schema and error type.
 kition-layout-kdm = { workspace = true }
 kition-kit = { workspace = true }
 kition-kit-server = { workspace = true }
@@ -26,7 +26,7 @@ kition-layout-fonts = { workspace = true, features = ["testing"] }
 kition-kits = { workspace = true }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 serde_json = { workspace = true }
-# document.identity and document.fork through the real process (tests/identity.rs).
+# file.identity and file.fork through the real process (tests/identity.rs).
 kition-kit-host = { workspace = true }
 kition-layout-format = { workspace = true }
 kition-layout-engine = { workspace = true }

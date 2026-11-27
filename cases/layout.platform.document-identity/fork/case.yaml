@@ -2,8 +2,8 @@ format: 1
 id: layout.platform.document-identity/fork
 feature: layout.platform.document-identity
 intent: >-
-  Through the real kition-layout process: document.identity answers the docId a .klayout carries
-  (the one meta.json's copy names), and a byte copy answers the same one; document.fork writes a
+  Through the real kition-layout process: file.identity answers the docId a .klayout carries
+  (the one meta.json's copy names), and a byte copy answers the same one; file.fork writes a
   new document to a new file: a new docId in the replica and in meta.json, the same objects, ids
   and values, content with no history whose docId is the fork's, only the blobs the layout references (a
   stray one stays behind), the kit and unknown entries as they were; the fork exports and opens as

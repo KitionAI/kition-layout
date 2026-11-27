@@ -2,8 +2,8 @@
 //! (`kition-layout-kit`), served headless over the Kit Protocol by `kition-headless`, as the kit's
 //! `kit.json` declares it, with the object model (`model.describe`, `model.batch`) and the replica
 //! methods (`model.open`, `model.import`, `model.export`, `model.save`) over the document's change
-//! exchange (engine contract 2), and the identity a file carries (`document.identity`,
-//! `document.fork`: a `.klayout` holds its replica's content, [`LayoutFiles`]).
+//! exchange (engine contract 2), and the identity a file carries (`file.identity`,
+//! `file.fork`: a `.klayout` holds its replica's content, [`LayoutFiles`]).
 //!
 //! The executable's `main` serves [`backend`]; tests drive the same backend in-process.
 //!
@@ -34,7 +34,7 @@ pub fn backend(kit: &KitInfo) -> Headless<LayoutDocument> {
     Headless::<LayoutDocument>::with_replica_port(kit.clone()).with_file_identity(FileIdentity::Embedded(Arc::new(LayoutFiles)))
 }
 
-/// Where a `.klayout` file keeps the layout's replica (`document.identity` and `document.fork`, Kit
+/// Where a `.klayout` file keeps the layout's replica (`file.identity` and `file.fork`, Kit
 /// Process Protocol section 5.6): `content.json`, the document's content (no history). A
 /// fork's file holds the copy's content there, with `meta.json`'s copy of the docId the copy's
 /// (`kition_layout_kdm::file::replace_replica`). An empty file or an IDML package holds none.
